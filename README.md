@@ -8,7 +8,7 @@ All data is fetched directly from [football-data.org](https://www.football-data.
 
 ## Screenshots
 
-> _Add screenshots here_
+
 
 | Home | Players | Predictions | Squad Intel |
 |------|---------|-------------|-------------|
