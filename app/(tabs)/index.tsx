@@ -348,7 +348,7 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <ScreenHeader
-          title="SoccerIQ"
+          title="FootSnap"
           subtitle="Live · Standings · Insights"
           right={
             <View style={styles.liveIndicator}>

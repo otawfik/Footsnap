@@ -1,5 +1,5 @@
 /**
- * SoccerIQ API Service
+ * FootSnap API Service
  * Calls football-data.org directly. The API key is read from
  * EXPO_PUBLIC_FOOTBALL_API_KEY in .env and is bundled client-side —
  * acceptable for a personal / dev build. Migrate back to a server proxy
