@@ -1,8 +1,8 @@
 #!/bin/bash
-# SoccerIQ Flask Backend Setup
+# FootSnap Flask Backend Setup
 set -e
 
-echo "🚀 Setting up SoccerIQ Flask backend..."
+echo "🚀 Setting up FootSnap Flask backend..."
 
 # Create virtual environment
 python3 -m venv venv

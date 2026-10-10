@@ -1,4 +1,6 @@
-# SoccerIQ
+# FootSnap
+
+[![typecheck](https://github.com/otawfik/Footsnap/actions/workflows/ci.yml/badge.svg)](https://github.com/otawfik/Footsnap/actions/workflows/ci.yml)
 
 A premium dark-themed React Native + Expo app for football intelligence — live fixtures, standings, top scorers with FIFA Ultimate Team-style player cards, form-based predictions, and squad intel across the top 5 European leagues and UEFA Champions League.
 
@@ -13,6 +15,8 @@ All data is fetched directly from [football-data.org](https://www.football-data.
 | Home | Players | Predictions | Squad Intel |
 |------|---------|-------------|-------------|
 | ![home](assets/screenshots/home.png) | ![players](assets/screenshots/players.png) | ![predictions](assets/screenshots/predictions.png) | ![transfers](assets/screenshots/transfers.png) |
+
+<p align="center"><img src="assets/screenshots/fut-card.png" width="300" alt="Tapping a top scorer opens a FIFA Ultimate Team-style card — here an S-tier Haaland"></p>
 
 ---
 
@@ -108,7 +112,7 @@ Scan the QR code with [Expo Go](https://expo.dev/go) on iOS or Android, or press
 ## Project Structure
 
 ```
-SoccerIQ/
+Footsnap/
 ├── app/
 │   ├── _layout.tsx           # Root layout (StatusBar, Stack)
 │   └── (tabs)/

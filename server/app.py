@@ -1,5 +1,5 @@
 """
-SoccerIQ Flask Backend
+FootSnap Flask Backend
 Proxies all requests to football-data.org so the API key is never exposed
 to the frontend client.
 """
@@ -63,7 +63,7 @@ def proxy_request(path: str, params: dict = None):
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "service": "SoccerIQ API"}), 200
+    return jsonify({"status": "ok", "service": "FootSnap API"}), 200
 
 
 # ---------------------------------------------------------------------------
