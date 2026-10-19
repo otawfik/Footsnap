@@ -13,7 +13,7 @@ export const Colors = {
   // Text
   textPrimary: '#FFFFFF',
   textSecondary: '#9B9B9B',
-  textMuted: '#555555',
+  textMuted: '#858585', // ≥4.6:1 on bg, cards and elevated; the old #555 was 2.6:1
 
   // Borders
   border: '#242424',

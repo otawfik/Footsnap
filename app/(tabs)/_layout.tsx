@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { View, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Typography, Spacing } from '../../constants/theme';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -20,17 +21,19 @@ function TabIcon({ name, focused, size }: TabIconProps) {
         size={size - 2}
         color={focused ? Colors.accentGreen : Colors.tabInactive}
       />
-      {focused && <View style={styles.dot} />}
     </View>
   );
 }
 
 export default function TabLayout() {
+  // sized from the device's real bottom inset (home indicator), not a guess per platform
+  const insets = useSafeAreaInsets();
+  const bottom = Math.max(insets.bottom, 8);
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [styles.tabBar, { height: 60 + bottom, paddingBottom: bottom }],
         tabBarActiveTintColor: Colors.accentGreen,
         tabBarInactiveTintColor: Colors.tabInactive,
         tabBarLabelStyle: styles.label,
@@ -65,11 +68,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="transfers"
+        name="squads"
         options={{
-          title: 'Transfers',
+          title: 'Squads',
           tabBarIcon: ({ focused, size }) => (
-            <TabIcon name={focused ? 'swap-horizontal' : 'swap-horizontal-outline'} focused={focused} size={size} />
+            <TabIcon name={focused ? 'people' : 'people-outline'} focused={focused} size={size} />
           ),
         }}
       />
@@ -91,9 +94,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderTopWidth: 1,
     borderTopColor: Colors.border,
-    height: Platform.OS === 'ios' ? 85 : 65,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 8,
-    paddingTop: 8,
+    paddingTop: 6,
     backgroundColor: Platform.OS === 'android' ? Colors.tabBar : 'transparent',
     elevation: 0,
   },
@@ -109,19 +110,11 @@ const styles = StyleSheet.create({
   iconWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 44,
+    height: 28,
+    borderRadius: 14,
   },
   iconWrapActive: {
     backgroundColor: Colors.accentGreen + '15',
-  },
-  dot: {
-    position: 'absolute',
-    bottom: -6,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.accentGreen,
   },
 });
