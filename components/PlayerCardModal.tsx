@@ -9,11 +9,14 @@ import {
   Animated,
   Dimensions,
   Platform,
+  Pressable,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Radius } from '../constants/theme';
+import type { Scorer } from '../lib/types';
 
 // ---------------------------------------------------------------------------
 // Tier config
@@ -115,20 +118,35 @@ const PHOTO_H = CARD_H * 0.52; // top half
 // Falls back to silhouette if the article has no thumbnail or the fetch fails.
 // ---------------------------------------------------------------------------
 
-async function fetchWikipediaPhoto(playerName: string): Promise<string | null> {
+async function summary(title: string): Promise<{ thumbnail?: { source?: string }; description?: string; type?: string; content_urls?: { mobile?: { page?: string }; desktop?: { page?: string } } } | null> {
   try {
-    // Wikipedia page titles use underscores and are case-sensitive on the first letter
-    const title = encodeURIComponent(playerName.replace(/ /g, '_'));
     const res = await fetch(
-      `https://en.wikipedia.org/api/rest_v1/page/summary/${title}`,
+      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title.replace(/ /g, '_'))}`,
       { headers: { Accept: 'application/json' } }
     );
-    if (!res.ok) return null;
-    const data = await res.json();
-    return (data?.thumbnail?.source as string) ?? null;
+    return res.ok ? await res.json() : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * A player's photo from Wikipedia, only when the article is about a footballer:
+ * try "<name> (footballer)" first, then the bare name, and reject
+ * disambiguation pages or articles whose short description isn't about
+ * football, so a common name doesn't come back with a stranger's face.
+ */
+async function fetchWikipediaPhoto(playerName: string): Promise<{ src: string; href: string } | null> {
+  for (const title of [`${playerName} (footballer)`, playerName]) {
+    const page = await summary(title);
+    if (!page || page.type === 'disambiguation') continue;
+    const about = (page.description ?? '').toLowerCase();
+    if (!/football|soccer/.test(about)) continue;
+    const src = page.thumbnail?.source;
+    const href = page.content_urls?.mobile?.page ?? page.content_urls?.desktop?.page;
+    return src && href ? { src, href } : null;
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -158,38 +176,52 @@ function PlayerPhoto({
   playerName: string;
   glowColor: string;
 }) {
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<{ src: string; href: string } | null>(null);
   const [useFallback, setUseFallback] = useState(false);
 
   useEffect(() => {
     // Reset when player changes
-    setPhotoUrl(null);
+    setPhoto(null);
     setUseFallback(false);
-    fetchWikipediaPhoto(playerName).then((url) => {
-      if (url) setPhotoUrl(url);
+    fetchWikipediaPhoto(playerName).then((found) => {
+      if (found) setPhoto(found);
       else setUseFallback(true);
     });
   }, [playerName]);
 
-  if (useFallback || photoUrl === null) {
+  if (useFallback || photo === null) {
     return <PlayerSilhouette glowColor={glowColor} />;
   }
 
+  // Wikipedia images are mostly CC BY-SA: credit the source and link to the
+  // article, whose file page names the photographer and licence
   return (
-    <Image
-      source={{ uri: photoUrl }}
-      style={styles.playerPhoto}
-      resizeMode="cover"
-      onError={() => setUseFallback(true)}
-    />
+    <View style={styles.playerPhoto}>
+      <Image
+        source={{ uri: photo.src }}
+        style={styles.playerPhoto}
+        resizeMode="cover"
+        onError={() => setUseFallback(true)}
+        accessibilityLabel={`Photo of ${playerName}`}
+      />
+      <Pressable
+        style={styles.photoCredit}
+        onPress={() => Linking.openURL(photo.href)}
+        accessibilityRole="link"
+        accessibilityLabel="Photo from Wikipedia, open the source"
+        hitSlop={8}
+      >
+        <Text style={styles.photoCreditText}>Photo: Wikipedia ↗</Text>
+      </Pressable>
+    </View>
   );
 }
 
 // ---------------------------------------------------------------------------
-// FUT Card
+// Player card
 // ---------------------------------------------------------------------------
 
-interface FUTCardProps {
+interface PlayerCardProps {
   name: string;
   nationality: string;
   teamName: string;
@@ -201,7 +233,7 @@ interface FUTCardProps {
   tier: Tier;
 }
 
-function FUTCard({
+function PlayerCard({
   name,
   nationality,
   teamName,
@@ -211,7 +243,7 @@ function FUTCard({
   penalties,
   playedMatches,
   tier,
-}: FUTCardProps) {
+}: PlayerCardProps) {
   const config = TIER_CONFIG[tier];
   const flag = nationalityFlag(nationality);
   const goalsPerMatch = playedMatches > 0 ? (goals / playedMatches).toFixed(2) : '0.00';
@@ -249,7 +281,7 @@ function FUTCard({
             glowColor={config.glowColor}
           />
 
-          {/* Gradient fade: photo → card background */}
+          {/* Gradient fade: photo → card background (pointerEvents none lets taps reach the photo credit) */}
           <LinearGradient
             colors={['transparent', 'transparent', config.gradientColors[2]]}
             locations={[0, 0.55, 1]}
@@ -303,8 +335,8 @@ function FUTCard({
           {/* Stats */}
           <View style={styles.futStatsRow}>
             {[
-              { val: goals, label: 'GOL' },
-              { val: assists ?? 0, label: 'ASS' },
+              { val: goals, label: 'GLS' },
+              { val: assists ?? 0, label: 'AST' },
               { val: penalties ?? 0, label: 'PEN' },
               { val: goalsPerMatch, label: 'G/M' },
             ].map(({ val, label }) => (
@@ -329,21 +361,14 @@ function FUTCard({
 // Modal wrapper
 // ---------------------------------------------------------------------------
 
-export interface PlayerFUTModalProps {
+export interface PlayerCardModalProps {
   visible: boolean;
   onClose: () => void;
   tier: Tier;
-  scorer: {
-    player: { id: number; name: string; nationality: string; dateOfBirth?: string };
-    team: { id: number; name: string; crest?: string };
-    goals: number;
-    assists: number | null;
-    penalties: number | null;
-    playedMatches: number;
-  } | null;
+  scorer: Scorer | null;
 }
 
-export function PlayerFUTModal({ visible, onClose, tier, scorer }: PlayerFUTModalProps) {
+export function PlayerCardModal({ visible, onClose, tier, scorer }: PlayerCardModalProps) {
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -401,15 +426,15 @@ export function PlayerFUTModal({ visible, onClose, tier, scorer }: PlayerFUTModa
         ]}
         pointerEvents="box-none"
       >
-        <FUTCard
+        <PlayerCard
           name={scorer.player.name}
-          nationality={scorer.player.nationality}
+          nationality={scorer.player.nationality ?? ''}
           teamName={scorer.team.name}
           teamCrest={scorer.team.crest}
           goals={scorer.goals}
           assists={scorer.assists}
           penalties={scorer.penalties}
-          playedMatches={scorer.playedMatches}
+          playedMatches={scorer.playedMatches ?? 0}
           tier={tier}
         />
 
@@ -476,6 +501,22 @@ const styles = StyleSheet.create({
   playerPhoto: {
     width: '100%',
     height: '100%',
+  },
+  photoCredit: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 5,
+    elevation: 5,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  photoCreditText: {
+    fontSize: 9,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   // Silhouette fills same space when photo fails
   silhouetteWrap: {

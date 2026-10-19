@@ -1,38 +1,59 @@
 {
   "expo": {
     "name": "FootSnap",
-    "slug": "socceriq",
+    "slug": "footsnap",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "scheme": "footsnap",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0D0D0D"
-    },
+    "backgroundColor": "#0D0D0D",
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.socceriq.app"
+      "supportsTablet": false,
+      "bundleIdentifier": "com.otawfik.footsnap",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.otawfik.footsnap",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0D0D0D"
       },
-      "package": "com.socceriq.app"
+      "edgeToEdgeEnabled": true,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "FootSnap",
+      "shortName": "FootSnap",
+      "themeColor": "#0D0D0D",
+      "backgroundColor": "#0D0D0D"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#0D0D0D"
+        }
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
-    },
-    "scheme": "socceriq"
+    }
   }
 }

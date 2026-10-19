@@ -1,175 +1,70 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  RefreshControl,
-} from 'react-native';
+/**
+ * Predictions from the Poisson goals model in lib/model.ts: the model's record
+ * on this season's matches so far, odds for the next fixtures, and a strength
+ * ranking from the fitted attack and defence ratings.
+ */
+import React, { useMemo, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, Image, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../../components/Card';
 import { LeagueSelector } from '../../components/LeagueSelector';
 import { ScreenHeader } from '../../components/ScreenHeader';
-import { StatusBadge } from '../../components/StatusBadge';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { EmptyState } from '../../components/EmptyState';
+import { ErrorState } from '../../components/ErrorState';
+import { FixtureCard } from '../../components/MatchCards';
 import { useApi } from '../../hooks/useApi';
-import { fetchPredictions, PredictionEntry } from '../../services/api';
-import { LEAGUES, League } from '../../constants/leagues';
+import { useLeague } from '../../context/league';
+import { fetchSeasonMatches } from '../../services/api';
+import { isFinished, isUpcoming, recentForm, Result } from '../../lib/football';
+import { backtest, fit, predict } from '../../lib/model';
+import type { Team } from '../../lib/types';
 import { Colors, Typography, Spacing, Radius } from '../../constants/theme';
 
-function FormBar({ score }: { score: number }) {
-  const pct = Math.min(Math.max(score, 0), 1);
-  const barColor =
-    pct > 0.6 ? Colors.win : pct > 0.35 ? Colors.draw : Colors.accentBlue;
+const pct = (x: number) => `${Math.round(x * 100)}%`;
+const signed = (x: number) => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x * 100))}%`;
 
-  return (
-    <View style={styles.formBarBg}>
-      <LinearGradient
-        colors={[barColor, barColor + '60']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={[styles.formBarFill, { width: `${Math.round(pct * 100)}%` }]}
-      />
-    </View>
-  );
+function Pip({ r }: { r: Result }) {
+  return <View style={[styles.pip, { backgroundColor: r === 'W' ? Colors.win : r === 'L' ? Colors.loss : Colors.draw }]} />;
 }
-
-function FormPip({ result }: { result: string }) {
-  const bg =
-    result === 'W' ? Colors.win : result === 'L' ? Colors.loss : Colors.draw;
-  return <View style={[styles.formPip, { backgroundColor: bg }]} />;
-}
-
-function PredictionCard({
-  entry,
-  rank,
-}: {
-  entry: PredictionEntry;
-  rank: number;
-}) {
-  const labelVariant: 'hot' | 'warm' | 'cold' =
-    entry.formLabel === 'Hot'
-      ? 'hot'
-      : entry.formLabel === 'Warm'
-      ? 'warm'
-      : 'cold';
-
-  const form = entry.form
-    ? entry.form.split(',').join('').split('').slice(-5)
-    : [];
-
-  return (
-    <Card
-      gradient
-      gradientColors={
-        rank === 1
-          ? [Colors.accentGreen + '18', Colors.bgCard]
-          : [Colors.bgCard, Colors.bgElevated]
-      }
-      style={styles.predCard}
-    >
-      {/* Header row */}
-      <View style={styles.predHeader}>
-        <View style={styles.rankCircle}>
-          <Text style={styles.rankNum}>{rank}</Text>
-        </View>
-
-        {entry.team.crestUrl ? (
-          <Image
-            source={{ uri: entry.team.crestUrl }}
-            style={styles.crest}
-            resizeMode="contain"
-          />
-        ) : (
-          <View style={[styles.crest, styles.crestPlaceholder]} />
-        )}
-
-        <View style={styles.teamInfo}>
-          <Text style={styles.teamName} numberOfLines={1}>
-            {entry.team.name}
-          </Text>
-          <Text style={styles.leaguePosition}>#{entry.position} in table · {entry.points} pts</Text>
-        </View>
-
-        <StatusBadge variant={labelVariant} />
-      </View>
-
-      {/* Form pips */}
-      {form.length > 0 && (
-        <View style={styles.formPipsRow}>
-          <Text style={styles.formPipsLabel}>Last 5</Text>
-          <View style={styles.formPips}>
-            {form.map((r, i) => (
-              <FormPip key={i} result={r} />
-            ))}
-          </View>
-        </View>
-      )}
-
-      {/* Form confidence bar */}
-      <View style={styles.barSection}>
-        <View style={styles.barLabelRow}>
-          <Text style={styles.barLabel}>Form Confidence</Text>
-          <Text style={styles.barPct}>{Math.round(entry.formScore * 100)}%</Text>
-        </View>
-        <FormBar score={entry.formScore} />
-      </View>
-
-      {/* W / D / L mini stats */}
-      <View style={styles.wdlRow}>
-        <View style={styles.wdlItem}>
-          <Text style={[styles.wdlVal, { color: Colors.win }]}>{entry.won}</Text>
-          <Text style={styles.wdlLabel}>W</Text>
-        </View>
-        <View style={styles.wdlItem}>
-          <Text style={[styles.wdlVal, { color: Colors.draw }]}>{entry.draw}</Text>
-          <Text style={styles.wdlLabel}>D</Text>
-        </View>
-        <View style={styles.wdlItem}>
-          <Text style={[styles.wdlVal, { color: Colors.loss }]}>{entry.lost}</Text>
-          <Text style={styles.wdlLabel}>L</Text>
-        </View>
-        <View style={[styles.wdlItem, styles.wdlGd]}>
-          <Text
-            style={[
-              styles.wdlVal,
-              {
-                color:
-                  entry.goalDifference > 0
-                    ? Colors.win
-                    : entry.goalDifference < 0
-                    ? Colors.loss
-                    : Colors.textSecondary,
-              },
-            ]}
-          >
-            {entry.goalDifference > 0 ? '+' : ''}
-            {entry.goalDifference}
-          </Text>
-          <Text style={styles.wdlLabel}>GD</Text>
-        </View>
-      </View>
-    </Card>
-  );
-}
-
-// ---------------------------------------------------------------------------
 
 export default function PredictionsScreen() {
-  const [selectedLeague, setSelectedLeague] = useState<League>(LEAGUES[0]);
+  const { league, setLeague } = useLeague();
   const [refreshing, setRefreshing] = useState(false);
+  const { data, loading, error, errorCode, refetch } = useApi((force) => fetchSeasonMatches(league.id, force), [league.id]);
+  const matches = data?.matches ?? [];
 
-  const { data, loading, error, refetch } = useApi(
-    () => fetchPredictions(selectedLeague.id),
-    [selectedLeague.id]
+  const ratings = useMemo(() => fit(matches), [matches]);
+  const record = useMemo(() => backtest(matches), [matches]);
+
+  const fixtures = useMemo(
+    () =>
+      matches
+        .filter(isUpcoming)
+        .sort((a, b) => a.utcDate.localeCompare(b.utcDate))
+        .slice(0, 8),
+    [matches]
   );
 
-  const predictions: PredictionEntry[] = (data as any)?.predictions ?? [];
+  const ranking = useMemo(() => {
+    if (!ratings) return [];
+    const teams = new Map<number, Team>();
+    for (const m of matches) {
+      teams.set(m.homeTeam.id, m.homeTeam);
+      teams.set(m.awayTeam.id, m.awayTeam);
+    }
+    return [...ratings.attack.keys()]
+      .map((id) => {
+        const attack = ratings.attack.get(id)!;
+        const defence = ratings.defence.get(id)!;
+        return { team: teams.get(id)!, attack, defence, strength: attack / defence, form: recentForm(matches, id) };
+      })
+      .filter((r) => r.team)
+      .sort((a, b) => b.strength - a.strength);
+  }, [ratings, matches]);
+
+  const played = matches.filter(isFinished).length;
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -182,74 +77,106 @@ export default function PredictionsScreen() {
       <ScrollView
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={Colors.accentGreen}
-            colors={[Colors.accentGreen]}
-          />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accentGreen} colors={[Colors.accentGreen]} />}
       >
-        <ScreenHeader
-          title="Predictions"
-          subtitle="AI form analysis · Top 5 leagues"
-        />
+        <ScreenHeader title="Predictions" subtitle="A goals model, refit after every result" />
+        <LinearGradient colors={[Colors.accentGreen + '18', Colors.bg]} style={styles.accentStrip} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+        <LeagueSelector selectedId={league.id} onSelect={setLeague} />
 
-        {/* Accent strip */}
-        <LinearGradient
-          colors={[Colors.accentPurple + '20', Colors.bg]}
-          style={styles.accentStrip}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-        />
-
-        <LeagueSelector
-          selectedId={selectedLeague.id}
-          onSelect={setSelectedLeague}
-        />
-
-        {/* Explainer card */}
-        <View style={styles.explainerWrap}>
-          <Card
-            gradient
-            gradientColors={[Colors.accentPurple + '25', Colors.bgCard]}
-            style={styles.explainerCard}
-          >
-            <View style={styles.explainerRow}>
-              <Text style={styles.explainerIcon}>🧠</Text>
-              <View style={styles.explainerText}>
-                <Text style={styles.explainerTitle}>How predictions work</Text>
-                <Text style={styles.explainerBody}>
-                  Teams are ranked by recent form (last 5 games), goal
-                  difference, and points. Hot teams are on 3+ wins in 5.
-                </Text>
-              </View>
+        {loading && !data ? (
+          <LoadingSpinner label="Fitting the model..." />
+        ) : error && !data ? (
+          <View style={styles.section}>
+            <ErrorState message={error} code={errorCode} onRetry={refetch} />
+          </View>
+        ) : !ratings ? (
+          <EmptyState icon="📊" title="Not enough results yet" subtitle="The model needs a few rounds of this season's results before it predicts." />
+        ) : (
+          <>
+            <View style={styles.section}>
+              <Card gradient gradientColors={[Colors.accentGreen + '14', Colors.bgCard]} style={styles.recordCard}>
+                <Text style={styles.recordLabel}>Model record this season</Text>
+                {record ? (
+                  <>
+                    <View style={styles.recordRow}>
+                      <View style={styles.recordCol}>
+                        <Text style={styles.recordBig}>{pct(record.accuracy)}</Text>
+                        <Text style={styles.recordSub}>results called</Text>
+                      </View>
+                      <View style={styles.recordCol}>
+                        <Text style={styles.recordMid}>{pct(record.homeBaselineAccuracy)}</Text>
+                        <Text style={styles.recordSub}>always picking home</Text>
+                      </View>
+                      <View style={styles.recordCol}>
+                        <Text style={styles.recordMid}>{record.brier.toFixed(3)}</Text>
+                        <Text style={styles.recordSub}>Brier score</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.recordNote}>
+                      {record.n} matches, each predicted only from results before its kick-off. Brier measures the
+                      probabilities themselves (lower is better): forecasting every match with the season's home/draw/away
+                      rates scores {record.rateBaselineBrier.toFixed(3)}.
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={styles.recordNote}>
+                    Fitted on {played} results. A fair test needs at least 30 earlier matches to predict from, so the record
+                    appears in a few more rounds.
+                  </Text>
+                )}
+              </Card>
             </View>
-          </Card>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {selectedLeague.flag} {selectedLeague.name} — Form Rankings
-          </Text>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Next fixtures</Text>
+              {fixtures.length === 0 ? (
+                <EmptyState icon="📅" title="No fixtures scheduled" />
+              ) : (
+                fixtures.map((m) => {
+                  const p = predict(ratings, m.homeTeam.id, m.awayTeam.id);
+                  return (
+                    <View key={m.id}>
+                      <FixtureCard match={m} prediction={p} />
+                      <Text style={styles.xg}>
+                        Expected goals {p.xgHome.toFixed(1)} – {p.xgAway.toFixed(1)}
+                      </Text>
+                    </View>
+                  );
+                })
+              )}
+            </View>
 
-          {loading ? (
-            <LoadingSpinner label="Crunching form data..." />
-          ) : error ? (
-            <EmptyState icon="⚠️" title="Failed to load" subtitle={error} />
-          ) : predictions.length === 0 ? (
-            <EmptyState
-              icon="📊"
-              title="No prediction data"
-              subtitle="Try pulling down to refresh or pick a different league."
-            />
-          ) : (
-            predictions.map((entry, i) => (
-              <PredictionCard key={entry.team.id} entry={entry} rank={i + 1} />
-            ))
-          )}
-        </View>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Strength ranking</Text>
+              <Text style={styles.method}>Attack: goals scored vs an average side · Defence: goals conceded (lower is better)</Text>
+              <Card noPadding>
+                {ranking.map((r, i) => (
+                  <View key={r.team.id} style={[styles.rankRow, i % 2 === 0 && styles.rankAlt]}>
+                    <Text style={styles.rankNum}>{i + 1}</Text>
+                    {r.team.crest ? <Image source={{ uri: r.team.crest }} style={styles.crest} resizeMode="contain" /> : <View style={styles.crest} />}
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.rankTeam} numberOfLines={1}>{r.team.shortName ?? r.team.name}</Text>
+                      <View style={styles.pips}>{r.form.map((f, j) => <Pip key={j} r={f} />)}</View>
+                    </View>
+                    <View style={styles.rateCol}>
+                      <Text style={[styles.rate, { color: r.attack >= 1 ? Colors.win : Colors.loss }]}>{signed(r.attack - 1)}</Text>
+                      <Text style={styles.rateLabel}>attack</Text>
+                    </View>
+                    <View style={styles.rateCol}>
+                      <Text style={[styles.rate, { color: r.defence <= 1 ? Colors.win : Colors.loss }]}>{signed(r.defence - 1)}</Text>
+                      <Text style={styles.rateLabel}>conceded</Text>
+                    </View>
+                  </View>
+                ))}
+              </Card>
+              <Text style={styles.methodFoot}>
+                Poisson goals model (Maher, 1982): each side's expected goals = league average × its attack × the opponent's
+                defence, with home advantage from this season's results. Fitted by maximum likelihood on {ratings.games} results,
+                shrunk toward average early in the season.
+              </Text>
+            </View>
+          </>
+        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -260,158 +187,31 @@ export default function PredictionsScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
   scroll: { flex: 1, backgroundColor: Colors.bg },
-  accentStrip: {
-    height: 6,
-    marginHorizontal: Spacing.base,
-    borderRadius: Radius.full,
-    marginBottom: Spacing.sm,
-  },
-  explainerWrap: {
-    paddingHorizontal: Spacing.base,
-    marginBottom: Spacing.sm,
-  },
-  explainerCard: {
-    padding: Spacing.md,
-  },
-  explainerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.md,
-  },
-  explainerIcon: { fontSize: 24 },
-  explainerText: { flex: 1 },
-  explainerTitle: {
-    fontSize: Typography.sm,
-    fontWeight: Typography.bold,
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  explainerBody: {
-    fontSize: Typography.xs,
-    color: Colors.textSecondary,
-    lineHeight: 18,
-  },
-  section: {
-    paddingHorizontal: Spacing.base,
-    gap: Spacing.sm,
-  },
-  sectionTitle: {
-    fontSize: Typography.md,
-    fontWeight: Typography.bold,
-    color: Colors.textPrimary,
-    letterSpacing: Typography.tight,
-    marginBottom: Spacing.xs,
-  },
-  predCard: {
-    gap: Spacing.md,
-    marginBottom: Spacing.sm,
-  },
-  predHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  rankCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.bgElevated,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rankNum: {
-    fontSize: Typography.sm,
-    fontWeight: Typography.bold,
-    color: Colors.textSecondary,
-  },
-  crest: { width: 34, height: 34 },
-  crestPlaceholder: {
-    backgroundColor: Colors.bgElevated,
-    borderRadius: Radius.sm,
-  },
-  teamInfo: { flex: 1 },
-  teamName: {
-    fontSize: Typography.base,
-    fontWeight: Typography.bold,
-    color: Colors.textPrimary,
-  },
-  leaguePosition: {
-    fontSize: Typography.xs,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  formPipsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  formPipsLabel: {
-    fontSize: Typography.xs,
-    color: Colors.textMuted,
-    width: 38,
-  },
-  formPips: {
-    flexDirection: 'row',
-    gap: 5,
-  },
-  formPip: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  barSection: {
-    gap: Spacing.xs,
-  },
-  barLabelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  barLabel: {
-    fontSize: Typography.xs,
-    color: Colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: Typography.wide,
-  },
-  barPct: {
-    fontSize: Typography.xs,
-    fontWeight: Typography.bold,
-    color: Colors.textSecondary,
-  },
-  formBarBg: {
-    height: 6,
-    backgroundColor: Colors.bgElevated,
-    borderRadius: Radius.full,
-    overflow: 'hidden',
-  },
-  formBarFill: {
-    height: '100%',
-    borderRadius: Radius.full,
-  },
-  wdlRow: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingTop: Spacing.md,
-    gap: Spacing.base,
-  },
-  wdlItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  wdlGd: {
-    flex: 1.2,
-  },
-  wdlVal: {
-    fontSize: Typography.lg,
-    fontWeight: Typography.black,
-  },
-  wdlLabel: {
-    fontSize: Typography.xs,
-    color: Colors.textMuted,
-    letterSpacing: Typography.wider,
-    textTransform: 'uppercase',
-    marginTop: 2,
-  },
+  accentStrip: { height: 6, marginHorizontal: Spacing.base, borderRadius: Radius.full, marginBottom: Spacing.sm },
+  section: { paddingHorizontal: Spacing.base, marginTop: Spacing.lg, gap: Spacing.sm },
+  sectionTitle: { fontSize: Typography.md, fontWeight: Typography.bold, color: Colors.textPrimary, letterSpacing: Typography.tight },
+
+  recordCard: { gap: Spacing.md },
+  recordLabel: { fontSize: Typography.xs, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: Typography.semibold },
+  recordRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.md },
+  recordCol: { flex: 1 },
+  recordBig: { fontSize: Typography.xxl, fontWeight: Typography.black, color: Colors.accentGreen },
+  recordMid: { fontSize: Typography.lg, fontWeight: Typography.bold, color: Colors.textPrimary },
+  recordSub: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  recordNote: { fontSize: Typography.xs, color: Colors.textSecondary, lineHeight: 17 },
+
+  xg: { fontSize: Typography.xs, color: Colors.textMuted, textAlign: 'center', marginTop: -4, marginBottom: Spacing.sm },
+  method: { fontSize: Typography.xs, color: Colors.textMuted, marginTop: -4 },
+  methodFoot: { fontSize: Typography.xs, color: Colors.textMuted, lineHeight: 17, marginTop: Spacing.xs },
+
+  rankRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: 9, paddingHorizontal: Spacing.md },
+  rankAlt: { backgroundColor: Colors.bgElevated + '50' },
+  rankNum: { width: 20, fontSize: Typography.sm, color: Colors.textSecondary, fontWeight: Typography.medium },
+  crest: { width: 22, height: 22 },
+  rankTeam: { fontSize: Typography.sm, color: Colors.textPrimary, fontWeight: Typography.medium },
+  pips: { flexDirection: 'row', gap: 3, marginTop: 3 },
+  pip: { width: 6, height: 6, borderRadius: 3 },
+  rateCol: { width: 64, alignItems: 'flex-end' },
+  rate: { fontSize: Typography.sm, fontWeight: Typography.bold },
+  rateLabel: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
 });

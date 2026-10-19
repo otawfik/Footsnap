@@ -1,336 +1,111 @@
-import React, { useState, useCallback } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  RefreshControl,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  FlatList,
-} from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, ScrollView, RefreshControl, StyleSheet, Image, Pressable } from 'react-native';
+import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../../components/Card';
 import { LeagueSelector } from '../../components/LeagueSelector';
 import { ScreenHeader } from '../../components/ScreenHeader';
-import { StatusBadge } from '../../components/StatusBadge';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { EmptyState } from '../../components/EmptyState';
+import { ErrorState } from '../../components/ErrorState';
+import { FixtureCard, ScoreCard } from '../../components/MatchCards';
 import { useApi } from '../../hooks/useApi';
-import { fetchLiveMatches, fetchStandings, fetchLeagueMatches } from '../../services/api';
-import { LEAGUES, League } from '../../constants/leagues';
+import { useLeague } from '../../context/league';
+import { fetchSeasonMatches, fetchStandings } from '../../services/api';
+import { recentForm, splitMatches, totalTable, zone, Result, Zone } from '../../lib/football';
+import { fit, predict } from '../../lib/model';
+import type { StandingRow } from '../../lib/types';
 import { Colors, Typography, Spacing, Radius } from '../../constants/theme';
 
-// ---------------------------------------------------------------------------
-// Types (minimal subset of football-data.org response shapes)
-// ---------------------------------------------------------------------------
+const ZONE_COLOR: Record<Exclude<Zone, null>, string> = {
+  top: Colors.accentBlue,
+  europe: Colors.accentPurple,
+  playoff: Colors.draw,
+  relegation: Colors.loss,
+};
 
-interface Team {
-  id: number;
-  name: string;
-  shortName?: string;
-  tla?: string;
-  crest?: string;
+function zoneLegend(competitionId: number): [Exclude<Zone, null>, string][] {
+  if (competitionId === 2001) return [['top', 'Round of 16'], ['playoff', 'Knockout play-offs'], ['relegation', 'Eliminated']];
+  const legend: [Exclude<Zone, null>, string][] = [['top', 'Champions League'], ['europe', 'Europe']];
+  if (competitionId === 2002 || competitionId === 2015) legend.push(['playoff', 'Relegation play-off']);
+  legend.push(['relegation', 'Relegation']);
+  return legend;
 }
 
-interface Score {
-  home: number | null;
-  away: number | null;
-}
-
-interface Match {
-  id: number;
-  status: string;
-  utcDate: string;
-  homeTeam: Team;
-  awayTeam: Team;
-  score: { fullTime: Score; halfTime: Score };
-  competition: { id: number; name: string };
-  minute?: number;
-}
-
-interface StandingEntry {
-  position: number;
-  team: Team;
-  playedGames: number;
-  won: number;
-  draw: number;
-  lost: number;
-  points: number;
-  goalDifference: number;
-  form: string;
-}
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-function MatchCard({ match }: { match: Match }) {
-  const isLive =
-    match.status === 'IN_PLAY' || match.status === 'PAUSED';
-  const isFinished = match.status === 'FINISHED';
-  const scoreHome = match.score?.fullTime?.home;
-  const scoreAway = match.score?.fullTime?.away;
-
-  const timeLabel = isLive
-    ? 'LIVE'
-    : isFinished
-    ? 'FT'
-    : new Date(match.utcDate).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-
-  return (
-    <Card style={styles.matchCard}>
-      {/* Time / Status pill */}
-      <View style={styles.matchTop}>
-        {isLive ? (
-          <StatusBadge variant="live" />
-        ) : isFinished ? (
-          <StatusBadge variant="finished" label="FT" />
-        ) : (
-          <StatusBadge variant="scheduled" label={timeLabel} />
-        )}
-        <Text style={styles.competitionLabel}>
-          {match.competition?.name ?? ''}
-        </Text>
-      </View>
-
-      {/* Teams + Score */}
-      <View style={styles.matchBody}>
-        {/* Home */}
-        <View style={styles.teamCol}>
-          {match.homeTeam.crest ? (
-            <Image
-              source={{ uri: match.homeTeam.crest }}
-              style={styles.crest}
-              resizeMode="contain"
-            />
-          ) : (
-            <View style={styles.crestPlaceholder} />
-          )}
-          <Text style={styles.teamName} numberOfLines={1}>
-            {match.homeTeam.tla ?? match.homeTeam.shortName ?? match.homeTeam.name}
-          </Text>
-        </View>
-
-        {/* Score */}
-        <View style={styles.scoreCol}>
-          {scoreHome !== null && scoreAway !== null ? (
-            <Text style={[styles.score, isLive && styles.scoreLive]}>
-              {scoreHome} — {scoreAway}
-            </Text>
-          ) : (
-            <Text style={styles.scoreVs}>vs</Text>
-          )}
-        </View>
-
-        {/* Away */}
-        <View style={styles.teamCol}>
-          {match.awayTeam.crest ? (
-            <Image
-              source={{ uri: match.awayTeam.crest }}
-              style={styles.crest}
-              resizeMode="contain"
-            />
-          ) : (
-            <View style={styles.crestPlaceholder} />
-          )}
-          <Text style={styles.teamName} numberOfLines={1}>
-            {match.awayTeam.tla ?? match.awayTeam.shortName ?? match.awayTeam.name}
-          </Text>
-        </View>
-      </View>
-    </Card>
-  );
-}
-
-function FormDot({ result }: { result: string }) {
-  const color =
-    result === 'W'
-      ? Colors.win
-      : result === 'L'
-      ? Colors.loss
-      : Colors.draw;
+function FormDot({ result }: { result: Result }) {
+  const color = result === 'W' ? Colors.win : result === 'L' ? Colors.loss : Colors.draw;
   return <View style={[styles.formDot, { backgroundColor: color }]} />;
 }
 
-function StandingRow({
-  entry,
-  index,
-}: {
-  entry: StandingEntry;
-  index: number;
-}) {
-  const form = (entry.form ?? '').split(',').join('').split('').slice(-5);
-  const isTop4 = entry.position <= 4;
-  const isRelegation = entry.position >= 18;
-
+function TableRow({ row, index, form, z }: { row: StandingRow; index: number; form: Result[]; z: Zone }) {
   return (
-    <View style={[styles.standingRow, index % 2 === 0 && styles.standingRowAlt]}>
-      <View style={styles.standingPos}>
-        <View
-          style={[
-            styles.posIndicator,
-            isTop4 && styles.posChampions,
-            isRelegation && styles.posRelegation,
-          ]}
-        />
-        <Text style={styles.standingPosText}>{entry.position}</Text>
+    <View
+      style={[styles.tableRow, index % 2 === 0 && styles.tableRowAlt]}
+      accessible
+      accessibilityLabel={`${row.position}. ${row.team.name}, ${row.points} points from ${row.playedGames} games`}
+    >
+      <View style={styles.posCell}>
+        <View style={[styles.zoneBar, z && { backgroundColor: ZONE_COLOR[z] }]} />
+        <Text style={styles.posText}>{row.position}</Text>
       </View>
-
-      {entry.team.crest ? (
-        <Image
-          source={{ uri: entry.team.crest }}
-          style={styles.crestSmall}
-          resizeMode="contain"
-        />
+      {row.team.crest ? (
+        <Image source={{ uri: row.team.crest }} style={styles.crestSmall} resizeMode="contain" />
       ) : (
         <View style={styles.crestSmall} />
       )}
-
-      <Text style={styles.standingTeam} numberOfLines={1}>
-        {entry.team.shortName ?? entry.team.name}
-      </Text>
-
-      <Text style={styles.standingStat}>{entry.playedGames}</Text>
-      <Text style={styles.standingStat}>{entry.won}</Text>
-      <Text style={styles.standingStat}>{entry.draw}</Text>
-      <Text style={styles.standingStat}>{entry.lost}</Text>
-      <Text style={[styles.standingStat, styles.standingPoints]}>
-        {entry.points}
-      </Text>
-
+      <Text style={styles.tableTeam} numberOfLines={1}>{row.team.shortName ?? row.team.name}</Text>
+      <Text style={styles.stat}>{row.playedGames}</Text>
+      <Text style={styles.stat}>{row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}</Text>
+      <Text style={[styles.stat, styles.points]}>{row.points}</Text>
       <View style={styles.formRow}>
-        {form.map((r, i) => (
-          <FormDot key={i} result={r} />
-        ))}
+        {form.map((r, i) => <FormDot key={i} result={r} />)}
       </View>
     </View>
   );
 }
 
-function UpcomingFixtureCard({ match }: { match: Match }) {
-  const date = new Date(match.utcDate);
-
-  // Day label: "Today", "Tomorrow", or "Mon 17 Mar"
-  const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(now.getDate() + 1);
-  const isTomorrow = date.toDateString() === tomorrow.toDateString();
-
-  const dayLabel = isToday
-    ? 'Today'
-    : isTomorrow
-    ? 'Tomorrow'
-    : date.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
-
-  const timeLabel = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-  return (
-    <Card style={styles.upcomingCard}>
-      {/* Date / time row */}
-      <View style={styles.upcomingHeader}>
-        <View style={styles.upcomingDatePill}>
-          <Text style={styles.upcomingDayText}>{dayLabel}</Text>
-          <Text style={styles.upcomingTimeText}>{timeLabel}</Text>
-        </View>
-        <View style={styles.upcomingRound}>
-          <Ionicons name="calendar-outline" size={12} color={Colors.textMuted} />
-          <Text style={styles.upcomingRoundText}>
-            {match.competition?.name ?? ''}
-          </Text>
-        </View>
-      </View>
-
-      {/* Teams row */}
-      <View style={styles.upcomingTeams}>
-        {/* Home */}
-        <View style={styles.upcomingTeamCol}>
-          {match.homeTeam.crest ? (
-            <Image source={{ uri: match.homeTeam.crest }} style={styles.upcomingCrest} resizeMode="contain" />
-          ) : (
-            <View style={[styles.upcomingCrest, styles.crestPlaceholder]} />
-          )}
-          <Text style={styles.upcomingTeamName} numberOfLines={2}>
-            {match.homeTeam.shortName ?? match.homeTeam.name}
-          </Text>
-        </View>
-
-        {/* VS divider */}
-        <View style={styles.upcomingVsCol}>
-          <Text style={styles.upcomingVs}>VS</Text>
-          <View style={styles.upcomingVsLine} />
-        </View>
-
-        {/* Away */}
-        <View style={styles.upcomingTeamCol}>
-          {match.awayTeam.crest ? (
-            <Image source={{ uri: match.awayTeam.crest }} style={styles.upcomingCrest} resizeMode="contain" />
-          ) : (
-            <View style={[styles.upcomingCrest, styles.crestPlaceholder]} />
-          )}
-          <Text style={styles.upcomingTeamName} numberOfLines={2}>
-            {match.awayTeam.shortName ?? match.awayTeam.name}
-          </Text>
-        </View>
-      </View>
-    </Card>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Main Screen
-// ---------------------------------------------------------------------------
-
 export default function HomeScreen() {
-  const [selectedLeague, setSelectedLeague] = useState<League>(LEAGUES[0]);
+  const { league, setLeague } = useLeague();
   const [refreshing, setRefreshing] = useState(false);
+  const [poll, setPoll] = useState(false);
 
-  const {
-    data: liveData,
-    loading: liveLoading,
-    refetch: refetchLive,
-  } = useApi(() => fetchLiveMatches(), []);
+  const standings = useApi((force) => fetchStandings(league.id, force), [league.id]);
+  // the season's fixtures carry live scores; re-fetched every 30s only while a
+  // match is live or about to kick off
+  const season = useApi((force) => fetchSeasonMatches(league.id, force), [league.id], {
+    pollMs: poll ? 30_000 : null,
+  });
 
-  const {
-    data: standingsData,
-    loading: standingsLoading,
-    refetch: refetchStandings,
-  } = useApi(() => fetchStandings(selectedLeague.id), [selectedLeague.id]);
+  const view = useMemo(() => splitMatches(season.data?.matches ?? [], Date.now()), [season.data]);
+  const shouldPoll =
+    view.live.length > 0 || view.upcoming.some((m) => new Date(m.utcDate).getTime() - Date.now() < 15 * 60_000);
+  useEffect(() => setPoll(shouldPoll), [shouldPoll]);
 
-  const {
-    data: upcomingData,
-    loading: upcomingLoading,
-    refetch: refetchUpcoming,
-  } = useApi(
-    () => fetchLeagueMatches(selectedLeague.id, { status: 'SCHEDULED,TIMED' }),
-    [selectedLeague.id]
-  );
+  const latest = season.data;
+  const ratings = useMemo(() => fit(latest?.matches ?? []), [latest]);
+  const table = totalTable(standings.data);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([refetchLive(), refetchStandings(), refetchUpcoming()]);
+    await Promise.all([standings.refetch(), season.refetch()]);
     setRefreshing(false);
-  }, [refetchLive, refetchStandings, refetchUpcoming]);
+  }, [standings, season]);
 
-  const liveMatches: Match[] =
-    (liveData as any)?.matches?.filter(
-      (m: Match) => m.competition?.id === selectedLeague.id
-    ) ?? [];
-
-  const standingTable: StandingEntry[] =
-    (standingsData as any)?.standings?.[0]?.table ?? [];
-
-  // First 5 upcoming fixtures sorted by date ascending
-  const upcomingMatches: Match[] = ((upcomingData as any)?.matches ?? [] as Match[])
-    .slice()
-    .sort((a: Match, b: Match) => new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime())
-    .slice(0, 5);
+  const header = (
+    <View style={styles.headerRight}>
+      {view.live.length ? (
+        <View style={styles.livePill}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveText}>{view.live.length} LIVE</Text>
+        </View>
+      ) : null}
+      <Pressable onPress={() => router.push('/about')} hitSlop={10} accessibilityRole="button" accessibilityLabel="About FootSnap">
+        <Ionicons name="information-circle-outline" size={24} color={Colors.textSecondary} />
+      </Pressable>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -338,125 +113,118 @@ export default function HomeScreen() {
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={Colors.accentGreen}
-            colors={[Colors.accentGreen]}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accentGreen} colors={[Colors.accentGreen]} />
         }
       >
-        {/* Header */}
-        <ScreenHeader
-          title="FootSnap"
-          subtitle="Live · Standings · Insights"
-          right={
-            <View style={styles.liveIndicator}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveText}>LIVE</Text>
-            </View>
-          }
-        />
+        <ScreenHeader title="FootSnap" subtitle="Live · Results · Table" right={header} />
+        <LinearGradient colors={[Colors.accentGreen + '18', Colors.bg]} style={styles.heroGradient} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+        <LeagueSelector selectedId={league.id} onSelect={setLeague} />
 
-        {/* Hero gradient strip */}
-        <LinearGradient
-          colors={[Colors.accentGreen + '18', Colors.bg]}
-          style={styles.heroGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-        />
-
-        {/* League selector */}
-        <LeagueSelector
-          selectedId={selectedLeague.id}
-          onSelect={setSelectedLeague}
-        />
-
-        {/* Live Fixtures */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Live Fixtures</Text>
-          {liveLoading ? (
-            <LoadingSpinner label="Loading matches..." />
-          ) : liveMatches.length === 0 ? (
-            <EmptyState
-              icon="🕐"
-              title="No live matches"
-              subtitle="Check back when your league is in action."
-            />
-          ) : (
-            liveMatches.map((m) => <MatchCard key={m.id} match={m} />)
-          )}
-        </View>
-
-        {/* Standings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Standings</Text>
-          <Card noPadding>
-            {/* Table header */}
-            <View style={[styles.standingRow, styles.standingHeader]}>
-              <Text style={[styles.standingHeaderText, { width: 32 }]}>#</Text>
-              <View style={{ width: 22 }} />
-              <Text style={[styles.standingHeaderText, { flex: 1 }]}>Club</Text>
-              {['P', 'W', 'D', 'L', 'Pts'].map((h) => (
-                <Text key={h} style={styles.standingHeaderStat}>
-                  {h}
-                </Text>
-              ))}
-              <Text style={styles.standingHeaderForm}>Form</Text>
-            </View>
-
-            {standingsLoading ? (
-              <LoadingSpinner label="Loading standings..." />
-            ) : standingTable.length === 0 ? (
-              <EmptyState title="No standings available" />
-            ) : (
-              standingTable.map((entry, i) => (
-                <StandingRow key={entry.team.id} entry={entry} index={i} />
-              ))
+        {season.error && !latest ? (
+          <View style={styles.section}>
+            <ErrorState message={season.error} code={season.errorCode} onRetry={season.refetch} />
+          </View>
+        ) : season.loading && !latest ? (
+          <LoadingSpinner label="Loading fixtures..." />
+        ) : (
+          <>
+            {view.live.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Live now</Text>
+                {view.live.map((m) => <ScoreCard key={m.id} match={m} />)}
+              </View>
             )}
-          </Card>
-        </View>
 
-        {/* Upcoming Fixtures */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Latest results</Text>
+              {view.results.length === 0 ? (
+                <EmptyState icon="🏁" title="No results yet" subtitle="The season hasn't kicked off." />
+              ) : (
+                view.results.map((m) => <ScoreCard key={m.id} match={m} />)
+              )}
+            </View>
+
+            <View style={styles.section}>
+              <View style={styles.titleRow}>
+                <Text style={styles.sectionTitle}>Coming up</Text>
+                {ratings ? <Text style={styles.titleNote}>with model odds</Text> : null}
+              </View>
+              {view.upcoming.length === 0 ? (
+                <EmptyState icon="📅" title="No fixtures scheduled" subtitle="Check back closer to the next matchday." />
+              ) : (
+                view.upcoming.map((m) => (
+                  <FixtureCard key={m.id} match={m} prediction={ratings ? predict(ratings, m.homeTeam.id, m.awayTeam.id) : null} />
+                ))
+              )}
+            </View>
+          </>
+        )}
+
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Upcoming Fixtures</Text>
-          {upcomingLoading ? (
-            <LoadingSpinner label="Loading fixtures..." />
-          ) : upcomingMatches.length === 0 ? (
-            <EmptyState
-              icon="📅"
-              title="No upcoming fixtures"
-              subtitle="Check back closer to the next matchday."
-            />
+          {!(standings.error && !standings.data && season.error && season.errorCode === standings.errorCode) && (
+            <Text style={styles.sectionTitle}>Table</Text>
+          )}
+          {standings.error && !standings.data ? (
+            // one message is enough when both requests fail for the same reason
+            season.error && season.errorCode === standings.errorCode ? null : (
+              <ErrorState message={standings.error} code={standings.errorCode} onRetry={standings.refetch} />
+            )
           ) : (
-            upcomingMatches.map((m) => <UpcomingFixtureCard key={m.id} match={m} />)
+            <Card noPadding>
+              <View style={[styles.tableRow, styles.tableHeader]}>
+                <Text style={[styles.headText, { width: 34 }]}>#</Text>
+                <View style={{ width: 30 }} />
+                <Text style={[styles.headText, { flex: 1 }]}>Club</Text>
+                {['P', 'GD', 'Pts'].map((h) => <Text key={h} style={styles.headStat}>{h}</Text>)}
+                <Text style={styles.headForm}>Form</Text>
+              </View>
+              {standings.loading && !standings.data ? (
+                <LoadingSpinner label="Loading table..." />
+              ) : table.length === 0 ? (
+                <EmptyState title="No table yet" subtitle="Standings appear once the season starts." />
+              ) : (
+                table.map((row, i) => {
+                  const fromMatches = recentForm(latest?.matches ?? [], row.team.id);
+                  const fallback = (row.form ?? '').replace(/[^WDL]/g, '').split('').slice(-5) as Result[];
+                  return (
+                    <TableRow
+                      key={row.team.id}
+                      row={row}
+                      index={i}
+                      form={fromMatches.length ? fromMatches : fallback}
+                      z={zone(league.id, row.position, table.length)}
+                    />
+                  );
+                })
+              )}
+            </Card>
+          )}
+          {table.length > 0 && (
+            <View style={styles.legend}>
+              {zoneLegend(league.id).map(([z, label]) => (
+                <View key={z} style={styles.legendItem}>
+                  <View style={[styles.legendSwatch, { backgroundColor: ZONE_COLOR[z] }]} />
+                  <Text style={styles.legendText}>{label}</Text>
+                </View>
+              ))}
+            </View>
           )}
         </View>
 
-        {/* Bottom padding for tab bar */}
+        <Text style={styles.source}>Data: football-data.org</Text>
         <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
   scroll: { flex: 1, backgroundColor: Colors.bg },
+  heroGradient: { height: 6, marginHorizontal: Spacing.base, borderRadius: Radius.full, marginBottom: Spacing.sm },
 
-  heroGradient: {
-    height: 6,
-    marginHorizontal: Spacing.base,
-    borderRadius: Radius.full,
-    marginBottom: Spacing.sm,
-  },
-
-  // Live indicator
-  liveIndicator: {
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  livePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
@@ -467,25 +235,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.loss + '40',
   },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.loss,
-  },
-  liveText: {
-    fontSize: Typography.xs,
-    fontWeight: Typography.bold,
-    color: Colors.loss,
-    letterSpacing: Typography.wide,
-  },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.loss },
+  liveText: { fontSize: Typography.xs, fontWeight: Typography.bold, color: Colors.loss, letterSpacing: Typography.wide },
 
-  // Sections
-  section: {
-    paddingHorizontal: Spacing.base,
-    marginTop: Spacing.lg,
-    gap: Spacing.sm,
-  },
+  section: { paddingHorizontal: Spacing.base, marginTop: Spacing.lg, gap: Spacing.sm },
+  titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   sectionTitle: {
     fontSize: Typography.md,
     fontWeight: Typography.bold,
@@ -493,237 +247,27 @@ const styles = StyleSheet.create({
     letterSpacing: Typography.tight,
     marginBottom: Spacing.xs,
   },
+  titleNote: { fontSize: Typography.xs, color: Colors.textMuted },
 
-  // Match card
-  matchCard: {
-    marginBottom: Spacing.sm,
-    gap: Spacing.sm,
-  },
-  matchTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  competitionLabel: {
-    fontSize: Typography.xs,
-    color: Colors.textMuted,
-    letterSpacing: Typography.wide,
-    textTransform: 'uppercase',
-  },
-  matchBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.sm,
-  },
-  teamCol: {
-    flex: 1,
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  crest: {
-    width: 36,
-    height: 36,
-  },
-  crestPlaceholder: {
-    width: 36,
-    height: 36,
-    backgroundColor: Colors.bgElevated,
-    borderRadius: Radius.sm,
-  },
-  teamName: {
-    fontSize: Typography.sm,
-    color: Colors.textPrimary,
-    fontWeight: Typography.semibold,
-    textAlign: 'center',
-  },
-  scoreCol: {
-    flex: 0.8,
-    alignItems: 'center',
-  },
-  score: {
-    fontSize: Typography.xl,
-    fontWeight: Typography.black,
-    color: Colors.textPrimary,
-    letterSpacing: Typography.tight,
-  },
-  scoreLive: {
-    color: Colors.accentGreen,
-  },
-  scoreVs: {
-    fontSize: Typography.base,
-    color: Colors.textMuted,
-    fontWeight: Typography.medium,
-  },
+  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: Spacing.md },
+  tableRowAlt: { backgroundColor: Colors.bgElevated + '50' },
+  tableHeader: { borderBottomWidth: 1, borderBottomColor: Colors.border, paddingBottom: Spacing.sm },
+  headText: { fontSize: Typography.xs, color: Colors.textMuted, fontWeight: Typography.semibold, letterSpacing: Typography.wide, textTransform: 'uppercase' },
+  headStat: { fontSize: Typography.xs, color: Colors.textMuted, fontWeight: Typography.semibold, width: 32, textAlign: 'center' },
+  headForm: { fontSize: Typography.xs, color: Colors.textMuted, fontWeight: Typography.semibold, width: 62, textAlign: 'right' },
+  posCell: { flexDirection: 'row', alignItems: 'center', width: 34, gap: 5 },
+  zoneBar: { width: 3, height: 16, borderRadius: 2, backgroundColor: 'transparent' },
+  posText: { fontSize: Typography.sm, color: Colors.textSecondary, fontWeight: Typography.medium },
+  crestSmall: { width: 22, height: 22, marginRight: Spacing.sm },
+  tableTeam: { flex: 1, fontSize: Typography.sm, color: Colors.textPrimary, fontWeight: Typography.medium },
+  stat: { width: 32, textAlign: 'center', fontSize: Typography.sm, color: Colors.textSecondary },
+  points: { color: Colors.textPrimary, fontWeight: Typography.bold },
+  formRow: { flexDirection: 'row', gap: 3, width: 62, justifyContent: 'flex-end' },
+  formDot: { width: 8, height: 8, borderRadius: 4 },
 
-  // Standings
-  standingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: Spacing.md,
-  },
-  standingRowAlt: {
-    backgroundColor: Colors.bgElevated + '50',
-  },
-  standingHeader: {
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    paddingBottom: Spacing.sm,
-  },
-  standingHeaderText: {
-    fontSize: Typography.xs,
-    color: Colors.textMuted,
-    fontWeight: Typography.semibold,
-    letterSpacing: Typography.wide,
-    textTransform: 'uppercase',
-  },
-  standingHeaderStat: {
-    fontSize: Typography.xs,
-    color: Colors.textMuted,
-    fontWeight: Typography.semibold,
-    width: 28,
-    textAlign: 'center',
-  },
-  standingHeaderForm: {
-    fontSize: Typography.xs,
-    color: Colors.textMuted,
-    fontWeight: Typography.semibold,
-    width: 70,
-    textAlign: 'right',
-  },
-  standingPos: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: 32,
-    gap: 4,
-  },
-  posIndicator: {
-    width: 3,
-    height: 16,
-    borderRadius: 2,
-    backgroundColor: 'transparent',
-  },
-  posChampions: {
-    backgroundColor: Colors.accentBlue,
-  },
-  posRelegation: {
-    backgroundColor: Colors.loss,
-  },
-  standingPosText: {
-    fontSize: Typography.sm,
-    color: Colors.textSecondary,
-    fontWeight: Typography.medium,
-  },
-  crestSmall: {
-    width: 22,
-    height: 22,
-    marginRight: Spacing.sm,
-  },
-  standingTeam: {
-    flex: 1,
-    fontSize: Typography.sm,
-    color: Colors.textPrimary,
-    fontWeight: Typography.medium,
-  },
-  standingStat: {
-    width: 28,
-    textAlign: 'center',
-    fontSize: Typography.sm,
-    color: Colors.textSecondary,
-  },
-  standingPoints: {
-    color: Colors.textPrimary,
-    fontWeight: Typography.bold,
-  },
-  formRow: {
-    flexDirection: 'row',
-    gap: 3,
-    width: 70,
-    justifyContent: 'flex-end',
-  },
-  formDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-
-  // Upcoming fixture card
-  upcomingCard: {
-    marginBottom: Spacing.sm,
-    gap: Spacing.md,
-  },
-  upcomingHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  upcomingDatePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    backgroundColor: Colors.accentBlue + '18',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    borderColor: Colors.accentBlue + '35',
-  },
-  upcomingDayText: {
-    fontSize: Typography.xs,
-    fontWeight: Typography.bold,
-    color: Colors.accentBlue,
-    letterSpacing: 0.3,
-  },
-  upcomingTimeText: {
-    fontSize: Typography.xs,
-    color: Colors.accentBlue + 'CC',
-    fontWeight: Typography.medium,
-  },
-  upcomingRound: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  upcomingRoundText: {
-    fontSize: Typography.xs,
-    color: Colors.textMuted,
-    letterSpacing: 0.2,
-  },
-  upcomingTeams: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  upcomingTeamCol: {
-    flex: 1,
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  upcomingCrest: {
-    width: 44,
-    height: 44,
-  },
-  upcomingTeamName: {
-    fontSize: Typography.sm,
-    fontWeight: Typography.semibold,
-    color: Colors.textPrimary,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  upcomingVsCol: {
-    width: 48,
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  upcomingVs: {
-    fontSize: Typography.xs,
-    fontWeight: Typography.black,
-    color: Colors.textMuted,
-    letterSpacing: 2,
-  },
-  upcomingVsLine: {
-    width: 1,
-    height: 20,
-    backgroundColor: Colors.border,
-  },
+  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md, marginTop: Spacing.xs },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendSwatch: { width: 10, height: 3, borderRadius: 2 },
+  legendText: { fontSize: Typography.xs, color: Colors.textMuted },
+  source: { fontSize: Typography.xs, color: Colors.textMuted, textAlign: 'center', marginTop: Spacing.xl },
 });

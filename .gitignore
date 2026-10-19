@@ -26,3 +26,7 @@ expo-env.d.ts
 server/.env
 .env
 server/.env
+.native-check/
+.vercel/
+.env*
+.vercel

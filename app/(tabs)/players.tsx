@@ -16,30 +16,15 @@ import { LeagueSelector } from '../../components/LeagueSelector';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { EmptyState } from '../../components/EmptyState';
-import { PlayerFUTModal, getTier, Tier } from '../../components/PlayerFUTModal';
+import { PlayerCardModal, getTier, Tier } from '../../components/PlayerCardModal';
 import { useApi } from '../../hooks/useApi';
 import { fetchScorers } from '../../services/api';
-import { LEAGUES, League } from '../../constants/leagues';
+import { useLeague } from '../../context/league';
+import { ErrorState } from '../../components/ErrorState';
+import type { Scorer } from '../../lib/types';
 import { Colors, Typography, Spacing, Radius } from '../../constants/theme';
 
-export interface Scorer {
-  player: {
-    id: number;
-    name: string;
-    nationality: string;
-    dateOfBirth: string;
-    section?: string;
-  };
-  team: {
-    id: number;
-    name: string;
-    crest?: string;
-  };
-  goals: number;
-  assists: number | null;
-  penalties: number | null;
-  playedMatches: number;
-}
+export type { Scorer };
 
 const TIER_ACCENT: Record<string, string> = {
   S: '#FFD700',
@@ -116,18 +101,18 @@ function ScorerCard({
 }
 
 export default function PlayersScreen() {
-  const [selectedLeague, setSelectedLeague] = useState<League>(LEAGUES[0]);
+  const { league: selectedLeague, setLeague: setSelectedLeague } = useLeague();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<{ scorer: Scorer; tier: Tier } | null>(null);
 
-  const { data, loading, error, refetch } = useApi(
-    () => fetchScorers(selectedLeague.id, 20),
+  const { data, loading, error, errorCode, refetch } = useApi(
+    (force) => fetchScorers(selectedLeague.id, force),
     [selectedLeague.id]
   );
 
   // Sort by composite score: (goals × 2) + (assists × 1.5), then assign tiers by rank.
   const rankedScorers: { scorer: Scorer; rank: number; tier: Tier }[] = (
-    ((data as any)?.scorers ?? []) as Scorer[]
+    data?.scorers ?? []
   )
     .slice()
     .sort((a, b) => {
@@ -180,10 +165,11 @@ export default function PlayersScreen() {
             </Text>
           </View>
 
-          {loading ? (
+          <Text style={styles.method}>Ranked by goals × 2 + assists × 1.5 · tiers by rank</Text>
+          {loading && !data ? (
             <LoadingSpinner label="Loading scorers..." />
-          ) : error ? (
-            <EmptyState icon="⚠️" title="Failed to load" subtitle={error} />
+          ) : error && !data ? (
+            <ErrorState message={error} code={errorCode} onRetry={refetch} />
           ) : rankedScorers.length === 0 ? (
             <EmptyState icon="🏆" title="No scorer data" subtitle="Season data may not be available yet." />
           ) : (
@@ -202,7 +188,7 @@ export default function PlayersScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <PlayerFUTModal
+      <PlayerCardModal
         visible={selectedEntry !== null}
         onClose={() => setSelectedEntry(null)}
         tier={selectedEntry?.tier ?? 'C'}
@@ -213,6 +199,7 @@ export default function PlayersScreen() {
 }
 
 const styles = StyleSheet.create({
+  method: { fontSize: Typography.xs, color: Colors.textMuted, marginTop: -4, marginBottom: Spacing.xs },
   safe: { flex: 1, backgroundColor: Colors.bg },
   scroll: { flex: 1, backgroundColor: Colors.bg },
   accentStrip: {

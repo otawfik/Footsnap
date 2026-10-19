@@ -1,162 +1,114 @@
 # FootSnap
 
-[![typecheck](https://github.com/otawfik/Footsnap/actions/workflows/ci.yml/badge.svg)](https://github.com/otawfik/Footsnap/actions/workflows/ci.yml)
+[![ci](https://github.com/otawfik/Footsnap/actions/workflows/ci.yml/badge.svg)](https://github.com/otawfik/Footsnap/actions/workflows/ci.yml)
 
-A premium dark-themed React Native + Expo app for football intelligence — live fixtures, standings, top scorers with FIFA Ultimate Team-style player cards, form-based predictions, and squad intel across the top 5 European leagues and UEFA Champions League.
+Live scores, tables, squads and match predictions for Europe's top five leagues and the Champions League.
+An Expo / React Native app for iOS and Android, plus the same app on the web.
 
-All data is fetched directly from [football-data.org](https://www.football-data.org) from the client — no backend required.
+**Open it:** [footsnap-app.vercel.app](https://footsnap-app.vercel.app) (installable on a phone's home screen) ·
+or run it in Expo Go (below).
 
----
+<!-- screenshots: added from the live app once FOOTBALL_DATA_KEY is set -->
 
-## Screenshots
+## What it does
 
+**Home**: live scores that refresh every 30 seconds while a match is on (and only then), the latest results,
+the next fixtures with the model's home / draw / away odds and most likely score, and the table with each
+competition's real zones (Champions League places, relegation, Bundesliga and Ligue 1's play-off spot, the
+Champions League league phase's top 8 / play-offs / out) and form from actual results.
 
+**Predictions**: a Poisson goals model fitted to the season so far. For each upcoming fixture, win / draw / loss
+probabilities, expected goals and the most likely score; a strength ranking from each team's fitted attack and
+defence; and **the model's record this season**, from a walk-forward test where every match is predicted only
+from results before its kick-off, compared against always picking the home side and against base rates.
 
-| Home | Players | Predictions | Squad Intel |
-|------|---------|-------------|-------------|
-| ![home](assets/screenshots/home.png) | ![players](assets/screenshots/players.png) | ![predictions](assets/screenshots/predictions.png) | ![transfers](assets/screenshots/transfers.png) |
+**Players**: the top 20 by goal contributions, each opening a player card with tier, goals, assists, penalties and
+goals per match, and a photo from Wikipedia (credited and linked; only used when the article is about a
+footballer, so a common name doesn't come back with a stranger's face).
 
-<p align="center"><img src="assets/screenshots/fut-card.png" width="300" alt="Tapping a top scorer opens a FIFA Ultimate Team-style card — here an S-tier Haaland"></p>
+**Squads**: every club's coach, squad size, average age and share of overseas players, the squad grouped by
+position with ages, and a search across the whole league.
 
----
+The league you pick follows you across tabs. Pull to refresh anywhere.
 
-## Features
+## The model
 
-**Home**
-- Live fixtures with score, match status (LIVE / HT / FT), and team crests
-- League standings table with position, points, W/D/L, and goal difference
-- Upcoming fixtures for the selected league — next 5 scheduled matches with date pill (Today / Tomorrow / weekday) and kick-off time
-
-**Players**
-- Top 20 scorers per league, sorted by composite score `(goals × 2) + (assists × 1.5)`
-- Relative tier system: S (top 3) · A (4–10) · B (11–20) · C (rest) — so the best players always get S regardless of raw numbers
-- Tap any player to open a FIFA Ultimate Team-style card with tier-specific gradient (gold / purple / cyan / green), glow border, stats, club crest, and player photo fetched from Wikipedia
-
-**Predictions**
-- Teams ranked by recent form using last 5 match results (W=3, D=1, L=0) ÷ 15
-- Form confidence bar, Hot / Warm / Cold label, W/D/L season record
-- Falls back to season-wide points-per-game when form string is unavailable
-
-**Squad Intel**
-- Full squad rosters for each club in the selected league
-- Expandable team cards with player name, position, and nationality
-- Note: football-data.org free tier has no dedicated transfers endpoint; this tab uses squad data as intel
-
----
-
-## Covered Leagues
-
-| League | ID | Country |
-|--------|----|---------|
-| Premier League | 2021 | England |
-| La Liga | 2014 | Spain |
-| Bundesliga | 2002 | Germany |
-| Serie A | 2019 | Italy |
-| Ligue 1 | 2015 | France |
-| UEFA Champions League | 2001 | Europe |
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Framework | React Native + Expo SDK 54 |
-| Routing | Expo Router v6 (file-based) |
-| Language | TypeScript |
-| Data | football-data.org API v4 |
-| Player photos | Wikipedia REST API (`/api/rest_v1/page/summary/{name}`) |
-| UI | Linear gradients, BlurView, Ionicons |
-| Navigation | React Navigation bottom tabs |
-
----
-
-## Setup
-
-### 1. Get a free API key
-
-Register at [football-data.org/client/register](https://www.football-data.org/client/register). The free tier covers all 6 supported competitions.
-
-### 2. Add your key to `.env`
-
-Create a `.env` file in the project root:
+Goals are modelled as independent Poissons (Maher, 1982; the base of Dixon & Coles, 1997):
 
 ```
-EXPO_PUBLIC_FOOTBALL_API_KEY=your_key_here
+home goals ~ Poisson( mu_home · attack[home] · defence[away] )
+away goals ~ Poisson( mu_away · attack[away] · defence[home] )
 ```
 
-This is already in `.gitignore` — it will not be committed.
+`mu_home` and `mu_away` are the season's average home and away goals, so home advantage is learned rather than
+assumed. Attack and defence are fitted by iterative scaling, which converges to the maximum-likelihood fit while
+accounting for who each team has played. A prior of four league-average games keeps early-season ratings from
+swinging on two results. Outcome probabilities come from summing the 11 × 11 scoreline grid.
 
-### 3. Install dependencies
+The record shown in the app is honest by construction: each finished match is predicted from a fit on matches
+before its day, and scored on accuracy and multi-class Brier score against two baselines. Code:
+[`lib/model.ts`](lib/model.ts). The unit tests check it against simulated seasons with known strengths: the fit
+recovers the strength order and home advantage, and the walk-forward test beats both baselines when teams differ
+and doesn't when they're identical.
+
+## Architecture
+
+```
+app (iOS / Android / web)  ──►  /api/fd  (Vercel function)  ──►  football-data.org v4
+                                 holds the API key
+                                 path allowlist
+                                 edge-cached per resource
+```
+
+- **The key never ships in the app.** It lives in the server's `FOOTBALL_DATA_KEY` environment variable. Earlier
+  versions bundled it into the client, which on the web build meant anyone could read it.
+- **One upstream request serves everyone.** The free tier allows 10 requests a minute. Each response is cached at
+  Vercel's edge (fixtures 30 s, tables 2 min, scorers 15 min, squads 12 h), so that budget is shared across all
+  users instead of spent per user. The app also de-duplicates in-flight requests and keeps short-lived copies, so
+  switching tabs doesn't re-fetch.
+- **Only four kinds of upstream path are allowed** (`competitions/{id}/matches|standings|scorers|teams` for the six
+  supported competitions), with query parameters filtered, so the proxy can't be used as an open relay.
+
+## Run it
 
 ```bash
 npm install
+npx expo start          # scan the QR code with Expo Go, or press i / a for a simulator
+npm run test            # unit tests: model, football helpers, proxy rules
+npm run typecheck
 ```
 
-If you hit peer dependency conflicts:
+Expo Go and simulators talk to the deployed server, so no key is needed locally. To run your own server, deploy
+this repo to Vercel, set `FOOTBALL_DATA_KEY` (free at
+[football-data.org/client/register](https://www.football-data.org/client/register)), and point the app at it with
+`EXPO_PUBLIC_API_BASE=https://your-deployment.vercel.app`.
 
-```bash
-npm install --legacy-peer-deps
-```
+CI typechecks, runs the tests and `expo-doctor`, and compiles the iOS, Android and web bundles on every push.
+Releasing to the App Store and Google Play: see [`docs/app-store.md`](docs/app-store.md).
 
-### 4. Start the app
-
-```bash
-npx expo start --tunnel
-```
-
-Scan the QR code with [Expo Go](https://expo.dev/go) on iOS or Android, or press `i` / `a` to open in a simulator.
-
----
-
-## Project Structure
+## Project structure
 
 ```
-Footsnap/
-├── app/
-│   ├── _layout.tsx           # Root layout (StatusBar, Stack)
-│   └── (tabs)/
-│       ├── _layout.tsx       # Bottom tab navigator (BlurView on iOS)
-│       ├── index.tsx         # Home — live fixtures, standings, upcoming
-│       ├── players.tsx       # Top scorers + FUT card modal
-│       ├── transfers.tsx     # Squad intel
-│       └── predictions.tsx   # Form-based predictions
-├── components/
-│   ├── Card.tsx              # Base card with optional gradient
-│   ├── LeagueSelector.tsx    # Horizontal pill league switcher
-│   ├── PlayerFUTModal.tsx    # FIFA Ultimate Team card modal
-│   ├── ScreenHeader.tsx      # Page title + subtitle
-│   ├── StatusBadge.tsx       # LIVE / FT / Hot / Cold badge
-│   ├── EmptyState.tsx        # Placeholder with icon
-│   └── LoadingSpinner.tsx    # Centered spinner
-├── constants/
-│   ├── theme.ts              # Colors, Typography, Spacing, Radius tokens
-│   └── leagues.ts            # League definitions (ID, flag, accent color)
-├── hooks/
-│   └── useApi.ts             # Generic data-fetching hook (loading/error/refetch)
-├── services/
-│   └── api.ts                # All fetch calls → football-data.org directly
-└── .env                      # EXPO_PUBLIC_FOOTBALL_API_KEY (never committed)
+app/
+  (tabs)/index.tsx        Home: live, results, fixtures with odds, table
+  (tabs)/predictions.tsx  model record, fixture odds, strength ranking
+  (tabs)/players.tsx      top scorers + player cards
+  (tabs)/squads.tsx       clubs, coaches, squads, search
+  about.tsx               data sources, privacy, support links
+api/fd.ts                 the Vercel proxy
+lib/                      pure logic, unit-tested
+  model.ts                Poisson model, predictions, walk-forward backtest
+  football.ts             live/results/upcoming split, form, zones, positions, ages
+  proxy.ts                proxy allowlist and cache policy
+  types.ts                football-data.org response types
+services/api.ts           client: base URL, request de-duplication, short cache
+hooks/useApi.ts           loading / error / refresh, polling while focused
+public/                   privacy policy and support pages
 ```
 
----
+## Data and credits
 
-## Design Tokens
+Football data from [football-data.org](https://www.football-data.org). Player photos from Wikipedia, credited
+on each card. FootSnap is an independent app, not affiliated with any league, club or football-data.org.
 
-| Token | Value |
-|-------|-------|
-| Background | `#0D0D0D` |
-| Card | `#161616` |
-| Accent Green | `#00FF87` |
-| Accent Blue | `#00C2FF` |
-| Accent Purple | `#7B61FF` |
-
-Inspired by Kalshi and Marvel Snap — near-black base, electric accent glows, card layout with sharp typography and linear gradients.
-
----
-
-## Notes
-
-- The API key is bundled client-side via `EXPO_PUBLIC_*` — acceptable for personal / dev builds. For a public release, route calls through a server proxy to keep the key private.
-- Pull-to-refresh works on all screens.
-- The `server/` folder contains a legacy Flask proxy that is no longer used by the app. It can be safely deleted.
+React Native · Expo SDK 54 · Expo Router · TypeScript · Vercel Functions · Vitest
