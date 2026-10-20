@@ -65,6 +65,7 @@ export function simulate(
   const gd = new Float64Array(n);
   const gf = new Float64Array(n);
   const order = ids.map((_, i) => i);
+  const lot = new Float64Array(n);
 
   for (let run = 0; run < runs; run++) {
     table.forEach((row, i) => {
@@ -78,13 +79,19 @@ export function simulate(
       const m = fixtures[k];
       const h = index.get(m.homeTeam.id)!;
       const a = index.get(m.awayTeam.id)!;
+      // always draw, then apply any pin: the what-if run and the baseline then use the same random
+      // numbers (common random numbers), so only real knock-on effects show up as changes
+      const drawH = poisson(lambdas[k][0] * attMod[h] * defMod[a], r);
+      const drawA = poisson(lambdas[k][1] * attMod[a] * defMod[h], r);
       const pinned = forced.get(m.id);
-      const hg = pinned ? pinned[0] : poisson(lambdas[k][0] * attMod[h] * defMod[a], r);
-      const ag = pinned ? pinned[1] : poisson(lambdas[k][1] * attMod[a] * defMod[h], r);
+      const hg = pinned ? pinned[0] : drawH;
+      const ag = pinned ? pinned[1] : drawA;
       gf[h] += hg; gf[a] += ag; gd[h] += hg - ag; gd[a] += ag - hg;
       if (hg > ag) pts[h] += 3; else if (hg < ag) pts[a] += 3; else { pts[h] += 1; pts[a] += 1; }
     }
-    order.sort((x, y) => pts[y] - pts[x] || gd[y] - gd[x] || gf[y] - gf[x] || r() - 0.5);
+    // ties beyond goals scored are broken by lot, drawn up front so every run uses the same count of draws
+    for (let i = 0; i < n; i++) lot[i] = r();
+    order.sort((x, y) => pts[y] - pts[x] || gd[y] - gd[x] || gf[y] - gf[x] || lot[x] - lot[y]);
     order.forEach((teamIdx, pos) => {
       counts[teamIdx][pos]++;
       pointsSum[teamIdx] += pts[teamIdx];
@@ -149,4 +156,21 @@ export function tableAfter(matches: Match[], matchday: number): ReplayRow[] {
   );
   sorted.forEach((r, i) => (r.position = i + 1));
   return sorted;
+}
+
+export interface TrajectoryPoint {
+  matchday: number;
+  position: number;
+  points: number;
+}
+
+/** A team's league position and points after every matchday so far. */
+export function trajectory(matches: Match[], teamId: number): TrajectoryPoint[] {
+  const out: TrajectoryPoint[] = [];
+  const last = lastMatchday(matches);
+  for (let md = 1; md <= last; md++) {
+    const row = tableAfter(matches, md).find((r) => r.team.id === teamId);
+    if (row) out.push({ matchday: md, position: row.position, points: row.points });
+  }
+  return out;
 }

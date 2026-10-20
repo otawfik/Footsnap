@@ -170,3 +170,16 @@ export function backtest(matches: Match[], minPrior = 30): Backtest | null {
   if (!n) return null;
   return { n, accuracy: correct / n, brier: brierSum / n, homeBaselineAccuracy: homeCorrect / n, rateBaselineBrier: rateBrier / n };
 }
+
+/** P(home scores i, away scores j) for i, j in 0..max (the corner cell holds "max or more"). */
+export function scoreGrid(r: Ratings, homeId: number, awayId: number, max = 5): number[][] {
+  const xgHome = r.muHome * (r.attack.get(homeId) ?? 1) * (r.defence.get(awayId) ?? 1);
+  const xgAway = r.muAway * (r.attack.get(awayId) ?? 1) * (r.defence.get(homeId) ?? 1);
+  const ph = poisson(xgHome);
+  const pa = poisson(xgAway);
+  // the last cell is everything else, so the grid sums to exactly one
+  const fold = (p: number[]) => [...p.slice(0, max), Math.max(0, 1 - p.slice(0, max).reduce((s, x) => s + x, 0))];
+  const h = fold(ph);
+  const a = fold(pa);
+  return h.map((x) => a.map((y) => x * y));
+}

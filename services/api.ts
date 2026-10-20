@@ -20,6 +20,23 @@ const BASE = (
   process.env.EXPO_PUBLIC_API_BASE ?? (Platform.OS === 'web' ? '' : DEPLOYED_URL)
 ).replace(/\/$/, '');
 
+/**
+ * Club crests are the clubs' trademarks. Builds made with EXPO_PUBLIC_SHOW_CRESTS=false
+ * strip every crest URL from the data here, in one place, and the app falls back
+ * to badges in each club's colours (see docs/app-store.md, "Content Rights").
+ */
+export const SHOW_CRESTS = process.env.EXPO_PUBLIC_SHOW_CRESTS !== 'false';
+
+function stripCrests<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(stripCrests) as T;
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) if (k !== 'crest') out[k] = stripCrests(v);
+    return out as T;
+  }
+  return value;
+}
+
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string, readonly retryAfterS?: number) {
     super(message);
@@ -50,7 +67,7 @@ async function request<T>(path: string, ttlMs: number, force = false): Promise<T
         Number.isFinite(retry) && retry > 0 ? retry : undefined
       );
     }
-    return body as T;
+    return (SHOW_CRESTS ? body : stripCrests(body)) as T;
   })();
   memory.set(url, { at: Date.now(), value });
   value.catch(() => memory.delete(url)); // never cache a failure

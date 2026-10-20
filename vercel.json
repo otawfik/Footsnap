@@ -12,6 +12,14 @@
     {
       "source": "/card/:id",
       "destination": "/card/[id].html"
+    },
+    {
+      "source": "/match/:id",
+      "destination": "/match/[id].html"
+    },
+    {
+      "source": "/club/:id",
+      "destination": "/club/[id].html"
     }
   ],
   "headers": [

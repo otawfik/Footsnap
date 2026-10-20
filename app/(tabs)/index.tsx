@@ -55,7 +55,9 @@ export default function Matchday() {
           {live.length > 0 && (
             <Section title="Live now">
               {live.map((m) => (
-                <Scoreboard key={m.id} match={m} colors={colors} />
+                <Pressable key={m.id} onPress={() => router.push({ pathname: '/match/[id]', params: { id: String(m.id) } })} accessibilityRole="button">
+                  <Scoreboard match={m} colors={colors} />
+                </Pressable>
               ))}
             </Section>
           )}
@@ -65,7 +67,7 @@ export default function Matchday() {
               <Empty icon="calendar-outline" title="Nothing scheduled" text="Check back closer to the next matchday." />
             ) : (
               upcoming.map((m) => (
-                <FixtureCard key={m.id} match={m} colors={colors} prediction={ratings ? predict(ratings, m.homeTeam.id, m.awayTeam.id) : null} />
+                <FixtureCard key={m.id} match={m} colors={colors} prediction={ratings ? predict(ratings, m.homeTeam.id, m.awayTeam.id) : null} onPress={() => router.push({ pathname: '/match/[id]', params: { id: String(m.id) } })} />
               ))
             )}
           </Section>
@@ -76,7 +78,9 @@ export default function Matchday() {
             ) : (
               <Panel>
                 {results.map((m, i) => (
-                  <ResultRow key={m.id} match={m} colors={colors} last={i === results.length - 1} />
+                  <Pressable key={m.id} onPress={() => router.push({ pathname: '/match/[id]', params: { id: String(m.id) } })} accessibilityRole="button">
+                    <ResultRow match={m} colors={colors} last={i === results.length - 1} />
+                  </Pressable>
                 ))}
               </Panel>
             )}

@@ -48,6 +48,13 @@ describe('simulate', () => {
     expect(again.get(1)!.title).toBe(proj.get(1)!.title);
   });
 
+  it('leaves unrelated clubs alone when a result is pinned (common random numbers)', () => {
+    const m = future[future.length - 1];
+    const pinned = simulate(table(), matches, ratings, 2021, { runs: 1500, forced: new Map([[m.id, [3, 0] as [number, number]]]) });
+    const unrelated = [...proj.keys()].filter((id) => id !== m.homeTeam.id && id !== m.awayTeam.id);
+    for (const id of unrelated) expect(Math.abs(pinned.get(id)!.avgPoints - proj.get(id)!.avgPoints)).toBeLessThan(1e-9);
+  });
+
   it('is less certain when strength estimates carry uncertainty', () => {
     const certain = simulate(table(), matches, ratings, 2021, { runs: 1500, uncertainty: false });
     const best = [...certain.values()].sort((a, b) => b.title - a.title)[0].teamId;
@@ -62,5 +69,25 @@ describe('simulate', () => {
     expect(forced.size).toBeGreaterThan(0);
     expect(whatIf.get(6)!.avgPoints).toBe(now + 3 * forced.size);
     expect(whatIf.get(6)!.avgPoints).toBeGreaterThan(proj.get(6)!.avgPoints);
+  });
+});
+
+import { trajectory } from '../lib/season';
+import { scoreGrid, predict } from '../lib/model';
+describe('trajectory and score grid', () => {
+  it('tracks position and points every matchday', () => {
+    const t = trajectory(played, 1);
+    expect(t.map((p) => p.matchday)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(t[t.length - 1].points).toBe(tableAfter(played, 6).find((r) => r.team.id === 1)!.points);
+    for (let i = 1; i < t.length; i++) expect(t[i].points).toBeGreaterThanOrEqual(t[i - 1].points);
+  });
+
+  it('gives a scoreline grid that sums to one and agrees with the outcome odds', () => {
+    const r = fit(played)!;
+    const g = scoreGrid(r, 1, 6);
+    expect(g.flat().reduce((s, x) => s + x, 0)).toBeCloseTo(1, 6);
+    const homeWin = g.reduce((s, row, i) => s + row.reduce((t, x, j) => (i > j ? t + x : t), 0), 0);
+    expect(homeWin).toBeGreaterThan(0.5);
+    expect(Math.abs(homeWin - predict(r, 1, 6).home)).toBeLessThan(0.05);
   });
 });

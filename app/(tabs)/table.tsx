@@ -4,6 +4,7 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, InteractionManager } from 'react-native';
+import { router } from 'expo-router';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, useReducedMotion } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Header, LeagueTabs, Section, Panel, Skeleton, Failed, Pill, Crest, KitStripe, Form, Empty, tap, teamName } from '../../components/ui';
@@ -12,11 +13,14 @@ import { useClubColors, useSeason, useTable } from '../../hooks/data';
 import { recentForm, zone, Zone } from '../../lib/football';
 import { fit } from '../../lib/model';
 import { lastMatchday, simulate, tableAfter, Projection, remaining } from '../../lib/season';
+import type { Match, StandingRow } from '../../lib/types';
+import type { Ratings } from '../../lib/model';
+import { alpha } from '../../lib/colors';
 import type { ClubColors } from '../../lib/colors';
 import type { Team } from '../../lib/types';
 import { C, F, R, S, T } from '../../constants/theme';
 
-type Mode = 'table' | 'replay' | 'odds';
+type Mode = 'table' | 'replay' | 'odds' | 'whatif';
 const ROW = 46;
 const ZONE_COLOR: Record<Exclude<Zone, null>, string> = { top: '#6FB7FF', europe: '#B39DFF', playoff: C.draw, relegation: C.loss };
 
@@ -143,6 +147,126 @@ function TimeMachine({ matches, colors, competitionId }: { matches: Parameters<t
   );
 }
 
+
+function Stepper({ value, onChange, color }: { value: number; onChange: (v: number) => void; color: string }) {
+  return (
+    <View style={styles.stepper}>
+      <Pressable onPress={() => { tap('select'); onChange(Math.max(0, value - 1)); }} hitSlop={6} style={styles.stepBtn} accessibilityLabel="One fewer goal">
+        <Ionicons name="remove" size={16} color={C.chalk2} />
+      </Pressable>
+      <Text style={[styles.stepNum, { color }]}>{value}</Text>
+      <Pressable onPress={() => { tap('select'); onChange(Math.min(9, value + 1)); }} hitSlop={6} style={styles.stepBtn} accessibilityLabel="One more goal">
+        <Ionicons name="add" size={16} color={C.chalk2} />
+      </Pressable>
+    </View>
+  );
+}
+
+/** Pin upcoming results and watch every club's odds move. */
+function WhatIf({ table, matches, ratings, competitionId, colors }: { table: StandingRow[]; matches: Match[]; ratings: Ratings; competitionId: number; colors: Map<number, ClubColors> }) {
+  const fixtures = useMemo(() => remaining(matches, competitionId).sort((a, b) => a.utcDate.localeCompare(b.utcDate)).slice(0, 10), [matches, competitionId]);
+  const [forced, setForced] = useState<Map<number, [number, number]>>(new Map());
+  const [base, setBase] = useState<Map<number, Projection> | null>(null);
+  const [now, setNow] = useState<Map<number, Projection> | null>(null);
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => setBase(simulate(table, matches, ratings, competitionId, { runs: 1500 })));
+    return () => task.cancel();
+  }, [table, matches, ratings, competitionId]);
+  useEffect(() => {
+    if (!forced.size) {
+      setNow(null);
+      return;
+    }
+    const t = setTimeout(() => setNow(simulate(table, matches, ratings, competitionId, { runs: 1500, forced })), 220);
+    return () => clearTimeout(t);
+  }, [forced, table, matches, ratings, competitionId]);
+
+  const set = (id: number, v: [number, number] | null) =>
+    setForced((f) => {
+      const n = new Map(f);
+      if (v) n.set(id, v);
+      else n.delete(id);
+      return n;
+    });
+  const shown = now ?? base;
+  const delta = (id: number, k: 'title' | 'top' | 'relegation') => (now && base ? (now.get(id)![k] - base.get(id)![k]) * 100 : 0);
+  const fmt = (x: number) => (x >= 0.995 ? '>99' : x > 0 && x < 0.005 ? '<1' : `${Math.round(x * 100)}`);
+
+  return (
+    <View style={{ gap: S.md }}>
+      {fixtures.map((m) => {
+        const v = forced.get(m.id);
+        const hc = colors.get(m.homeTeam.id)?.accent ?? C.chalk;
+        const ac = colors.get(m.awayTeam.id)?.accent ?? C.chalk;
+        return (
+          <Panel key={m.id} style={[styles.wi, v && { borderColor: alpha(C.flare, 0.5) }]}>
+            <View style={styles.wiRow}>
+              <View style={styles.wiTeam}>
+                <Crest team={m.homeTeam} size={22} colors={colors.get(m.homeTeam.id)} />
+                <Text style={styles.wiName} numberOfLines={1}>{v ? m.homeTeam.tla ?? teamName(m.homeTeam) : teamName(m.homeTeam)}</Text>
+              </View>
+              {v ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Stepper value={v[0]} color={hc} onChange={(x) => set(m.id, [x, v[1]])} />
+                  <Stepper value={v[1]} color={ac} onChange={(x) => set(m.id, [v[0], x])} />
+                </View>
+              ) : (
+                <Text style={T.kicker}>Not set</Text>
+              )}
+              <View style={[styles.wiTeam, { justifyContent: 'flex-end' }]}>
+                <Text style={[styles.wiName, { textAlign: 'right' }]} numberOfLines={1}>{v ? m.awayTeam.tla ?? teamName(m.awayTeam) : teamName(m.awayTeam)}</Text>
+                <Crest team={m.awayTeam} size={22} colors={colors.get(m.awayTeam.id)} />
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              <Pill label="Home win" active={!!v && v[0] > v[1]} onPress={() => set(m.id, [2, 0])} color={hc} />
+              <Pill label="Draw" active={!!v && v[0] === v[1]} onPress={() => set(m.id, [1, 1])} color={C.chalk2} />
+              <Pill label="Away win" active={!!v && v[0] < v[1]} onPress={() => set(m.id, [0, 2])} color={ac} />
+              {v ? <Pill label="Clear" onPress={() => set(m.id, null)} /> : null}
+            </View>
+          </Panel>
+        );
+      })}
+
+      <Text style={T.kicker}>{forced.size ? `${forced.size} result${forced.size > 1 ? 's' : ''} pinned · changes vs the real projection` : 'Pin a result above to see the odds move'}</Text>
+      {!shown ? (
+        <Skeleton rows={6} height={40} />
+      ) : (
+        <Panel>
+          <Head cols={['TITLE', competitionId === 2001 ? 'TOP 8' : 'TOP 4', competitionId === 2001 ? 'OUT' : 'DOWN']} />
+          {table
+            .slice()
+            .sort((a, b) => (shown.get(b.team.id)?.avgPoints ?? 0) - (shown.get(a.team.id)?.avgPoints ?? 0))
+            .map((r, i) => {
+              const p = shown.get(r.team.id)!;
+              const cell = (k: 'title' | 'top' | 'relegation', bad = false) => {
+                const d = delta(r.team.id, k);
+                const up = d >= 1;
+                const down = d <= -1;
+                return (
+                  <View style={[styles.stat, { width: 58 }]}>
+                    <Text style={styles.wiPct}>{fmt(p[k])}%</Text>
+                    {up || down ? <Text style={[styles.wiDelta, { color: (up !== bad) ? C.win : C.loss }]}>{up ? '▲' : '▼'}{Math.abs(Math.round(d))}</Text> : null}
+                  </View>
+                );
+              };
+              return (
+                <View key={r.team.id} style={[styles.row, { height: ROW }, i % 2 === 1 && styles.alt]}>
+                  <Text style={[styles.posText, { width: 30 }]}>{i + 1}</Text>
+                  <TeamCell team={r.team} colors={colors.get(r.team.id)} />
+                  {cell('title')}
+                  {cell('top')}
+                  {cell('relegation', true)}
+                </View>
+              );
+            })}
+        </Panel>
+      )}
+    </View>
+  );
+}
+
 const pct = (x: number) => (x >= 0.995 ? '>99%' : x > 0 && x < 0.005 ? '<1%' : `${Math.round(x * 100)}%`);
 
 export default function TableScreen() {
@@ -172,6 +296,7 @@ export default function TableScreen() {
         <Pill label="Table" active={mode === 'table'} onPress={() => setMode('table')} />
         <Pill label="Time machine" active={mode === 'replay'} onPress={() => setMode('replay')} />
         <Pill label="Odds" active={mode === 'odds'} onPress={() => setMode('odds')} />
+        <Pill label="What if" active={mode === 'whatif'} onPress={() => setMode('whatif')} />
       </ScrollView>
 
       {standings.error && !standings.data ? (
@@ -190,7 +315,7 @@ export default function TableScreen() {
               const z = zone(league.id, r.position, table.length);
               const form = recentForm(matches, r.team.id);
               return (
-                <View key={r.team.id} style={[styles.row, { height: ROW }, i % 2 === 1 && styles.alt]}>
+                <Pressable key={r.team.id} onPress={() => router.push({ pathname: '/club/[id]', params: { id: String(r.team.id) } })} style={({ pressed }) => [styles.row, { height: ROW }, i % 2 === 1 && styles.alt, pressed && { backgroundColor: C.turf }]} accessibilityRole="button" accessibilityLabel={`${r.team.name}, open club`}>
                   <View style={styles.pos}>
                     <View style={[styles.zone, z && { backgroundColor: ZONE_COLOR[z] }]} />
                     <Text style={styles.posText}>{r.position}</Text>
@@ -202,7 +327,7 @@ export default function TableScreen() {
                   <View style={{ width: 64, alignItems: 'flex-end' }}>
                     <Form results={form} size={7} />
                   </View>
-                </View>
+                </Pressable>
               );
             })}
           </Panel>
@@ -214,6 +339,14 @@ export default function TableScreen() {
               </View>
             ))}
           </View>
+        </Section>
+      ) : mode === 'whatif' ? (
+        <Section title="What if" note="Set the score of upcoming games and the rest of the season re-simulates">
+          {!ratings ? (
+            <Empty icon="analytics-outline" title="Not enough results yet" text="The what-if machine starts after a few rounds." />
+          ) : (
+            <WhatIf table={table} matches={matches} ratings={ratings} competitionId={league.id} colors={colors} />
+          )}
         </Section>
       ) : mode === 'replay' ? (
         <Section title="Time machine" note="Scrub through the season or press play and watch it unfold">
@@ -260,7 +393,7 @@ const styles = StyleSheet.create({
   pos: { width: 30, flexDirection: 'row', alignItems: 'center', gap: 5 },
   zone: { width: 3, height: 18, borderRadius: 2, backgroundColor: 'transparent' },
   posText: { fontFamily: F.num, fontSize: 15, color: C.chalk2 },
-  teamCell: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  teamCell: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8 },
   team: { fontFamily: F.bodyBold, fontSize: 14, color: C.chalk, flexShrink: 1 },
   stat: { width: 42, textAlign: 'center', fontFamily: F.num, fontSize: 15, color: C.chalk2 },
   pts: { color: C.chalk, fontFamily: F.numHeavy, fontSize: 17 },
@@ -273,4 +406,13 @@ const styles = StyleSheet.create({
   mdOn: { backgroundColor: C.chalk, borderColor: C.chalk },
   mdText: { fontFamily: F.num, fontSize: 15, color: C.chalk2 },
   replayRow: { position: 'absolute', left: 0, right: 0, top: 0 },
+  wi: { padding: S.md, gap: S.sm },
+  wiRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
+  wiTeam: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  wiName: { fontFamily: F.bodyBold, fontSize: 13, color: C.chalk, flexShrink: 1 },
+  stepper: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.night, borderRadius: R.sm, borderWidth: 1, borderColor: C.line },
+  stepBtn: { paddingHorizontal: 6, paddingVertical: 6 },
+  stepNum: { fontFamily: F.numHeavy, fontSize: 20, minWidth: 16, textAlign: 'center' },
+  wiPct: { fontFamily: F.num, fontSize: 14, color: C.chalk },
+  wiDelta: { fontFamily: F.num, fontSize: 10 },
 });
