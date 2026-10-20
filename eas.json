@@ -6,11 +6,18 @@
   "build": {
     "preview": {
       "distribution": "internal",
-      "android": { "buildType": "apk" },
-      "ios": { "simulator": true }
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_SHOW_CRESTS": "true"
+      }
     }
   },
   "submit": {

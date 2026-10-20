@@ -1,121 +1,234 @@
-# Releasing FootSnap to the App Store and Google Play
+# Putting FootSnap on the App Store — a beginner's guide
 
-Everything in the repo is ready for a store build. What's left needs your accounts, and two of them cost money.
+You don't need a Mac with Xcode, and you don't need to know iOS development. You'll type a handful of commands
+and click through a few websites. Plan for **one afternoon of setup**, then **1–3 days waiting** for Apple to review
+the app.
 
-## What you need
+**Can't I just Google "App Store developer account"?** You can, and that covers step 1 (signing up). The account on
+its own doesn't put an app in the store, though. After that you build the app file, upload it, and fill in the store
+listing. This guide walks through all of it.
 
-| | cost | used for |
+---
+
+## What it costs
+
+| What | Price | Needed for |
 | --- | --- | --- |
-| football-data.org key | free | live data (set as `FOOTBALL_DATA_KEY` on the Vercel project) |
-| Expo account | free | EAS Build compiles the iOS/Android binaries in the cloud (free tier: limited builds per month) |
-| Apple Developer Program | **$99 / year** | signing and publishing on the App Store |
-| Google Play Console | **$25 once** | publishing on Google Play |
+| Apple Developer Program | **$99 per year** | The App Store. There's no way around this one. |
+| Expo account | Free | Builds the iPhone app file in the cloud, so you don't need a Mac |
+| Google Play Console | **$25 once** | Optional: only if you also want Android |
 
-No Mac or Xcode is needed: EAS builds iOS in the cloud.
+Nothing else costs money. The football data and the website are on free plans.
 
-## Already done in the repo
+---
 
-- Bundle ID / package `com.otawfik.footsnap`, version 1.0.0, build numbers managed by EAS (`eas.json`,
-  `appVersionSource: remote`, `autoIncrement` on production).
-- App icon 1024×1024 with no alpha channel (App Store Connect rejects one with alpha), Android adaptive icon,
-  splash screen, web favicon.
-- `ITSAppUsesNonExemptEncryption: false`: the app uses only standard HTTPS, so there's no export-compliance
-  question on each upload.
-- iPhone only (`supportsTablet: false`), so no iPad screenshots are required.
-- Android permissions trimmed to what the app uses.
-- In-app About screen with links to the privacy policy and support pages (Guideline 5.1.1 requires the policy to be
-  reachable inside the app):
-  - Privacy policy: https://footsnap-app.vercel.app/privacy
-  - Support: https://footsnap-app.vercel.app/support
-- Player photos credited and linked to their Wikipedia source. No EA / FIFA trademarks anywhere in the app.
-- CI compiles the iOS, Android and web bundles and runs `expo-doctor` on every push.
+## Step 1 — Join the Apple Developer Program (about 30 minutes, then up to 48 hours' wait)
 
-## Build and submit
+1. On a computer, go to **developer.apple.com/programs/enroll**.
+2. Click **Start your enrollment** and sign in with your Apple ID (the one you use on your iPhone). Apple will ask
+   you to turn on two-factor authentication if it isn't on already.
+3. When it asks how you're enrolling, choose **Individual / Sole Proprietor**. Your real name is shown as the
+   seller in the App Store. (Choosing "Organization" needs a registered company and a D-U-N-S number, so skip that.)
+4. Fill in your legal name and address exactly as they appear on your ID.
+5. Pay the $99.
+6. Wait for the "Welcome to the Apple Developer Program" email. Usually it's within a few hours; sometimes up to 2
+   days. **You can't do steps 4–8 until it arrives.** Steps 2 and 3 can happen while you wait.
+
+## Step 2 — Make a free Expo account (5 minutes)
+
+1. Go to **expo.dev** and click **Sign up**. Any email works.
+2. Remember the username and password, because you'll use them in step 3.
+
+## Step 3 — Set up the tools on your computer (15 minutes)
+
+Open **Terminal** (on a Mac, press ⌘ + Space and type "Terminal"). Type each line and press Enter after it.
 
 ```bash
+# get the app's code
+git clone https://github.com/otawfik/Footsnap
+cd Footsnap
+npm install
+
+# install Expo's build tool and sign in with the account from step 2
 npm install -g eas-cli
-eas login                      # your Expo account
-eas init                       # links the project, adds extra.eas.projectId to app.json
+eas login
 
-# iOS
-eas build --platform ios --profile production      # EAS asks for your Apple ID and creates certificates
-eas submit --platform ios --latest                 # uploads to App Store Connect
-
-# Android
-eas build --platform android --profile production  # .aab for Play
-eas submit --platform android --latest             # needs a Play service-account key the first time
+# connect this project to your Expo account (answer "Yes" to the questions)
+eas init
 ```
 
-To try a build on a phone before submitting: `eas build --platform android --profile preview` gives an installable
-APK; for iOS, TestFlight receives every `eas submit` upload.
+`eas init` adds a line to `app.json`. Save that change to GitHub with:
 
-## App Store Connect listing
+```bash
+git add app.json && git commit -m "Link Expo project" && git push
+```
 
-**Name:** FootSnap
-**Subtitle (30):** Live scores, tables & odds
-**Category:** Sports · **Age rating:** 4+ (no objectionable content; answer "None" throughout)
-**Price:** Free
+## Step 4 — Build the iPhone app (5 minutes of your time, about 20 minutes of waiting)
 
-**Promotional text (170):**
-Live scores for the Premier League, La Liga, Bundesliga, Serie A, Ligue 1 and the Champions League, with model-based
-odds for every upcoming match.
+In the same Terminal window:
+
+```bash
+eas build --platform ios --profile production
+```
+
+It asks a few questions. Here's what to answer:
+
+- **"Do you want to log in to your Apple account?"** Yes. Use the Apple ID from step 1.
+- **"Generate a new Apple Distribution Certificate?"** Yes.
+- **"Generate a new Apple Provisioning Profile?"** Yes.
+- Anything about "push notifications": **No** (FootSnap doesn't use them).
+
+Expo builds the app on its own computers. When it finishes, the Terminal shows a link. You don't need to download
+anything; step 6 sends the build to Apple for you.
+
+## Step 5 — Create the app's page in App Store Connect (10 minutes)
+
+1. Go to **appstoreconnect.apple.com** and sign in with the same Apple ID.
+2. Click **Apps**, then the blue **+** button, then **New App**.
+3. Fill in:
+   - **Platforms:** iOS
+   - **Name:** FootSnap. If Apple says the name is taken, try "FootSnap: Football Cards" or "FootSnap Live".
+   - **Primary language:** English (U.S.) or English (U.K.)
+   - **Bundle ID:** choose **com.otawfik.footsnap** from the list (step 4 created it)
+   - **SKU:** footsnap-001 (a private reference code; anything works)
+   - **User Access:** Full Access
+4. Click **Create**.
+
+## Step 6 — Send the build to Apple (2 minutes, then about 15 minutes of processing)
+
+Back in Terminal:
+
+```bash
+eas submit --platform ios --latest
+```
+
+Sign in with your Apple ID again if asked. When it finishes, the build shows up in App Store Connect under
+**TestFlight** after about 15 minutes of processing.
+
+## Step 7 — Try it on your own iPhone first (optional, recommended)
+
+1. Install the **TestFlight** app from the App Store on your iPhone.
+2. In App Store Connect, open FootSnap → **TestFlight** → **Internal Testing** → **+** and add yourself.
+3. Open TestFlight on your iPhone and install FootSnap. Try every tab, open a pack, play "Who's this?", tilt a card.
+
+## Step 8 — Fill in the store listing (about 45 minutes)
+
+In App Store Connect, open FootSnap. Everything below is copy and paste.
+
+### App Store tab → iOS App 1.0
+
+**Screenshots:** drag in the seven images from `docs/screenshots/ios-6.9/` in the code folder. They're the exact
+size Apple asks for (6.9-inch iPhone).
+
+**Promotional text:**
+```
+Live scores, collectible player cards with real stats, and a model that predicts every match. Free, no account.
+```
 
 **Description:**
 ```
-FootSnap keeps up with Europe's top five leagues and the Champions League.
+FootSnap is football as a card game, built on real data from Europe's top five leagues and the Champions League.
 
-LIVE AND LATEST
-Live scores that refresh while a match is on, the latest results, and the next fixtures, all in one place.
+COLLECT EVERY PLAYER
+Every player is a card. Rarity comes from real goal contributions, and every card's ability is a true stat or fact:
+"Leads the Premier League with 8 goals", "The only player from Japan in the league". Open a free pack every day,
+upgrade cards through seven tiers to Infinity, and name mystery players in "Who's this?" to unlock Premium cards.
 
-PREDICTIONS THAT SHOW THEIR WORK
-Every upcoming match gets home, draw and away odds, expected goals and the most likely score from a goals model
-fitted to this season's results. FootSnap also shows how often that model has called results correctly this
-season, tested fairly on matches it hadn't seen.
+THE SEASON, YOUR WAY
+Replay the table matchday by matchday with the time machine. See everyone's title and relegation odds from
+thousands of simulated seasons, then set the scores of upcoming games yourself and watch the odds move.
 
-TABLES
-Full standings with Champions League places, relegation and play-off spots, and each team's recent form.
+EVERY MATCH, OPENED UP
+Live scores, results and fixtures, with the chance of every scoreline and how both teams' seasons have gone.
 
-PLAYERS AND SQUADS
-The top scorers in every league with player cards, plus every club's coach, squad, ages and positions, with search.
+PICKS
+Call the results, Snap one pick a matchday to double the stakes, and try to beat the model.
 
-No account. No ads. No tracking.
+No account. No ads. No tracking. Nothing to buy.
 
 Data from football-data.org. FootSnap is independent and not affiliated with any league or club.
 ```
 
-**Keywords (100):** `football,soccer,live scores,premier league,la liga,bundesliga,serie a,ligue 1,champions league,predictions`
-
-**Support URL:** https://footsnap-app.vercel.app/support
-**Privacy policy URL:** https://footsnap-app.vercel.app/privacy
-
-## App Privacy ("nutrition label")
-
-Answer **"No, we do not collect data from this app."** The app has no accounts, analytics, ads or tracking. Server
-request logs kept by the host for delivery and security aren't "collection" under Apple's definitions, since they
-aren't linked to a user or used beyond operating the service.
-
-## Screenshots
-
-Ready to upload: [`docs/screenshots/ios-6.9/`](screenshots/ios-6.9/) has six 1320 × 2868 PNGs (the 6.9" iPhone size
-App Store Connect requires; it scales them down for smaller iPhones), captured from the live app with real data:
-live Champions League scores, Predictions, a player card, the table, Squads and results. Retake them whenever the
-UI changes.
-
-## Notes for App Review
-
+**Keywords:**
 ```
-FootSnap needs no login. All content loads on launch. Live scores appear only while matches are in progress;
-outside match times, Home shows the latest results and upcoming fixtures. Predictions are statistical estimates
-shown for information only; the app has no betting, wagering or links to bookmakers.
+football,soccer,cards,live scores,premier league,la liga,champions league,predictions,collect,table
 ```
 
-## Review risks to know about
+**Support URL:** `https://footsnap-app.vercel.app/support`
+**Marketing URL:** leave blank
 
-- **Guideline 5.2 (intellectual property).** Club crests and competition names belong to their owners. Many score
-  apps show them through licensed data feeds, and football-data.org supplies the crest images, but App Review can
-  ask for proof of rights. If that happens, the fallback is to hide crests (the UI already handles a missing crest)
-  and reply that names are used descriptively.
-- **football-data.org's free tier** is meant for non-commercial use. Keep the app free and ad-free, or move to a
-  paid plan first.
-- **Predictions and gambling.** The listing and review notes say plainly that there's no betting. Don't add bookmaker
-  links or odds formats like "5/2", or the app may need a gambling age rating and licences.
+**Build:** click **+** and choose the build from step 6.
+
+**App Review Information:** untick "Sign-in required". In **Notes**, paste:
+```
+FootSnap needs no login. Content loads on launch. Live scores appear only while matches are being played; outside
+match times the Matchday tab shows upcoming fixtures and results. Card packs are free (one per day per league) and
+the odds are shown in the Cards tab. There are no purchases, real-money features, betting, or links to bookmakers.
+Predictions are statistical estimates shown for fun.
+```
+Add your name, email and phone number. Apple only uses them if they have a question.
+
+### App Information (left sidebar)
+
+- **Category:** Sports (secondary: Games → Card, if you like)
+- **Content Rights:** "Yes, it contains third-party content". Apple then asks whether you have the rights to it.
+  Answer honestly. The match data is used under football-data.org's terms, and the player photos are Wikipedia
+  images under licences that allow reuse with credit, which FootSnap gives on every card. **Club crests are
+  different:** they're the clubs' trademarks, and you don't have a licence for them. To be safe on your first
+  submission, turn crests off before step 4: open `eas.json`, change `"EXPO_PUBLIC_SHOW_CRESTS": "true"` to
+  `"false"`, and save. The app then shows a badge in each club's colours instead, and you can say Yes to having the
+  rights to everything left.
+- **Age Rating:** click **Edit** and answer every question **None / No**. FootSnap has no violence, no real
+  gambling, no user chat and no web browser. Packs are free, so nothing involves money.
+
+### Pricing and Availability
+
+- **Price:** Free
+- **Availability:** all countries, or choose some
+
+### App Privacy
+
+1. **Privacy Policy URL:** `https://footsnap-app.vercel.app/privacy`
+2. Click **Get Started** under Data Collection and choose **"No, we do not collect data from this app."** That's
+   accurate: no accounts, analytics, ads or tracking, and your cards and picks stay on the phone.
+
+## Step 9 — Submit (1 minute, then 1–3 days)
+
+Click **Add for Review**, then **Submit to App Review**. Apple emails you when it's approved, usually within 1–3
+days. Once it's approved, the app goes live on the App Store automatically, unless you choose to release it by hand.
+
+---
+
+## If Apple rejects it
+
+Rejections are common and usually easy to fix. Apple tells you exactly which rule it's about. Reply in App Store
+Connect, change what they asked, then run steps 4 and 6 again and resubmit.
+
+### Things that can get it rejected
+
+- **Guideline 5.2: other people's trademarks.** Club crests belong to the clubs. If you submitted with crests on and
+  a reviewer asks you to prove you're allowed to use them, set `"EXPO_PUBLIC_SHOW_CRESTS": "false"` in `eas.json`,
+  rebuild (steps 4 and 6) and resubmit. League and club *names* used to describe real matches are normally fine.
+- **Simulated gambling.** Picks and packs are free and use no money. Keep it that way: don't add betting odds in
+  "5/2" style, bookmaker links, or paid packs. Paid random packs would also legally require showing the odds
+  (they're already shown).
+- **football-data.org's free plan is for non-commercial use.** Keep the app free with no ads, or upgrade their plan
+  first.
+
+## Updating the app later
+
+Each time you want to release a new version:
+
+1. In `app.json`, change `"version": "1.0.0"` to `"1.0.1"` (or `1.1.0` for bigger changes).
+2. Run `eas build --platform ios --profile production`, then `eas submit --platform ios --latest`.
+3. In App Store Connect, click **+ Version**, type the same number, attach the new build, write "What's new", and
+   submit.
+
+## Android (optional, $25)
+
+1. Sign up at **play.google.com/console** and pay the one-time $25.
+2. Run `eas build --platform android --profile production`.
+3. In Play Console, **Create app**, then fill in the same listing text, screenshots and privacy answers ("No data
+   collected").
+4. Run `eas submit --platform android --latest`. The first time, Play Console walks you through creating a "service
+   account key" so EAS can upload for you. Expo's docs have a page for it: search "EAS submit Android".

@@ -2,43 +2,50 @@
 
 [![ci](https://github.com/otawfik/Footsnap/actions/workflows/ci.yml/badge.svg)](https://github.com/otawfik/Footsnap/actions/workflows/ci.yml)
 
-Live scores, tables, squads and match predictions for Europe's top five leagues and the Champions League.
-An Expo / React Native app for iOS and Android, plus the same app on the web.
+Football as a card game, built on real data. Every player in Europe's top five leagues and the Champions League is
+a collectible card whose rarity and abilities come from real stats; the season can be replayed, simulated and
+rewritten; every match comes with a model that shows its work. Expo / React Native for iOS and Android, plus the
+same app on the web.
 
-**Open it:** [footsnap-app.vercel.app](https://footsnap-app.vercel.app) (installable on a phone's home screen) ·
-or run it in Expo Go (below).
+**Open it:** [footsnap-app.vercel.app](https://footsnap-app.vercel.app) · or run it in Expo Go (below) ·
+releasing to the stores: [`docs/app-store.md`](docs/app-store.md), a step-by-step guide.
 
 <p>
-  <img src="docs/screenshots/1-live.jpg" width="200" alt="Home: seven Champions League matches live, with scores">
-  <img src="docs/screenshots/2-predictions.jpg" width="200" alt="Predictions: the model called 48% of Premier League results vs 40% for always picking home, and odds for upcoming fixtures">
-  <img src="docs/screenshots/3-player-card.jpg" width="200" alt="Player card for Erling Haaland with a Wikipedia photo">
-  <img src="docs/screenshots/5-squads.jpg" width="200" alt="Squads: Arsenal's coach, squad size, average age and players by position">
+  <img src="docs/screenshots/1-infinity-card.jpg" width="190" alt="An Infinity-tier card for Erling Haaland with a stellar finish and the Golden Boot leader ability">
+  <img src="docs/screenshots/2-collection.jpg" width="190" alt="The collection grid: Icon, Elite and Rare cards at different upgrade tiers">
+  <img src="docs/screenshots/3-whos-this.jpg" width="190" alt="Who's this: a mystery card with the face blurred and four names to choose from">
+  <img src="docs/screenshots/4-what-if.jpg" width="190" alt="What if: a pinned result moves two clubs' relegation odds">
 </p>
 
-<sub>Real data, captured from the live app on 20 October 2026.</sub>
+## What's in it
 
-## What it does
+**Cards, Marvel Snap style.** Every player has a card. Rarity is their rank by goals × 2 + assists (top 3 Icon,
+4–10 Elite, 11–20 Rare). The big number is Power (goals × 2 + assists) or age. Abilities are always true statements
+computed from the data, such as "Leads the Premier League with 8 goals", "3 of 8 goals from the penalty spot", or
+"The only player from Japan in the Premier League". Cards tilt with the phone's gyroscope, carry foil on Elite and
+Icon, and flip to show full stats and exactly how each number was worked out.
 
-**Home**: live scores that refresh every 30 seconds while a match is on (and only then), the latest results,
-the next fixtures with the model's home / draw / away odds and most likely score, and the table with each
-competition's real zones (Champions League places, relegation, Bundesliga and Ligue 1's play-off spot, the
-Champions League league phase's top 8 / play-offs / out) and form from actual results.
+**A collection system modelled on Snap's.** A free daily pack per league (odds shown, nothing to buy), credits
+from packs, duplicates and correct picks, and boosters per card from duplicates. Spend them to upgrade a card
+through seven tiers, each with a visible effect: Breakout (the banner breaks the frame), Depth (3D parallax), Pulse
+(animated glow), Crest, Holo, and Infinity, a black-and-gold frame with a random Gold, Prism, Krackle or Stellar
+finish. A Collection Level with milestone rewards ties it together.
 
-**Predictions**: a Poisson goals model fitted to the season so far. For each upcoming fixture, win / draw / loss
-probabilities, expected goals and the most likely score; a strength ranking from each team's fitted attack and
-defence; and **the model's record this season**, from a walk-forward test where every match is predicted only
-from results before its kick-off, compared against always picking the home side and against base rates.
-In the Premier League as of matchday 7, it had called 48% of 40 results against 40% for always picking home,
-with a Brier score of 0.647 against 0.678 for base rates.
+**Who's this?** A mystery card shows its rarity, Power, position, age, nationality and club colours, with the face
+blurred and the name hidden. Name the player from four options to unlock their **Premium** variant: halftone art,
+an outlined name and a foil seal. Five a day.
 
-**Players**: the top 20 by goal contributions, each opening a player card with tier, goals, assists, penalties and
-goals per match, and a photo from Wikipedia (credited and linked; only used when the article is about a
-footballer, so a common name doesn't come back with a stranger's face).
+**The table, three ways.** The official standings; a **time machine** that replays the season matchday by matchday,
+with rows gliding to their new places; and **odds** from 3,000 simulated seasons. The **what-if machine** lets you
+set the score of upcoming games and re-simulates the rest of the season. Thanks to common random numbers, only the
+clubs your result really affects move.
 
-**Squads**: every club's coach, squad size, average age and share of overseas players, the squad grouped by
-position with ages, and a search across the whole league.
+**Matches and clubs.** Live scoreboards with rolling digits and a goal flash; every fixture with home / draw / away
+odds; match pages with a tappable scoreline heatmap, the points race and each side's key card; club pages with the
+season's position chart, attack and defence ratings, projections and the squad as cards.
 
-The league you pick follows you across tabs. Pull to refresh anywhere.
+**Picks.** Call the next matchday, Snap one pick to double the stakes (+4 or −2), and play against the model, whose
+calls are made only from results before each match.
 
 ## The model
 
@@ -51,14 +58,19 @@ away goals ~ Poisson( mu_away · attack[away] · defence[home] )
 
 `mu_home` and `mu_away` are the season's average home and away goals, so home advantage is learned rather than
 assumed. Attack and defence are fitted by iterative scaling, which converges to the maximum-likelihood fit while
-accounting for who each team has played. A prior of four league-average games keeps early-season ratings from
-swinging on two results. Outcome probabilities come from summing the 11 × 11 scoreline grid.
+accounting for who each team has played. A prior of eight league-average games keeps early-season ratings from
+swinging on a handful of results. Outcome probabilities come from summing the 11 × 11 scoreline grid.
 
 The record shown in the app is honest by construction: each finished match is predicted from a fit on matches
 before its day, and scored on accuracy and multi-class Brier score against two baselines. Code:
 [`lib/model.ts`](lib/model.ts). The unit tests check it against simulated seasons with known strengths: the fit
 recovers the strength order and home advantage, and the walk-forward test beats both baselines when teams differ
 and doesn't when they're identical.
+
+**Season simulation.** Each simulated season redraws every team's strength around its fitted value (log-normal,
+wider for teams with fewer games). Treating fitted strengths as certain made the simulator absurdly confident ten
+games in: one side had a 95% title chance. Remaining fixtures are drawn from the model, added to the official
+table, and ranked by points, goal difference and goals scored.
 
 ## Architecture
 
@@ -86,7 +98,7 @@ app (iOS / Android / web)  ──►  /api/fd  (Vercel function)  ──►  foo
 ```bash
 npm install
 npx expo start          # scan the QR code with Expo Go, or press i / a for a simulator
-npm run test            # unit tests: model, football helpers, proxy rules
+npm run test            # 70 unit tests: model, simulator, cards and abilities, collection, packs, picks, proxy
 npm run typecheck
 ```
 
@@ -102,19 +114,32 @@ Releasing to the App Store and Google Play: see [`docs/app-store.md`](docs/app-s
 
 ```
 app/
-  (tabs)/index.tsx        Home: live, results, fixtures with odds, table
-  (tabs)/predictions.tsx  model record, fixture odds, strength ranking
-  (tabs)/players.tsx      top scorers + player cards
-  (tabs)/squads.tsx       clubs, coaches, squads, search
+  (tabs)/index.tsx        Matchday: live scoreboards, fixtures with odds, results
+  (tabs)/table.tsx        standings, time machine, projected odds, what-if machine
+  (tabs)/cards.tsx        collection: level, daily pack, Who's this?, every player's card
+  (tabs)/picks.tsx        picks with a Snap, against the model
+  card/[id].tsx           one card: tilt, flip, upgrade, Premium variant
+  pack.tsx                opening the daily pack
+  guess.tsx               Who's this?
+  match/[id].tsx          scoreline heatmap, points race, key cards
+  club/[id].tsx           position chart, ratings, projection, fixtures, squad cards
   about.tsx               data sources, privacy, support links
-api/fd.ts                 the Vercel proxy
+api/fd.ts                 the Vercel proxy (holds the football-data.org key)
+components/
+  SnapCard.tsx            the card: rarity frames, foil, tilt, flip, upgrade tiers, Premium
+  ui.tsx                  design-system primitives
+  Match.tsx, Charts.tsx   scoreboards, fixture cards, SVG line charts
 lib/                      pure logic, unit-tested
-  model.ts                Poisson model, predictions, walk-forward backtest
-  football.ts             live/results/upcoming split, form, zones, positions, ages
-  proxy.ts                proxy allowlist and cache policy
-  types.ts                football-data.org response types
-services/api.ts           client: base URL, request de-duplication, short cache
-hooks/useApi.ts           loading / error / refresh, polling while focused
+  model.ts                Poisson model, odds, scoreline grid, walk-forward backtest
+  season.ts               Monte Carlo season simulator (what-if pins), table replay, trajectories
+  cards.ts                rarity, Power and abilities from real data
+  collection.ts           credits, boosters, upgrade tiers, finishes, Collection Level
+  packs.ts, guess.ts      daily packs; Who's this? puzzles
+  picks.ts                scoring, the model's calls, you vs the model
+  colors.ts               club colours from football-data.org's text
+  football.ts, proxy.ts   helpers; proxy allowlist and cache policy
+services/api.ts           client: base URL, request sharing, optional crest stripping
+constants/theme.ts        the design system (colours with measured contrast, type)
 public/                   privacy policy and support pages
 ```
 
