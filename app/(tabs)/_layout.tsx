@@ -1,120 +1,68 @@
 import { Tabs } from 'expo-router';
-import { View, StyleSheet, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Typography, Spacing } from '../../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { C, F, S } from '../../constants/theme';
+import { tap } from '../../components/ui';
 
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+type Icon = React.ComponentProps<typeof Ionicons>['name'];
+const ICONS: Record<string, [Icon, Icon]> = {
+  index: ['radio-outline', 'radio'],
+  table: ['podium-outline', 'podium'],
+  cards: ['albums-outline', 'albums'],
+  picks: ['flash-outline', 'flash'],
+};
 
-interface TabIconProps {
-  name: IoniconName;
-  focused: boolean;
-  size: number;
-}
-
-function TabIcon({ name, focused, size }: TabIconProps) {
+/** A scoreboard-style tab bar: condensed labels, a flare bar over the active tab. */
+function Bar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-      <Ionicons
-        name={name}
-        size={size - 2}
-        color={focused ? Colors.accentGreen : Colors.tabInactive}
-      />
+    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+      {state.routes.map((route, i) => {
+        const on = state.index === i;
+        const { options } = descriptors[route.key];
+        const [off, onIcon] = ICONS[route.name] ?? ['ellipse-outline', 'ellipse'];
+        return (
+          <Pressable
+            key={route.key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={options.title}
+            onPress={() => {
+              const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+              if (!on && !e.defaultPrevented) {
+                tap('select');
+                navigation.navigate(route.name);
+              }
+            }}
+            style={styles.item}
+          >
+            <View style={[styles.indicator, on && styles.indicatorOn]} />
+            <Ionicons name={on ? onIcon : off} size={22} color={on ? C.chalk : C.muted} />
+            <Text style={[styles.label, on && { color: C.chalk }]}>{(options.title ?? '').toUpperCase()}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
 
 export default function TabLayout() {
-  // sized from the device's real bottom inset (home indicator), not a guess per platform
-  const insets = useSafeAreaInsets();
-  const bottom = Math.max(insets.bottom, 8);
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: [styles.tabBar, { height: 60 + bottom, paddingBottom: bottom }],
-        tabBarActiveTintColor: Colors.accentGreen,
-        tabBarInactiveTintColor: Colors.tabInactive,
-        tabBarLabelStyle: styles.label,
-        tabBarBackground: () =>
-          Platform.OS === 'ios' ? (
-            <BlurView
-              intensity={80}
-              tint="dark"
-              style={StyleSheet.absoluteFill}
-            />
-          ) : (
-            <View style={[StyleSheet.absoluteFill, styles.androidBg]} />
-          ),
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ focused, size }) => (
-            <TabIcon name={focused ? 'home' : 'home-outline'} focused={focused} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="players"
-        options={{
-          title: 'Players',
-          tabBarIcon: ({ focused, size }) => (
-            <TabIcon name={focused ? 'person' : 'person-outline'} focused={focused} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="squads"
-        options={{
-          title: 'Squads',
-          tabBarIcon: ({ focused, size }) => (
-            <TabIcon name={focused ? 'people' : 'people-outline'} focused={focused} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="predictions"
-        options={{
-          title: 'Predictions',
-          tabBarIcon: ({ focused, size }) => (
-            <TabIcon name={focused ? 'analytics' : 'analytics-outline'} focused={focused} size={size} />
-          ),
-        }}
-      />
+    <Tabs tabBar={(p) => <Bar {...p} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: C.night } }}>
+      <Tabs.Screen name="index" options={{ title: 'Matchday' }} />
+      <Tabs.Screen name="table" options={{ title: 'Table' }} />
+      <Tabs.Screen name="cards" options={{ title: 'Cards' }} />
+      <Tabs.Screen name="picks" options={{ title: 'Picks' }} />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
-  tabBar: {
-    position: 'absolute',
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingTop: 6,
-    backgroundColor: Platform.OS === 'android' ? Colors.tabBar : 'transparent',
-    elevation: 0,
-  },
-  androidBg: {
-    backgroundColor: Colors.tabBar,
-  },
-  label: {
-    fontSize: Typography.xs,
-    fontWeight: Typography.semibold,
-    letterSpacing: 0.3,
-    marginTop: 2,
-  },
-  iconWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 44,
-    height: 28,
-    borderRadius: 14,
-  },
-  iconWrapActive: {
-    backgroundColor: Colors.accentGreen + '15',
-  },
+  bar: { flexDirection: 'row', backgroundColor: C.night, borderTopWidth: 1, borderTopColor: C.line, paddingTop: 2 },
+  item: { flex: 1, alignItems: 'center', gap: 3, paddingTop: S.sm },
+  indicator: { position: 'absolute', top: -3, width: 28, height: 3, borderRadius: 2, backgroundColor: 'transparent' },
+  indicatorOn: { backgroundColor: C.flare },
+  label: { fontFamily: F.label, fontSize: 11, letterSpacing: 1.2, color: C.muted },
 });

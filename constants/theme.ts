@@ -1,92 +1,70 @@
-export const Colors = {
-  // Backgrounds
-  bg: '#0D0D0D',
-  bgCard: '#161616',
-  bgElevated: '#1C1C1C',
-  bgInput: '#1A1A1A',
+import type { TextStyle } from 'react-native';
 
-  // Accents
-  accentGreen: '#00FF87',
-  accentBlue: '#00C2FF',
-  accentPurple: '#7B61FF',
+/**
+ * FootSnap design system: "floodlit night".
+ *
+ * A pitch-at-night ground (green-black, never pure black), chalk-white type,
+ * one house accent (flare: the orange-red of stadium pyro) for live moments,
+ * and every club in its own colours (lib/colors.ts). Type is stadium signage:
+ * Big Shoulders Display for headlines, Barlow Condensed for scores and numbers
+ * (TV score-graphic style), Barlow for reading.
+ *
+ * Contrast (WCAG), computed against night / pitch / turf:
+ *   chalk 17.2 / 16.2 / 14.8   chalk2 11.9 / 11.3 / 10.3   muted 6.4 / 6.1 / 5.5
+ *   dim 5.8 / 5.5 / 5.0        flare 6.3 / 5.9 / 5.4       loss 6.9 / 6.6 / 6.0
+ *   win, draw, icon, rare all above 7.9 on every surface.
+ * Everything clears 4.5:1 on all three grounds. Recompute if you change a colour.
+ */
 
-  // Text
-  textPrimary: '#FFFFFF',
-  textSecondary: '#9B9B9B',
-  textMuted: '#858585', // ≥4.6:1 on bg, cards and elevated; the old #555 was 2.6:1
+export const C = {
+  night: '#0A0E0B', // app ground
+  pitch: '#101611', // surfaces
+  turf: '#162019', // raised surfaces, pressed states
+  line: '#223026', // hairlines
+  lineHi: '#2F4034',
 
-  // Borders
-  border: '#242424',
-  borderLight: '#2E2E2E',
+  chalk: '#F3F1E7', // primary text: warm white, like pitch markings
+  chalk2: '#C9CCC0',
+  muted: '#8D978E',
+  dim: '#868F88',
 
-  // Status
-  win: '#00FF87',
-  loss: '#FF4757',
-  draw: '#FFB300',
+  flare: '#FF5A36', // house accent: live, goals, the snap
+  flareSoft: 'rgba(255,90,54,0.14)',
 
-  // Tab bar
-  tabActive: '#00FF87',
-  tabInactive: '#555555',
-  tabBar: '#111111',
+  win: '#7BE0A0',
+  draw: '#F2C14E',
+  loss: '#FF6B5B',
+
+  // card rarities
+  icon: '#F5C451',
+  elite: '#C9D3DE',
+  rare: '#6FB7FF',
+  common: '#8D978E',
 } as const;
 
-export const Typography = {
-  // Font sizes
-  xs: 11,
-  sm: 13,
-  base: 15,
-  md: 17,
-  lg: 20,
-  xl: 24,
-  xxl: 30,
-  xxxl: 38,
-
-  // Font weights
-  regular: '400' as const,
-  medium: '500' as const,
-  semibold: '600' as const,
-  bold: '700' as const,
-  black: '900' as const,
-
-  // Letter spacing
-  tight: -0.5,
-  normal: 0,
-  wide: 0.5,
-  wider: 1.2,
+export const F = {
+  display: 'BigShouldersDisplay_900Black',
+  displayBold: 'BigShouldersDisplay_700Bold',
+  num: 'BarlowCondensed_700Bold',
+  numHeavy: 'BarlowCondensed_800ExtraBold_Italic',
+  label: 'BarlowCondensed_600SemiBold',
+  body: 'Barlow_400Regular',
+  bodyMedium: 'Barlow_500Medium',
+  bodyBold: 'Barlow_600SemiBold',
 } as const;
 
-export const Spacing = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  base: 16,
-  lg: 20,
-  xl: 24,
-  xxl: 32,
-  xxxl: 48,
-} as const;
+export const S = { xs: 4, sm: 8, md: 12, base: 16, lg: 20, xl: 24, xxl: 32, xxxl: 48 } as const;
 
-export const Radius = {
-  sm: 6,
-  md: 10,
-  lg: 14,
-  xl: 20,
-  full: 999,
-} as const;
+/** Corners are tight: this is a scoreboard, not a bubble UI. */
+export const R = { xs: 3, sm: 6, md: 10, lg: 14, pill: 999 } as const;
 
-export const Shadow = {
-  card: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  glow: (color: string) => ({
-    shadowColor: color,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 10,
-  }),
-} as const;
+export const T = {
+  hero: { fontFamily: F.display, fontSize: 44, lineHeight: 44, color: C.chalk, letterSpacing: 0.2 },
+  h1: { fontFamily: F.display, fontSize: 32, lineHeight: 34, color: C.chalk, letterSpacing: 0.2 },
+  h2: { fontFamily: F.display, fontSize: 22, lineHeight: 26, color: C.chalk, letterSpacing: 0.3 },
+  kicker: { fontFamily: F.label, fontSize: 12, letterSpacing: 1.6, textTransform: 'uppercase', color: C.muted },
+  label: { fontFamily: F.label, fontSize: 13, letterSpacing: 0.6, color: C.chalk2 },
+  body: { fontFamily: F.body, fontSize: 15, lineHeight: 21, color: C.chalk2 },
+  small: { fontFamily: F.body, fontSize: 13, lineHeight: 18, color: C.muted },
+  num: { fontFamily: F.num, fontSize: 16, color: C.chalk, fontVariant: ['tabular-nums'] },
+} satisfies Record<string, TextStyle>;

@@ -1,61 +1,19 @@
 export interface League {
   id: number;
+  /** short code for the league switcher */
+  code: string;
   name: string;
-  shortName: string;
-  country: string;
-  flag: string;
-  accentColor: string;
+  /** the country whose players count as home-grown on cards; none for the Champions League */
+  nation?: string;
 }
 
 export const LEAGUES: League[] = [
-  {
-    id: 2021,
-    name: 'Premier League',
-    shortName: 'PL',
-    country: 'England',
-    flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    accentColor: '#3D195B',
-  },
-  {
-    id: 2014,
-    name: 'La Liga',
-    shortName: 'LL',
-    country: 'Spain',
-    flag: '🇪🇸',
-    accentColor: '#C60B1E',
-  },
-  {
-    id: 2002,
-    name: 'Bundesliga',
-    shortName: 'BL',
-    country: 'Germany',
-    flag: '🇩🇪',
-    accentColor: '#D00000',
-  },
-  {
-    id: 2019,
-    name: 'Serie A',
-    shortName: 'SA',
-    country: 'Italy',
-    flag: '🇮🇹',
-    accentColor: '#0066CC',
-  },
-  {
-    id: 2015,
-    name: 'Ligue 1',
-    shortName: 'L1',
-    country: 'France',
-    flag: '🇫🇷',
-    accentColor: '#00318F',
-  },
-  {
-    id: 2001,
-    name: 'Champions League',
-    shortName: 'UCL',
-    country: 'Europe',
-    flag: '⭐',
-    accentColor: '#1B3A6B',
-  },
+  { id: 2021, code: 'PREMIER', name: 'Premier League', nation: 'England' },
+  { id: 2014, code: 'LALIGA', name: 'La Liga', nation: 'Spain' },
+  { id: 2002, code: 'BUNDES', name: 'Bundesliga', nation: 'Germany' },
+  { id: 2019, code: 'SERIE A', name: 'Serie A', nation: 'Italy' },
+  { id: 2015, code: 'LIGUE 1', name: 'Ligue 1', nation: 'France' },
+  { id: 2001, code: 'UCL', name: 'Champions League' },
 ];
 
-export const LEAGUE_MAP = Object.fromEntries(LEAGUES.map((l) => [l.id, l]));
+export const LEAGUE_MAP = Object.fromEntries(LEAGUES.map((l) => [l.id, l])) as Record<number, League>;
