@@ -8,7 +8,8 @@
  * advantage is whatever this season's results say it is. Strengths are fitted by
  * iterative scaling, which converges to the maximum-likelihood fit while
  * accounting for who each team played. A prior of PRIOR_GAMES league-average
- * games keeps early-season strengths from swinging on two results.
+ * games keeps early-season strengths from swinging on a handful of results
+ * (at 4, seven games of a +18 goal difference made one side a 76% title pick).
  *
  * Scorelines are independent Poissons, so P(home win), P(draw), P(away win)
  * and the most likely score come from summing the score grid.
@@ -16,7 +17,7 @@
 import type { Match } from './types';
 import { isFinished } from './football';
 
-export const PRIOR_GAMES = 4;
+export const PRIOR_GAMES = 8;
 const MAX_GOALS = 10;
 
 export interface Ratings {
