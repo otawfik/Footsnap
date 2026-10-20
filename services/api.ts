@@ -21,7 +21,7 @@ const BASE = (
 ).replace(/\/$/, '');
 
 export class ApiError extends Error {
-  constructor(message: string, readonly status: number, readonly code?: string) {
+  constructor(message: string, readonly status: number, readonly code?: string, readonly retryAfterS?: number) {
     super(message);
   }
 }
@@ -42,7 +42,13 @@ async function request<T>(path: string, ttlMs: number, force = false): Promise<T
     }
     const body = await res.json().catch(() => null);
     if (!res.ok) {
-      throw new ApiError(body?.error ?? body?.message ?? `Request failed (${res.status})`, res.status, body?.code);
+      const retry = Number(res.headers.get('Retry-After'));
+      throw new ApiError(
+        body?.error ?? body?.message ?? `Request failed (${res.status})`,
+        res.status,
+        body?.code,
+        Number.isFinite(retry) && retry > 0 ? retry : undefined
+      );
     }
     return body as T;
   })();

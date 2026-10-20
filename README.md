@@ -8,7 +8,14 @@ An Expo / React Native app for iOS and Android, plus the same app on the web.
 **Open it:** [footsnap-app.vercel.app](https://footsnap-app.vercel.app) (installable on a phone's home screen) ·
 or run it in Expo Go (below).
 
-<!-- screenshots: added from the live app once FOOTBALL_DATA_KEY is set -->
+<p>
+  <img src="docs/screenshots/1-live.jpg" width="200" alt="Home: seven Champions League matches live, with scores">
+  <img src="docs/screenshots/2-predictions.jpg" width="200" alt="Predictions: the model called 48% of Premier League results vs 40% for always picking home, and odds for upcoming fixtures">
+  <img src="docs/screenshots/3-player-card.jpg" width="200" alt="Player card for Erling Haaland with a Wikipedia photo">
+  <img src="docs/screenshots/5-squads.jpg" width="200" alt="Squads: Arsenal's coach, squad size, average age and players by position">
+</p>
+
+<sub>Real data, captured from the live app on 20 October 2026.</sub>
 
 ## What it does
 
@@ -21,6 +28,8 @@ Champions League league phase's top 8 / play-offs / out) and form from actual re
 probabilities, expected goals and the most likely score; a strength ranking from each team's fitted attack and
 defence; and **the model's record this season**, from a walk-forward test where every match is predicted only
 from results before its kick-off, compared against always picking the home side and against base rates.
+In the Premier League as of matchday 7, it had called 48% of 40 results against 40% for always picking home,
+with a Brier score of 0.647 against 0.678 for base rates.
 
 **Players**: the top 20 by goal contributions, each opening a player card with tier, goals, assists, penalties and
 goals per match, and a photo from Wikipedia (credited and linked; only used when the article is about a
@@ -66,6 +75,9 @@ app (iOS / Android / web)  ──►  /api/fd  (Vercel function)  ──►  foo
   Vercel's edge (fixtures 30 s, tables 2 min, scorers 15 min, squads 12 h), so that budget is shared across all
   users instead of spent per user. The app also de-duplicates in-flight requests and keeps short-lived copies, so
   switching tabs doesn't re-fetch.
+- **When the free tier is busy, nothing breaks.** The edge keeps serving the last good copy (long
+  stale-while-revalidate windows), and the app retries on its own once football-data.org's per-minute counter
+  resets, using the reset time it reports.
 - **Only four kinds of upstream path are allowed** (`competitions/{id}/matches|standings|scorers|teams` for the six
   supported competitions), with query parameters filtered, so the proxy can't be used as an open relay.
 
