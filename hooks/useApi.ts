@@ -31,9 +31,11 @@ export function useApi<T>(
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | undefined>();
   const latest = useRef(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const run = useCallback(async (force: boolean) => {
+  const run = useCallback(async (force: boolean, attempt = 0): Promise<void> => {
     const id = ++latest.current;
+    if (retryTimer.current) clearTimeout(retryTimer.current);
     setError(null);
     try {
       const result = await fetcher(force);
@@ -42,11 +44,21 @@ export function useApi<T>(
       if (id !== latest.current) return;
       setError(e instanceof Error ? e.message : 'Something went wrong');
       setErrorCode(e instanceof ApiError ? e.code : undefined);
+      // the free data tier allows 10 requests a minute; when it's busy, try again
+      // once its counter resets (a few times at most) instead of waiting for a tap
+      if (e instanceof ApiError && e.code === 'RATE_LIMIT' && attempt < 3) {
+        const waitS = Math.min(Math.max(e.retryAfterS ?? 15, 3), 61);
+        retryTimer.current = setTimeout(() => run(true, attempt + 1), waitS * 1000);
+      }
     } finally {
       if (id === latest.current) setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
+
+  useEffect(() => () => {
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+  }, []);
 
   // a new league or player: show the spinner and drop the old data
   useEffect(() => {

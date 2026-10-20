@@ -26,7 +26,8 @@ export async function GET(request: Request): Promise<Response> {
   const body = await upstream.text();
   if (upstream.status === 429) {
     return json({ error: 'The free data tier is busy for a moment. Retrying shortly.', code: 'RATE_LIMIT' }, 429, {
-      'Retry-After': upstream.headers.get('Retry-After') ?? '30',
+      // football-data.org says when its per-minute counter resets
+      'Retry-After': upstream.headers.get('X-RequestCounter-Reset') ?? upstream.headers.get('Retry-After') ?? '20',
       'Cache-Control': 'no-store',
     });
   }

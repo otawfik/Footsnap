@@ -1,10 +1,16 @@
 import { Stack } from 'expo-router';
+import { useFonts } from 'expo-font';
+import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { View, StyleSheet } from 'react-native';
 import { LeagueProvider } from '../context/league';
 import { Colors } from '../constants/theme';
 
 export default function RootLayout() {
+  // Registering the icon font here lets static web rendering inline it, so the
+  // pre-rendered HTML and the first client render draw the same icons (no
+  // hydration mismatch). Rendering isn't blocked on it.
+  useFonts(Ionicons.font);
   return (
     <LeagueProvider>
       <View style={styles.root}>

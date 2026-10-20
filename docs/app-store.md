@@ -96,8 +96,10 @@ aren't linked to a user or used beyond operating the service.
 
 ## Screenshots
 
-Required: 6.9" iPhone (1320 × 2868 portrait) — 3 to 10 images. Capture them from the running app once live data is
-connected (Home with a live match, Predictions, a player card, Squads, the table).
+Ready to upload: [`docs/screenshots/ios-6.9/`](screenshots/ios-6.9/) has six 1320 × 2868 PNGs (the 6.9" iPhone size
+App Store Connect requires; it scales them down for smaller iPhones), captured from the live app with real data:
+live Champions League scores, Predictions, a player card, the table, Squads and results. Retake them whenever the
+UI changes.
 
 ## Notes for App Review
 

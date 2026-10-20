@@ -172,48 +172,54 @@ function PlayerSilhouette({ glowColor }: { glowColor: string }) {
 function PlayerPhoto({
   playerName,
   glowColor,
+  onCredit,
 }: {
   playerName: string;
   glowColor: string;
+  onCredit?: (href: string | null) => void;
 }) {
   const [photo, setPhoto] = useState<{ src: string; href: string } | null>(null);
+  const [aspect, setAspect] = useState<number | null>(null);
   const [useFallback, setUseFallback] = useState(false);
 
   useEffect(() => {
-    // Reset when player changes
+    let live = true;
     setPhoto(null);
+    setAspect(null);
     setUseFallback(false);
+    onCredit?.(null);
     fetchWikipediaPhoto(playerName).then((found) => {
-      if (found) setPhoto(found);
-      else setUseFallback(true);
+      if (!live) return;
+      if (!found) return setUseFallback(true);
+      setPhoto(found);
+      onCredit?.(found.href);
+      Image.getSize(found.src, (w, h) => live && setAspect(w / h), () => live && setAspect(null));
     });
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerName]);
 
   if (useFallback || photo === null) {
     return <PlayerSilhouette glowColor={glowColor} />;
   }
 
-  // Wikipedia images are mostly CC BY-SA: credit the source and link to the
-  // article, whose file page names the photographer and licence
+  // Faces sit in the top third of portrait photos, so the image is drawn at
+  // the card's full width and anchored to the top, rather than centre-cropped
+  // (which cut off at the chin). Until the size is known, cover is the fallback.
+  const height = aspect ? CARD_W / aspect : PHOTO_H;
   return (
-    <View style={styles.playerPhoto}>
-      <Image
-        source={{ uri: photo.src }}
-        style={styles.playerPhoto}
-        resizeMode="cover"
-        onError={() => setUseFallback(true)}
-        accessibilityLabel={`Photo of ${playerName}`}
-      />
-      <Pressable
-        style={styles.photoCredit}
-        onPress={() => Linking.openURL(photo.href)}
-        accessibilityRole="link"
-        accessibilityLabel="Photo from Wikipedia, open the source"
-        hitSlop={8}
-      >
-        <Text style={styles.photoCreditText}>Photo: Wikipedia ↗</Text>
-      </Pressable>
-    </View>
+    <Image
+      source={{ uri: photo.src }}
+      style={{ position: 'absolute', top: 0, left: 0, width: CARD_W, height: Math.max(height, PHOTO_H) }}
+      resizeMode="cover"
+      onError={() => {
+        setUseFallback(true);
+        onCredit?.(null);
+      }}
+      accessibilityLabel={`Photo of ${playerName}`}
+    />
   );
 }
 
@@ -231,6 +237,7 @@ interface PlayerCardProps {
   penalties: number | null;
   playedMatches: number;
   tier: Tier;
+  onCredit?: (href: string | null) => void;
 }
 
 function PlayerCard({
@@ -243,6 +250,7 @@ function PlayerCard({
   penalties,
   playedMatches,
   tier,
+  onCredit,
 }: PlayerCardProps) {
   const config = TIER_CONFIG[tier];
   const flag = nationalityFlag(nationality);
@@ -279,9 +287,10 @@ function PlayerCard({
           <PlayerPhoto
             playerName={name}
             glowColor={config.glowColor}
+            onCredit={onCredit}
           />
 
-          {/* Gradient fade: photo → card background (pointerEvents none lets taps reach the photo credit) */}
+          {/* Gradient fade: photo → card background  */}
           <LinearGradient
             colors={['transparent', 'transparent', config.gradientColors[2]]}
             locations={[0, 0.55, 1]}
@@ -336,8 +345,8 @@ function PlayerCard({
           <View style={styles.futStatsRow}>
             {[
               { val: goals, label: 'GLS' },
-              { val: assists ?? 0, label: 'AST' },
-              { val: penalties ?? 0, label: 'PEN' },
+              { val: assists ?? '—', label: 'AST' },
+              { val: penalties ?? '—', label: 'PEN' },
               { val: goalsPerMatch, label: 'G/M' },
             ].map(({ val, label }) => (
               <View key={label} style={styles.futStatCell}>
@@ -369,6 +378,7 @@ export interface PlayerCardModalProps {
 }
 
 export function PlayerCardModal({ visible, onClose, tier, scorer }: PlayerCardModalProps) {
+  const [credit, setCredit] = useState<string | null>(null);
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -436,6 +446,7 @@ export function PlayerCardModal({ visible, onClose, tier, scorer }: PlayerCardMo
           penalties={scorer.penalties}
           playedMatches={scorer.playedMatches ?? 0}
           tier={tier}
+          onCredit={setCredit}
         />
 
         {/* Tier label */}
@@ -446,6 +457,14 @@ export function PlayerCardModal({ visible, onClose, tier, scorer }: PlayerCardMo
             </Text>
           </View>
         </View>
+
+        {/* Wikipedia images are mostly CC BY-SA: credit the source and link to the
+            article, whose file page names the photographer and licence */}
+        {credit ? (
+          <Pressable onPress={() => Linking.openURL(credit)} accessibilityRole="link" hitSlop={8} style={styles.photoCredit}>
+            <Text style={styles.photoCreditText}>Photo: Wikipedia ↗</Text>
+          </Pressable>
+        ) : null}
 
         {/* Close */}
         <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.8}>
@@ -498,25 +517,14 @@ const styles = StyleSheet.create({
     height: PHOTO_H,
     overflow: 'hidden',
   },
-  playerPhoto: {
-    width: '100%',
-    height: '100%',
-  },
   photoCredit: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    zIndex: 5,
-    elevation: 5,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 4,
-    paddingHorizontal: 6,
+    marginTop: Spacing.sm,
     paddingVertical: 2,
   },
   photoCreditText: {
-    fontSize: 9,
-    color: '#FFFFFF',
-    fontWeight: '600',
+    fontSize: Typography.xs,
+    color: Colors.textSecondary,
+    textDecorationLine: 'underline',
   },
   // Silhouette fills same space when photo fails
   silhouetteWrap: {

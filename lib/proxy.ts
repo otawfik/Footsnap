@@ -19,12 +19,15 @@ interface Rule {
   stale: number;
 }
 
+// stale-while-revalidate is long on purpose: when the free tier is busy (429),
+// the edge keeps serving the last good copy instead of an error
 const RULES: Rule[] = [
   // a season's fixtures carry the live scores, so they're the shortest-lived
-  { pattern: /^competitions\/(\d+)\/matches$/, maxAge: 30, stale: 60 },
-  { pattern: /^competitions\/(\d+)\/standings$/, maxAge: 120, stale: 600 },
-  { pattern: /^competitions\/(\d+)\/scorers$/, maxAge: 900, stale: 3600 },
-  { pattern: /^competitions\/(\d+)\/teams$/, maxAge: 43200, stale: 86400 },
+  { pattern: /^competitions\/(\d+)\/matches$/, maxAge: 30, stale: 600 },
+  // tables only change when a match finishes
+  { pattern: /^competitions\/(\d+)\/standings$/, maxAge: 300, stale: 3600 },
+  { pattern: /^competitions\/(\d+)\/scorers$/, maxAge: 1800, stale: 21600 },
+  { pattern: /^competitions\/(\d+)\/teams$/, maxAge: 43200, stale: 604800 },
 ];
 
 export interface Resolved {
