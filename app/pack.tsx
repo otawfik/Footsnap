@@ -27,15 +27,50 @@ import { C, F, R, S, T } from '../constants/theme';
 
 const BURST = { common: C.common, rare: C.rare, elite: C.elite, icon: C.icon } as const;
 
+/** Light rays in the rarity colour, turning slowly behind a freshly revealed rare card. */
+function RayBurst({ size, color }: { size: number; color: string }) {
+  const spin = useSharedValue(0);
+  useEffect(() => {
+    spin.value = withRepeat(withTiming(1, { duration: 24000, easing: Easing.linear }), -1);
+  }, [spin]);
+  const st = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.value * 360}deg` }] }));
+  const c = size / 2;
+  const n = 16;
+  return (
+    <Animated.View style={[{ width: size, height: size }, st]}>
+      <Svg width={size} height={size}>
+        <Defs>
+          <RadialGradient id="rayFade" cx="50%" cy="50%" r="50%">
+            <Stop offset="0.25" stopColor={color} stopOpacity="0.55" />
+            <Stop offset="1" stopColor={color} stopOpacity="0" />
+          </RadialGradient>
+        </Defs>
+        {Array.from({ length: n }, (_, i) => {
+          const a0 = (i / n) * Math.PI * 2;
+          const a1 = a0 + Math.PI / n / 1.4;
+          return <Path key={i} d={`M ${c} ${c} L ${c + c * Math.cos(a0)} ${c + c * Math.sin(a0)} L ${c + c * Math.cos(a1)} ${c + c * Math.sin(a1)} Z`} fill="url(#rayFade)" />;
+        })}
+      </Svg>
+    </Animated.View>
+  );
+}
+
 function Reveal({ card, width, isNew, onRevealed, competition }: { card: PlayerCard; width: number; isNew: boolean; onRevealed: () => void; competition: string }) {
   const flip = useSharedValue(0);
   const burst = useSharedValue(0);
   const enter = useSharedValue(0);
+  const charge = useSharedValue(0);
+  const lift = useSharedValue(0);
+  const flash = useSharedValue(0);
   const [shown, setShown] = useState(false);
   const reduced = useReducedMotion();
+  const rare = card.rarity !== 'common';
+  const color = BURST[card.rarity];
   useEffect(() => {
     enter.value = reduced ? 1 : withSpring(1, { damping: 14, stiffness: 120 });
-  }, [enter, reduced]);
+    // rarer cards hum in their colour before you turn them over
+    if (rare && !reduced) charge.value = withRepeat(withSequence(withTiming(1, { duration: card.rarity === 'icon' ? 500 : 800 }), withTiming(0.3, { duration: card.rarity === 'icon' ? 500 : 800 })), -1);
+  }, [enter, charge, rare, reduced, card.rarity]);
 
   const reveal = () => {
     if (shown) return;
@@ -45,35 +80,66 @@ function Reveal({ card, width, isNew, onRevealed, competition }: { card: PlayerC
       if (card.rarity === 'icon') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       else Haptics.impactAsync(card.rarity === 'common' ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
     }
-    flip.value = reduced ? 1 : withTiming(1, { duration: 650, easing: Easing.out(Easing.cubic) });
-    if (card.rarity !== 'common' && !reduced) burst.value = withSequence(withTiming(1, { duration: 320 }), withTiming(0.55, { duration: 900 }));
+    charge.value = withTiming(0, { duration: 200 });
+    if (reduced) {
+      flip.value = 1;
+      return;
+    }
+    flip.value = withTiming(1, { duration: 650, easing: Easing.out(Easing.cubic) });
+    lift.value = withSequence(withTiming(1, { duration: 320, easing: Easing.out(Easing.quad) }), withSpring(0, { damping: 10, stiffness: 140 }));
+    flash.value = withSequence(withTiming(0, { duration: 300 }), withTiming(rare ? 0.85 : 0.4, { duration: 60 }), withTiming(0, { duration: 520 }));
+    if (rare) burst.value = withSequence(withTiming(1, { duration: 380, easing: Easing.out(Easing.back(1.6)) }), withTiming(0.75, { duration: 900 }));
   };
 
-  const wrap = useAnimatedStyle(() => ({ transform: [{ translateY: interpolate(enter.value, [0, 1], [80, 0]) }, { scale: interpolate(enter.value, [0, 1], [0.85, 1]) }], opacity: enter.value }));
+  const wrap = useAnimatedStyle(() => ({
+    transform: [{ translateY: interpolate(enter.value, [0, 1], [80, 0]) }, { scale: interpolate(enter.value, [0, 1], [0.85, 1]) * (1 + lift.value * 0.07) }],
+    opacity: enter.value,
+  }));
   const backFace = useAnimatedStyle(() => ({ transform: [{ perspective: 900 }, { rotateY: `${interpolate(flip.value, [0, 1], [0, 180])}deg` }], opacity: flip.value < 0.5 ? 1 : 0 }));
   const frontFace = useAnimatedStyle(() => ({ transform: [{ perspective: 900 }, { rotateY: `${interpolate(flip.value, [0, 1], [180, 360])}deg` }], opacity: flip.value >= 0.5 ? 1 : 0 }));
-  const burstStyle = useAnimatedStyle(() => ({ opacity: burst.value, transform: [{ scale: interpolate(burst.value, [0, 1], [0.6, 1.25]) }] }));
+  const burstStyle = useAnimatedStyle(() => ({ opacity: burst.value, transform: [{ scale: interpolate(burst.value, [0, 1], [0.4, 1]) }] }));
+  const chargeStyle = useAnimatedStyle(() => ({ opacity: charge.value }));
+  const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
   const h = cardHeight(width);
+  const r = 18 * (width / 300) + 4;
+  const rays = width * 2.2;
 
   return (
     <Animated.View style={[{ alignItems: 'center' }, wrap]}>
-      <Animated.View style={[styles.burst, { width: width * 1.9, height: width * 1.9, borderRadius: width, backgroundColor: alpha(BURST[card.rarity], 0.32) }, burstStyle]} pointerEvents="none" />
+      {rare && !reduced ? (
+        <Animated.View style={[styles.burst, { width: rays, height: rays, top: h / 2 - rays / 2 }, burstStyle]} pointerEvents="none">
+          <RayBurst size={rays} color={color} />
+        </Animated.View>
+      ) : null}
       <Pressable onPress={reveal} accessibilityRole="button" accessibilityLabel={shown ? `${card.name}, ${RARITY_NAME[card.rarity]}` : 'Reveal card'}>
         <View style={{ width, height: h }}>
+          {rare ? (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                { position: 'absolute', left: -6, top: -6, width: width + 12, height: h + 12, borderRadius: r + 6, borderWidth: 3, borderColor: color },
+                { backgroundColor: alpha(color, 0.25), shadowColor: color, shadowOpacity: 1, shadowRadius: 32, shadowOffset: { width: 0, height: 0 } },
+                chargeStyle,
+              ]}
+            />
+          ) : null}
           <Animated.View style={[StyleSheet.absoluteFill, backFace, { backfaceVisibility: 'hidden' }]}>
             <CardBack width={width} />
           </Animated.View>
           <Animated.View style={[StyleSheet.absoluteFill, frontFace, { backfaceVisibility: 'hidden' }]}>
             <SnapCard card={card} width={width} idleShimmer interactive={shown} competition={competition} />
+            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: r, backgroundColor: '#FFFFFF' }, flashStyle]} />
           </Animated.View>
         </View>
       </Pressable>
-      <View style={{ height: 30, justifyContent: 'center' }}>
+      <View style={{ height: 44, justifyContent: 'center' }}>
         {shown ? (
-          <Text style={[styles.tag, { color: BURST[card.rarity] }]}>
-            {RARITY_NAME[card.rarity].toUpperCase()}
-            {isNew ? '  ·  NEW' : '  ·  DUPLICATE'}
-          </Text>
+          <View style={styles.tagRow}>
+            <View style={[styles.rarityPill, { borderColor: color, backgroundColor: alpha(color, 0.14) }]}>
+              <Text style={[styles.tag, { color }]}>{RARITY_NAME[card.rarity].toUpperCase()}</Text>
+            </View>
+            <Text style={[styles.tagNote, isNew && { color: C.chalk }]}>{isNew ? 'NEW' : 'DUPLICATE'}</Text>
+          </View>
         ) : (
           <Text style={styles.tagHint}>TAP TO REVEAL</Text>
         )}
@@ -279,8 +345,11 @@ const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center' },
   top: { position: 'absolute', top: 54, left: S.lg, right: S.lg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 5 },
   bottom: { position: 'absolute', bottom: 40, left: S.xl, right: S.xl },
-  burst: { position: 'absolute', top: '50%', alignSelf: 'center', marginTop: -160 },
+  burst: { position: 'absolute', alignSelf: 'center' },
+  tagRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  rarityPill: { borderWidth: 1, borderRadius: R.pill, paddingHorizontal: 12, paddingVertical: 4 },
   tag: { fontFamily: F.label, fontSize: 14, letterSpacing: 2 },
+  tagNote: { fontFamily: F.label, fontSize: 13, letterSpacing: 2, color: C.muted },
   tagHint: { fontFamily: F.label, fontSize: 13, letterSpacing: 2, color: C.muted },
   packBody: { position: 'absolute', left: 0, right: 0, overflow: 'hidden', alignItems: 'center', borderLeftWidth: 1, borderRightWidth: 1, borderColor: 'rgba(245,196,81,0.25)' },
   tearRow: { position: 'absolute', top: 10, left: 0, right: 0, flexDirection: 'row', alignItems: 'center' },
