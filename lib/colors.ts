@@ -65,3 +65,12 @@ export function mix(a: string, b: string, t: number): string {
   const p = (h: string, i: number) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
   return `#${[0, 1, 2].map((i) => Math.round(p(a, i) + (p(b, i) - p(a, i)) * t).toString(16).padStart(2, '0')).join('')}`;
 }
+
+/**
+ * A backdrop for a shirt drawn in `shirt`: the first candidate that keeps the shirt readable
+ * (at least 1.8:1), so a black shirt never sits on near-black or a blue one on navy.
+ */
+export function backdropFor(shirt: string, secondary: string, night: string): string {
+  const candidates = [mix(shirt, night, 0.62), mix(secondary, night, 0.3), '#26302A', '#5A645E', '#8A938C'];
+  return candidates.find((c) => contrast(shirt, c) >= 1.8) ?? '#8A938C';
+}
