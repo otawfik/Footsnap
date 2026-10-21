@@ -554,44 +554,80 @@ function Stat({ value, label, k }: { value: string | number; label: string; k: n
   );
 }
 
-function Back({ card, w, competition }: { card: PlayerCard; w: number; competition: string }) {
+function Back({ card, w, competition, look }: { card: PlayerCard; w: number; competition: string; look: Look }) {
   const h = cardHeight(w);
   const k = w / 300;
+  const r = 18 * k + 4;
+  const f = Math.max(3, Math.round(6 * k));
+  const iw = w - f * 2;
+  const ih = h - f * 2;
+  const pad = 14 * k + 4;
   const s = card.stats;
   const g = cardStats(card);
   const art = useArt(card.id);
   const dash = (v: number | null | undefined) => (v === null || v === undefined ? '—' : v);
+  const frame = look.tier >= 1 ? TIER_FRAME[look.tier] : RARITY_FRAME[card.rarity];
+  const primary = card.team.colors.primary;
+  const accent = RARITY_COLOR[card.rarity];
   const rarityWhy =
     card.rank !== null
       ? `#${card.rank} by goals × 2 + assists among the ${competition}'s top 20 scorers.`
-      : `Not in the ${competition}'s top 20 scorers list.`;
+      : `Not in the ${competition}'s top 20 scorers.`;
   return (
-    <LinearGradient colors={[alpha(card.team.colors.primary, 0.95), C.night]} style={[styles.back, { width: w, height: h, borderRadius: 18 * k + 4, padding: 16 * k + 4 }]}>
-      {card.team.crest ? <Image source={{ uri: card.team.crest }} style={[styles.watermark, { width: w * 0.7, height: w * 0.7, top: h * 0.2, left: w * 0.15 }]} resizeMode="contain" /> : null}
-      <Text style={[styles.backName, { fontSize: 26 * k + 4 }]} numberOfLines={1} adjustsFontSizeToFit>{card.name.toUpperCase()}</Text>
-      <Text style={[styles.backMeta, { fontSize: 13 * k + 2 }]}>
-        {[card.position, card.age !== null ? `${card.age}` : null, card.nationality, card.team.shortName].filter(Boolean).join(' · ')}
-      </Text>
-      <View style={[styles.statsRow, { marginTop: 12 * k + 2 }]}>
-        <Stat value={dash(s?.goals ?? (s ? 0 : null))} label="GOALS" k={k} />
-        <Stat value={dash(s?.assists)} label="ASSISTS" k={k} />
-        <Stat value={dash(s?.penalties)} label="PENS" k={k} />
-        <Stat value={dash(s?.played)} label="GAMES" k={k} />
-      </View>
-      <View style={{ gap: 7 * k + 2, marginTop: 12 * k + 2 }}>
-        {card.abilities.map((a) => (
-          <View key={a.title}>
-            <Text style={[styles.abilityKind, { color: RARITY_COLOR[card.rarity], fontSize: 10 * k + 3 }]}>{a.kind === 'ongoing' ? 'THIS SEASON' : 'TRAIT'} · {a.title.toUpperCase()}</Text>
-            <Text style={[styles.abilityText, { fontSize: 13 * k + 2, lineHeight: 17 * k + 3 }]}>{a.text}</Text>
+    <View style={{ width: w, height: h }}>
+      <LinearGradient colors={frame} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: r }]} />
+      <LinearGradient
+        colors={['rgba(255,255,255,0.45)', 'rgba(255,255,255,0)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.3)']}
+        locations={[0, 0.25, 0.7, 1]}
+        style={[StyleSheet.absoluteFill, { borderRadius: r, borderWidth: 1, borderColor: 'rgba(10,14,11,0.7)' }]}
+      />
+      <View style={{ position: 'absolute', left: f, top: f, width: iw, height: ih, borderRadius: Math.max(2, r - f * 0.6), overflow: 'hidden', padding: pad }}>
+        <LinearGradient colors={[mix(primary, C.night, 0.5), mix(primary, C.night, 0.78), C.night]} locations={[0, 0.45, 1]} style={StyleSheet.absoluteFill} />
+        {card.team.crest ? (
+          <Image source={{ uri: card.team.crest }} style={{ position: 'absolute', width: iw * 0.62, height: iw * 0.62, right: -iw * 0.12, bottom: ih * 0.1, opacity: 0.06 }} resizeMode="contain" />
+        ) : null}
+
+        <Text style={[styles.backName, { fontSize: 26 * k + 4 }]} numberOfLines={1} adjustsFontSizeToFit>{card.name.toUpperCase()}</Text>
+        <Text style={[styles.backMeta, { fontSize: 12.5 * k + 2 }]} numberOfLines={1}>
+          {[card.position, card.age !== null ? `${card.age}` : null, card.nationality, card.team.shortName].filter(Boolean).join(' · ')}
+        </Text>
+
+        <View style={[styles.statsRow, { marginTop: 12 * k + 2 }]}>
+          <Stat value={dash(s?.goals ?? (s ? 0 : null))} label="GOALS" k={k} />
+          <Stat value={dash(s?.assists)} label="ASSISTS" k={k} />
+          <Stat value={dash(s?.penalties)} label="PENS" k={k} />
+          <Stat value={dash(s?.played)} label="GAMES" k={k} />
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 6 * k + 2, marginTop: 10 * k + 2 }}>
+          <View style={[styles.backChip, { borderColor: 'rgba(127,196,255,0.5)' }]}>
+            <Text style={[styles.backChipText, { fontSize: 10 * k + 3, color: '#9FD0FF' }]}>COST {g.cost}</Text>
           </View>
-        ))}
+          <View style={[styles.backChip, { borderColor: 'rgba(255,193,90,0.5)' }]}>
+            <Text style={[styles.backChipText, { fontSize: 10 * k + 3, color: '#FFC15A' }]}>POWER {g.power}</Text>
+          </View>
+          <View style={[styles.backChip, { borderColor: alpha(accent, 0.5) }]}>
+            <Text style={[styles.backChipText, { fontSize: 10 * k + 3, color: accent }]}>{RARITY_NAME[card.rarity].toUpperCase()}</Text>
+          </View>
+        </View>
+
+        <View style={{ gap: 8 * k + 2, marginTop: 12 * k + 2 }}>
+          {card.abilities.map((a) => (
+            <View key={a.title} style={{ borderLeftWidth: 2, borderLeftColor: alpha(accent, 0.7), paddingLeft: 8 * k + 2 }}>
+              <Text style={[styles.abilityKind, { color: accent, fontSize: 10 * k + 3 }]}>{a.kind === 'ongoing' ? 'THIS SEASON' : 'TRAIT'} · {a.title.toUpperCase()}</Text>
+              <Text style={[styles.abilityText, { fontSize: 13 * k + 2, lineHeight: 17 * k + 3 }]}>{a.text}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={{ flex: 1 }} />
+        <Text style={[styles.backFine, { fontSize: 10 * k + 2, lineHeight: 13.5 * k + 2 }]}>
+          {rarityWhy} Cost and Power come from rarity and goals. Stats: football-data.org.
+          {art ? ` Photo: ${art.artist}, ${art.license}.` : ''}
+        </Text>
+        <View style={[StyleSheet.absoluteFill, { borderRadius: Math.max(2, r - f * 0.6), borderWidth: Math.max(1, 1.2 * k), borderColor: 'rgba(10,14,11,0.75)' }]} pointerEvents="none" />
       </View>
-      <View style={{ flex: 1 }} />
-      <Text style={[styles.backFine, { fontSize: 10.5 * k + 2, lineHeight: 14.5 * k + 2 }]}>
-        {RARITY_NAME[card.rarity]}: {rarityWhy} Duel: cost {g.cost}, power {g.power}, from rarity and goals. Stats: football-data.org.
-        {art ? ` Photo: ${art.artist}, ${art.license}, via Wikimedia Commons (background removed).` : ''}
-      </Text>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -734,7 +770,7 @@ export function SnapCard({
         {look.tier >= 3 ? <PulseRing w={w} h={h} r={r} color={look.tier === 6 ? '#F6DC8A' : card.team.colors.accent} animate={animate} /> : null}
       </Animated.View>
       <Animated.View style={[StyleSheet.absoluteFill, backSide, { backfaceVisibility: 'hidden' }]}>
-        <Back card={card} w={w} competition={competition} />
+        <Back card={card} w={w} competition={competition} look={look} />
       </Animated.View>
     </Animated.View>
   );
@@ -810,8 +846,8 @@ export function PhotoCredit({ card }: { card: PlayerCard }) {
 
 const styles = StyleSheet.create({
   notCollected: { position: 'absolute', fontFamily: F.label, letterSpacing: 1.2, color: C.chalk2 },
-  back: { overflow: 'hidden', borderWidth: 1, borderColor: C.lineHi },
-  watermark: { position: 'absolute', opacity: 0.08 },
+  backChip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, backgroundColor: 'rgba(10,14,11,0.35)' },
+  backChipText: { fontFamily: F.label, letterSpacing: 1.1 },
   backName: { fontFamily: F.display, color: C.chalk },
   backMeta: { fontFamily: F.body, color: C.chalk2, marginTop: 2 },
   statsRow: { flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(243,241,231,0.15)', paddingVertical: 10 },
