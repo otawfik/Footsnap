@@ -12,7 +12,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming, withSpring, useReducedMotion, FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { SnapCard } from '../components/SnapCard';
+import { KitArt, RARITY_FRAME, SnapCard } from '../components/SnapCard';
+import Svg, { Defs, LinearGradient as SvgGrad, Path, Stop, Text as SvgText } from 'react-native-svg';
 import { Button, Coin, tap } from '../components/ui';
 import { useLeague } from '../context/league';
 import { useCollection, useProfile } from '../lib/storage';
@@ -43,33 +44,60 @@ import {
   zonePower,
 } from '../lib/game';
 import type { PlayerCard } from '../lib/cards';
-import { alpha } from '../lib/colors';
+import { alpha, mix } from '../lib/colors';
 import { C, F, R, S, T } from '../constants/theme';
 
-const RARITY_EDGE = { common: C.lineHi, rare: C.rare, elite: C.elite, icon: C.icon } as const;
-
-/** A card on the board: its art and its current Power. */
+/** A card on the board: a miniature of the full card (metal frame, studio backdrop, art) with its current Power. */
 function BoardCard({ card, power, pending, w, onPress }: { card: PlayerCard; power: number; pending?: boolean; w: number; onPress?: () => void }) {
   const art = useArt(card.id);
   const h = Math.round(w * 1.25);
-  const initials = card.name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]).join('');
+  const f = 2;
+  const iw = w - f * 2;
+  const ih = h - f * 2;
   const base = cardStats(card).power;
+  const primary = card.team.colors.primary;
+  // the Power shield: orange as printed, green when boosted, red when cut
+  const [top, bottom] = power > base ? ['#7FE0A0', '#1F8A47'] : power < base ? ['#FF8A7A', '#B3261E'] : ['#FFC15A', '#C4520F'];
+  const sw = Math.max(18, w * 0.34);
   return (
     <Pressable
       onPress={onPress}
       disabled={!onPress}
-      style={[styles.bc, { width: w, height: h, borderColor: RARITY_EDGE[card.rarity], backgroundColor: card.team.colors.primary }, pending && styles.bcPending]}
+      style={[{ width: w, height: h }, pending && styles.bcPending]}
       accessibilityLabel={`${card.name}, ${power} power${pending ? ', not revealed yet. Tap to take back' : ''}`}
     >
-      {art ? (
-        <Image source={{ uri: art.src }} style={{ position: 'absolute', width: w * 1.15, height: w * 1.53, left: -w * 0.075, top: -art.headTop * w * 1.53 + h * 0.04 }} resizeMode="cover" />
-      ) : (
-        <Text style={[styles.bcInitials, { color: card.team.colors.secondary, fontSize: w * 0.36 }]}>{initials}</Text>
-      )}
-      <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.65)']} style={StyleSheet.absoluteFill} />
-      <View style={[styles.bcPower, { backgroundColor: power > base ? C.win : power < base ? C.loss : '#F2711C' }]}>
-        <Text style={styles.bcPowerText}>{power}</Text>
+      <LinearGradient colors={RARITY_FRAME[card.rarity]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 6, borderWidth: 1, borderColor: 'rgba(10,14,11,0.7)' }]} />
+      <View style={{ position: 'absolute', left: f, top: f, width: iw, height: ih, borderRadius: 4, overflow: 'hidden' }}>
+        <LinearGradient colors={art ? [mix(primary, '#FFFFFF', 0.08), primary, mix(primary, C.night, 0.7)] : [mix(primary, C.night, 0.55), mix(primary, C.night, 0.8)]} style={StyleSheet.absoluteFill} />
+        {art ? (
+          <Image source={{ uri: art.src }} style={{ position: 'absolute', width: iw * 1.15, height: iw * 1.53, left: -iw * 0.075, top: -art.headTop * iw * 1.53 + ih * 0.05 }} resizeMode="cover" />
+        ) : (
+          <View style={{ position: 'absolute', left: 0, top: -ih * 0.04 }}>
+            <KitArt card={card} w={iw} h={ih} />
+          </View>
+        )}
+        <LinearGradient colors={['rgba(10,14,11,0)', 'rgba(10,14,11,0.55)']} locations={[0.55, 1]} style={StyleSheet.absoluteFill} />
       </View>
+      <Svg width={sw} height={sw * 1.1} style={{ position: 'absolute', right: -sw * 0.18, bottom: -sw * 0.18 }} pointerEvents="none">
+        <Defs>
+          <SvgGrad id={`bcp${card.id}`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={top} />
+            <Stop offset="1" stopColor={bottom} />
+          </SvgGrad>
+        </Defs>
+        <Path
+          d={`M ${sw * 0.5} 1.5 L ${sw - 2} ${sw * 0.18} L ${sw - 2} ${sw * 0.58} Q ${sw - 2} ${sw * 0.9} ${sw * 0.5} ${sw * 1.08} Q 2 ${sw * 0.9} 2 ${sw * 0.58} L 2 ${sw * 0.18} Z`}
+          fill={`url(#bcp${card.id})`}
+          stroke={C.night}
+          strokeWidth={1.5}
+        />
+        <SvgText x={sw / 2} y={sw * 0.52 + sw * 0.2} fontSize={sw * 0.52} fontFamily={F.numHeavy} fill="none" stroke={C.night} strokeWidth={2.5} strokeLinejoin="round" textAnchor="middle">
+          {power}
+        </SvgText>
+        <SvgText x={sw / 2} y={sw * 0.52 + sw * 0.2} fontSize={sw * 0.52} fontFamily={F.numHeavy} fill="#FFFFFF" textAnchor="middle">
+          {power}
+        </SvgText>
+      </Svg>
     </Pressable>
   );
 }
@@ -363,11 +391,7 @@ const styles = StyleSheet.create({
   board: { paddingHorizontal: S.md, gap: S.sm },
   row: { flexDirection: 'row', gap: S.sm, justifyContent: 'space-between' },
   slots: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, alignContent: 'center', justifyContent: 'center' },
-  bc: { borderRadius: 6, borderWidth: 2, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  bcPending: { opacity: 0.6, borderStyle: 'dashed' },
-  bcInitials: { fontFamily: F.numHeavy },
-  bcPower: { position: 'absolute', right: 2, bottom: 2, minWidth: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.night, paddingHorizontal: 3 },
-  bcPowerText: { fontFamily: F.numHeavy, fontSize: 13, color: '#FFFFFF' },
+  bcPending: { opacity: 0.55 },
   zone: { minHeight: 112, borderRadius: R.md, borderWidth: 1, borderColor: C.lineHi, backgroundColor: 'rgba(243,241,231,0.04)', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, paddingHorizontal: 4 },
   zoneTarget: { borderColor: C.flare, borderWidth: 2, backgroundColor: alpha(C.flare, 0.1) },
   zoneName: { fontFamily: F.label, fontSize: 11, letterSpacing: 1.3, color: C.chalk2 },

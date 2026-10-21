@@ -10,7 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSequence, withSpring, interpolate, useReducedMotion, Easing } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { SnapCard, cardHeight } from '../components/SnapCard';
+import { Badges, RARITY_FRAME, SnapCard, cardHeight } from '../components/SnapCard';
 import { Button, Wallet, tap } from '../components/ui';
 import { useLeague } from '../context/league';
 import { useCards } from '../hooks/data';
@@ -21,39 +21,56 @@ import { REWARDS, lookOf, unlockPremium } from '../lib/collection';
 import { cardStats } from '../lib/game';
 import type { PlayerCard } from '../lib/cards';
 import { RARITY_NAME } from '../lib/cards';
-import { alpha } from '../lib/colors';
+import { alpha, mix } from '../lib/colors';
 import { C, F, R, S, T } from '../constants/theme';
 
-const FRAME = { common: [C.lineHi, C.line], rare: [C.rare, '#2C5A8A'], elite: ['#F5F8FB', '#76818E'], icon: ['#FFF1C2', '#9E711C'] } as const;
-
-/** The card with the face blurred and the name and club hidden. */
+/** The card with the player as a backlit silhouette and the name hidden; the same frame and badges as the real card. */
 function Mystery({ card, width }: { card: PlayerCard; width: number }) {
   const h = cardHeight(width);
   const k = width / 300;
+  const r = 18 * k + 4;
+  const f = Math.max(3, Math.round(6 * k));
+  const iw = width - f * 2;
+  const ih = h - f * 2;
   const art = useArt(card.id);
+  const { primary, accent } = card.team.colors;
+  const rim = mix(accent, '#FFFFFF', 0.45);
+  const imgW = iw * 1.02;
+  const imgH = (imgW * 4) / 3;
+  const imgTop = ih * 0.07 - (art?.headTop ?? 0.06) * imgH;
+  const at = (dx: number, dy: number) => ({ position: 'absolute' as const, left: (iw - imgW) / 2 + dx, top: imgTop + dy, width: imgW, height: imgH });
   return (
-    <LinearGradient colors={[...FRAME[card.rarity]] as [string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width, height: h, borderRadius: 16 * k + 4, padding: 6 * k + 1 }}>
-      <View style={{ flex: 1, borderRadius: 12 * k + 3, overflow: 'hidden', backgroundColor: card.team.colors.primary }}>
-        <LinearGradient colors={[card.team.colors.primary, C.night]} style={StyleSheet.absoluteFill} />
-        {art ? <Image source={{ uri: art.src }} tintColor={C.night} style={{ position: 'absolute', top: h * 0.02, alignSelf: 'center', width: width * 0.95, height: width * 1.27, opacity: 0.92 }} resizeMode="cover" /> : null}
-        <LinearGradient colors={['rgba(10,14,11,0.2)', 'rgba(10,14,11,0.55)', C.night]} style={StyleSheet.absoluteFill} />
-        <View style={{ position: 'absolute', top: h * 0.16, left: 0, right: 0, alignItems: 'center' }}>
-          <Text style={{ fontFamily: F.display, fontSize: 150 * k, color: alpha(C.chalk, 0.9) }}>?</Text>
-        </View>
-        <View style={{ position: 'absolute', top: 12 * k, left: 12 * k, right: 12 * k, flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Text style={{ fontFamily: F.numHeavy, fontSize: 40 * k + 6, color: '#7FC4FF' }}>{cardStats(card).cost}</Text>
-          <Text style={{ fontFamily: F.numHeavy, fontSize: 52 * k + 6, color: C.chalk }}>{cardStats(card).power}</Text>
-        </View>
-        <View style={{ position: 'absolute', bottom: 18 * k, left: 0, right: 0, alignItems: 'center', gap: 6 * k }}>
-          <View style={{ flexDirection: 'row', gap: 6 * k }}>
-            <View style={{ width: 22 * k, height: 8 * k, borderRadius: 3, backgroundColor: card.team.colors.primary, borderWidth: 1, borderColor: alpha(C.chalk, 0.4) }} />
-            <View style={{ width: 22 * k, height: 8 * k, borderRadius: 3, backgroundColor: card.team.colors.secondary, borderWidth: 1, borderColor: alpha(C.chalk, 0.4) }} />
+    <View style={{ width, height: h }}>
+      <LinearGradient colors={RARITY_FRAME[card.rarity]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: r }]} />
+      <LinearGradient
+        colors={['rgba(255,255,255,0.45)', 'rgba(255,255,255,0)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.3)']}
+        locations={[0, 0.25, 0.7, 1]}
+        style={[StyleSheet.absoluteFill, { borderRadius: r, borderWidth: 1, borderColor: 'rgba(10,14,11,0.7)' }]}
+      />
+      <View style={{ position: 'absolute', left: f, top: f, width: iw, height: ih, borderRadius: Math.max(2, r - f * 0.6), overflow: 'hidden' }}>
+        <LinearGradient colors={[mix(primary, '#FFFFFF', 0.06), primary, mix(primary, C.night, 0.75)]} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={[alpha(rim, 0.35), alpha(rim, 0)]} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 0.6 }} style={StyleSheet.absoluteFill} />
+        {art ? (
+          <>
+            {/* backlight: the silhouette edged in light */}
+            <Image source={{ uri: art.src }} tintColor={rim} style={[at(-2.5 * k - 1, -2 * k - 1), { opacity: 0.85 }]} resizeMode="cover" />
+            <Image source={{ uri: art.src }} tintColor={rim} style={[at(2.5 * k + 1, -2 * k - 1), { opacity: 0.85 }]} resizeMode="cover" />
+            <Image source={{ uri: art.src }} tintColor="#0B100C" style={at(0, 0)} resizeMode="cover" />
+          </>
+        ) : (
+          <View style={{ position: 'absolute', top: ih * 0.14, left: 0, right: 0, alignItems: 'center' }}>
+            <Text style={{ fontFamily: F.display, fontSize: 170 * k, color: alpha(C.chalk, 0.85) }}>?</Text>
           </View>
-          <Text style={{ fontFamily: F.display, fontSize: 30 * k + 4, color: C.chalk2, letterSpacing: 6 }}>? ? ? ? ?</Text>
-          <Text style={{ fontFamily: F.label, fontSize: 11 * k + 3, letterSpacing: 1.6, color: C.muted }}>{RARITY_NAME[card.rarity].toUpperCase()}{card.rank ? ` · #${card.rank}` : ''}</Text>
+        )}
+        <LinearGradient colors={[alpha(C.night, 0), alpha(C.night, 0.6), alpha(C.night, 0.95)]} locations={[0.55, 0.75, 1]} style={StyleSheet.absoluteFill} />
+        <View style={{ position: 'absolute', bottom: 16 * k + 2, left: 0, right: 0, alignItems: 'center', gap: 4 * k }}>
+          <Text style={{ fontFamily: F.display, fontSize: 38 * k + 6, color: alpha(C.chalk, 0.85), letterSpacing: 8 * k }}>? ? ? ? ?</Text>
+          <Text style={{ fontFamily: F.label, fontSize: 11 * k + 3, letterSpacing: 1.6, color: C.chalk2 }}>{RARITY_NAME[card.rarity].toUpperCase()}{card.rank ? ` · #${card.rank}` : ''}</Text>
         </View>
+        <View style={[StyleSheet.absoluteFill, { borderRadius: Math.max(2, r - f * 0.6), borderWidth: Math.max(1, 1.2 * k), borderColor: 'rgba(10,14,11,0.75)' }]} />
       </View>
-    </LinearGradient>
+      <Badges card={card} w={width} />
+    </View>
   );
 }
 

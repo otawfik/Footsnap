@@ -54,7 +54,7 @@ export const BASE_LOOK: Look = { tier: 0, finish: null, premium: false };
 
 type Grad = [string, string, ...string[]];
 /** Base cards wear their rarity; upgraded cards wear their upgrade tier, the way Snap colours frames. */
-const RARITY_FRAME: Record<PlayerCard['rarity'], Grad> = {
+export const RARITY_FRAME: Record<PlayerCard['rarity'], Grad> = {
   common: ['#59625C', '#2A322D', '#59625C'],
   rare: ['#8CC8FF', '#2C6FB8', '#BFE2FF', '#2C6FB8'],
   elite: ['#F5F8FB', '#8B96A3', '#EEF2F6', '#76818E', '#F5F8FB'],
@@ -180,7 +180,7 @@ function Sparks({ w, h, color, seed }: { w: number; h: number; color: string; se
  * their initials as the number. Deliberately plain, so it never implies a real
  * kit design the club doesn't wear.
  */
-function KitArt({ card, w, h }: { card: PlayerCard; w: number; h: number }) {
+export function KitArt({ card, w, h }: { card: PlayerCard; w: number; h: number }) {
   const { primary, secondary } = card.team.colors;
   const initials = card.name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
   const sw = w * 0.84;
@@ -268,7 +268,7 @@ function BigNumber({ value, size, x, y }: { value: number; size: number; x: numb
 }
 
 /** Cost (blue gem, top-left) and Power (orange shield, top-right). */
-function Badges({ card, w }: { card: PlayerCard; w: number }) {
+export function Badges({ card, w }: { card: PlayerCard; w: number }) {
   const k = w / 300;
   const s = cardStats(card);
   const d = 64 * k + 10;
