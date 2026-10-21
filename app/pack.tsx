@@ -9,7 +9,7 @@ import { View, Text, StyleSheet, Pressable, useWindowDimensions, Platform } from
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSequence, withSpring, withRepeat, Easing, interpolate, useReducedMotion } from 'react-native-reanimated';
+import Animated, { FadeIn, useSharedValue, useAnimatedStyle, withTiming, withSequence, withSpring, withRepeat, Easing, interpolate, useReducedMotion } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle, Defs, Line, LinearGradient as SvgGrad, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
@@ -104,8 +104,21 @@ function Reveal({ card, width, isNew, onRevealed, competition }: { card: PlayerC
   const r = 18 * (width / 300) + 4;
   const rays = width * 2.2;
 
+  const pool = width * 1.9;
   return (
     <Animated.View style={[{ alignItems: 'center' }, wrap]}>
+      {/* a soft pool of light in the club colour behind every card once it's turned over */}
+      {shown ? (
+        <Svg width={pool} height={pool} style={{ position: 'absolute', top: h / 2 - pool / 2, alignSelf: 'center' }} pointerEvents="none">
+          <Defs>
+            <RadialGradient id={`pool${card.id}`} cx="50%" cy="50%" r="50%">
+              <Stop offset="0" stopColor={card.team.colors.primary} stopOpacity="0.32" />
+              <Stop offset="1" stopColor={card.team.colors.primary} stopOpacity="0" />
+            </RadialGradient>
+          </Defs>
+          <Rect width={pool} height={pool} fill={`url(#pool${card.id})`} />
+        </Svg>
+      ) : null}
       {rare && !reduced ? (
         <Animated.View style={[styles.burst, { width: rays, height: rays, top: h / 2 - rays / 2 }, burstStyle]} pointerEvents="none">
           <RayBurst size={rays} color={color} />
@@ -319,7 +332,14 @@ export default function Pack() {
         <>
           <Reveal key={card.id} card={card} width={cardW} isNew={isNew(card)} onRevealed={() => setRevealed(true)} competition={league.name} />
           <View style={styles.bottom}>
-            <Button label={index + 1 >= pack.length ? 'See your pack' : 'Next card'} onPress={next} disabled={!revealed} />
+            {/* the button appears once the card is turned over, rather than sitting there greyed out */}
+            {revealed ? (
+              <Animated.View entering={FadeIn.duration(250)}>
+                <Button label={index + 1 >= pack.length ? 'See your pack' : 'Next card'} onPress={next} />
+              </Animated.View>
+            ) : (
+              <View style={{ height: 52 }} />
+            )}
           </View>
         </>
       ) : (
