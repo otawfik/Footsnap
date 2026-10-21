@@ -10,7 +10,7 @@ pip install requests pillow "rembg[cpu]" "opencv-python-headless<5"
 python scripts/art/resolve.py art.json        # find each squad player's photo
 python scripts/art/langs.py art.json          # fill gaps from other-language Wikipedias
 # cut out (4 workers in parallel; each takes a quarter of the players)
-for i in 0 1 2 3; do SHARD=$i/4 python scripts/art/process.py art.json public/art u2net_human_seg "" & done; wait
+for i in 0 1; do SHARD=$i/2 python scripts/art/process.py art.json public/art u2net_human_seg "" & done; wait
 python scripts/art/merge.py public/art         # merge the workers' credit files into index.json
 python scripts/art/verify.py art.json public/art  # drop namesakes: Wikidata birth date must match
 python scripts/art/clean.py public/art art-clean  # tidy every cut-out (below) into a new folder
@@ -26,9 +26,9 @@ only images hosted on Wikimedia Commons. A last check compares every matched art
 the squad's date of birth and drops any photo where they differ. About 30% of the ~3,070 players end up with a photo that passes every check below;
 everyone else gets a plain shirt in their club's colours.
 
-**What happens to a photo.** A 900 px version is downloaded, the face is found (OpenCV), and the picture is
-cropped to head-and-shoulders at 3:4. The background is removed with `rembg` (u2net_human_seg), and the
-result is saved as a 480×640 WebP with transparency, with the height of the top of the head (for the frame
+**What happens to a photo.** A 1280 px version (a standard Wikimedia size) is downloaded, politely: two workers at most, backing off on HTTP 429, the face is found (OpenCV), and the picture is
+cropped to head and upper body (six face-heights tall) at 3:4. The background is removed with `rembg` (u2net_human_seg), and the
+result is saved as a 600×800 WebP with transparency, with the height of the top of the head (for the frame
 break) recorded.
 
 **Clean-up and quality bar.** `clean.py` hardens the cut-out's edges (background removal leaves see-through
