@@ -59,3 +59,9 @@ export function clubColors(raw: string | null | undefined): ClubColors {
 /** hex + alpha (0-1) as #RRGGBBAA */
 export const alpha = (hex: string, a: number) =>
   `${hex}${Math.round(Math.min(Math.max(a, 0), 1) * 255).toString(16).padStart(2, '0')}`;
+
+/** Blend two #RRGGBB colours: t = 0 gives a, t = 1 gives b. */
+export function mix(a: string, b: string, t: number): string {
+  const p = (h: string, i: number) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
+  return `#${[0, 1, 2].map((i) => Math.round(p(a, i) + (p(b, i) - p(a, i)) * t).toString(16).padStart(2, '0')).join('')}`;
+}

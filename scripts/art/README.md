@@ -13,6 +13,8 @@ python scripts/art/langs.py art.json          # fill gaps from other-language Wi
 for i in 0 1 2 3; do SHARD=$i/4 python scripts/art/process.py art.json public/art u2net_human_seg "" & done; wait
 python scripts/art/merge.py public/art         # merge the workers' credit files into index.json
 python scripts/art/verify.py art.json public/art  # drop namesakes: Wikidata birth date must match
+python scripts/art/clean.py public/art art-clean  # tidy every cut-out (below) into a new folder
+python scripts/art/gate.py art-clean              # drop the ones that would make a card look bad
 ```
 
 **Which photos.** For each player in the competitions' squad lists: the English Wikipedia article for
@@ -21,13 +23,20 @@ description mentions football count, and disambiguation pages are skipped. If th
 the article's Wikidata item image (P18) is used. Players with no English article are matched on Wikidata by
 name **and exact date of birth**, so nobody gets a stranger's face. Finally, other-language Wikipedias, but
 only images hosted on Wikimedia Commons. A last check compares every matched article's Wikidata birth date with
-the squad's date of birth and drops any photo where they differ. About 61% of the ~3,070 players have a usable free photo; everyone
-else gets a plain shirt in their club's colours.
+the squad's date of birth and drops any photo where they differ. About 30% of the ~3,070 players end up with a photo that passes every check below;
+everyone else gets a plain shirt in their club's colours.
 
 **What happens to a photo.** A 900 px version is downloaded, the face is found (OpenCV), and the picture is
 cropped to head-and-shoulders at 3:4. The background is removed with `rembg` (u2net_human_seg), and the
 result is saved as a 480×640 WebP with transparency, with the height of the top of the head (for the frame
 break) recorded.
+
+**Clean-up and quality bar.** `clean.py` hardens the cut-out's edges (background removal leaves see-through
+smears), keeps only the piece of the picture that holds the head (dropping stray bits of other people), pulls
+the edge in by a pixel to lose the old background's fringe, and scores the face's sharpness. `gate.py` then
+drops three kinds of photo: blurry ones (the player was small in the original, so the crop is upscaled),
+ones where something touches the top edge (a head cut off flat, or someone standing behind), and ones with a
+second face. A card with a bad photo looks worse than a card with a clean shirt, so when in doubt it goes.
 
 **Licences.** Only Wikimedia Commons files are used (no fair-use images). Each image's author and licence
 come from the Commons API and are shown on the card and in the card view, with a link to the original and a

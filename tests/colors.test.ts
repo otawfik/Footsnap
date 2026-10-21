@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clubColors, contrast, parseColor } from '../lib/colors';
+import { clubColors, contrast, parseColor, mix } from '../lib/colors';
 
 describe('club colours', () => {
   it('prefers the longest colour name', () => {
@@ -23,5 +23,11 @@ describe('club colours', () => {
   it('falls back when colours are missing or unknown', () => {
     expect(clubColors(null).accent).toBe('#C9CCC0');
     expect(clubColors('Tartan').primary).toBe('#2F4034');
+  });
+
+  it('mixes two colours', () => {
+    expect(mix('#000000', '#FFFFFF', 0)).toBe('#000000');
+    expect(mix('#000000', '#FFFFFF', 1)).toBe('#ffffff');
+    expect(mix('#102030', '#304050', 0.5)).toBe('#203040');
   });
 });

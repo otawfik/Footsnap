@@ -12,8 +12,8 @@ releasing to the stores: [`docs/app-store.md`](docs/app-store.md), a step-by-ste
 
 <p>
   <img src="docs/screenshots/1-legend-card.jpg" width="190" alt="A Legend-tier card for Erling Haaland: the player cut out and breaking the frame, with a Starfield finish">
-  <img src="docs/screenshots/3-duel.jpg" width="190" alt="A Duel in progress: cards played into three zones with their Power totals">
-  <img src="docs/screenshots/2-collection.jpg" width="190" alt="The collection grid: Elite and Rare cards at different upgrade tiers">
+  <img src="docs/screenshots/2-duel.jpg" width="190" alt="A Duel in progress: cards played into three zones with their Power totals">
+  <img src="docs/screenshots/3-collection.jpg" width="190" alt="The collection grid: Elite and Rare cards at different upgrade tiers">
   <img src="docs/screenshots/5-what-if.jpg" width="190" alt="What if: a pinned result moves the clubs' odds">
 </p>
 
@@ -164,7 +164,7 @@ Football data from [football-data.org](https://www.football-data.org). Player ph
 Commons via each player's Wikipedia / Wikidata entry, credited on every card with the photographer, the licence and
 a link. They're modified (cropped, background removed), and modified photos keep their original licence. A
 photo is only used when the Wikidata birth date matches the squad's, so a namesake never ends up on someone
-else's card. `scripts/art/` rebuilds the set; about 54% of players have one, and the rest get a shirt in their
+else's card. `scripts/art/` rebuilds the set; about 30% of players have one that passes the quality checks, and the rest get a shirt in their
 club's colours. The App Store build leaves photos and crests out (see [`docs/app-store.md`](docs/app-store.md)). FootSnap is an independent app, not affiliated with any league, club or football-data.org.
 
 React Native · Expo SDK 54 · Expo Router · TypeScript · Vercel Functions · Vitest
