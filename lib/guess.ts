@@ -49,7 +49,7 @@ export function clues(c: PlayerCard): { label: string; value: string }[] {
   const out: { label: string; value: string }[] = [];
   out.push({ label: 'Position', value: c.position });
   if (c.age !== null) out.push({ label: 'Age', value: String(c.age) });
-  if (c.nationality) out.push({ label: 'From', value: c.nationality });
+  // no nationality: with few players from a country in the league, it named the answer outright
   if (c.stats) out.push({ label: 'This season', value: `${c.stats.goals} goals${c.stats.assists !== null ? `, ${c.stats.assists} assists` : ''}` });
   return out;
 }

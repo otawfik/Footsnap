@@ -10,13 +10,18 @@
  * Responses are also kept in memory for a short time and in-flight requests
  * are shared, so Home and Predictions asking for the same season's fixtures
  * cost one request.
+ *
+ * The last good copy of each response is also saved on the device. If the
+ * network is down (or the proxy fails), the app shows that copy instead of an
+ * error and says how old it is (see useOffline).
  */
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { MatchesResponse, ScorersResponse, StandingsResponse, TeamsResponse } from '../lib/types';
 
 export const DEPLOYED_URL = 'https://footsnap-app.vercel.app';
 
-const BASE = (
+export const BASE = (
   process.env.EXPO_PUBLIC_API_BASE ?? (Platform.OS === 'web' ? '' : DEPLOYED_URL)
 ).replace(/\/$/, '');
 
@@ -45,6 +50,52 @@ export class ApiError extends Error {
 
 const memory = new Map<string, { at: number; value: Promise<unknown> }>();
 
+// ---- saved copies, for when there's no connection ----
+
+const SAVE_PREFIX = 'fd:v1:';
+const SAVE_MAX_CHARS = 1_500_000; // stay well inside AsyncStorage's per-item and web storage limits
+
+/** When the oldest saved copy currently on screen was fetched; null while everything is live. */
+let offlineSince: number | null = null;
+const staleAt = new Map<string, number>();
+const listeners = new Set<(since: number | null) => void>();
+
+function setStale(path: string, savedAt: number | null) {
+  if (savedAt === null) staleAt.delete(path);
+  else staleAt.set(path, savedAt);
+  const next = staleAt.size ? Math.min(...staleAt.values()) : null;
+  if (next === offlineSince) return;
+  offlineSince = next;
+  listeners.forEach((l) => l(next));
+}
+
+export function subscribeOffline(listener: (since: number | null) => void): () => void {
+  listeners.add(listener);
+  listener(offlineSince);
+  return () => listeners.delete(listener);
+}
+
+async function save(path: string, body: unknown) {
+  try {
+    const raw = JSON.stringify({ at: Date.now(), body });
+    if (raw.length <= SAVE_MAX_CHARS) await AsyncStorage.setItem(SAVE_PREFIX + path, raw);
+  } catch {
+    // storage full or unavailable: the live copy still works
+  }
+}
+
+async function saved<T>(path: string): Promise<{ at: number; body: T } | null> {
+  try {
+    const raw = await AsyncStorage.getItem(SAVE_PREFIX + path);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A failure worth falling back for: no connection, the proxy down, or the free tier busy. */
+const transient = (e: unknown) => e instanceof ApiError && (e.status === 0 || e.status === 429 || e.status >= 500);
+
 async function request<T>(path: string, ttlMs: number, force = false): Promise<T> {
   const url = `${BASE}/api/fd/${path}`;
   const hit = memory.get(url);
@@ -67,10 +118,20 @@ async function request<T>(path: string, ttlMs: number, force = false): Promise<T
         Number.isFinite(retry) && retry > 0 ? retry : undefined
       );
     }
+    save(path, body);
+    setStale(path, null);
     return (SHOW_CRESTS ? body : stripCrests(body)) as T;
-  })();
+  })().catch(async (e) => {
+    const copy = transient(e) ? await saved<T>(path) : null;
+    if (!copy) throw e;
+    setStale(path, copy.at);
+    return (SHOW_CRESTS ? copy.body : stripCrests(copy.body)) as T;
+  });
   memory.set(url, { at: Date.now(), value });
-  value.catch(() => memory.delete(url)); // never cache a failure
+  value.then(
+    () => { if (staleAt.has(path)) memory.delete(url); }, // a saved copy: try the network again next time
+    () => memory.delete(url) // never cache a failure
+  );
   return value;
 }
 

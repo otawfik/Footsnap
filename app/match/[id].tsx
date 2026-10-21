@@ -105,7 +105,7 @@ export default function MatchScreen() {
       </View>
 
       {p && grid ? (
-        <Section title={done || live ? 'What the model said' : 'The model’s call'} note={done || live ? 'Predicted before kick-off from earlier results only' : `Expected goals ${p.xgHome.toFixed(1)} – ${p.xgAway.toFixed(1)}`}>
+        <Section title={done || live ? 'What the model said' : 'The model’s call'} note={done || live ? 'Predicted before kick-off from earlier results only' : `Model's average goals ${p.xgHome.toFixed(1)} – ${p.xgAway.toFixed(1)} (not shot-based xG)`}>
           <Panel style={{ padding: S.base, gap: S.md }}>
             <OddsBar home={p.home} draw={p.draw} away={p.away} homeColor={hc?.accent ?? C.chalk2} awayColor={ac?.accent ?? C.chalk2} />
           </Panel>

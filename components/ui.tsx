@@ -15,6 +15,7 @@ import { LEAGUES, League } from '../constants/leagues';
 import type { Team } from '../lib/types';
 import type { Result } from '../lib/football';
 import { alpha, ClubColors } from '../lib/colors';
+import { subscribeOffline } from '../services/api';
 
 export const tap = (kind: 'light' | 'medium' | 'heavy' | 'select' = 'light') => {
   if (Platform.OS === 'web') return;
@@ -50,6 +51,7 @@ export function Screen({
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {motif ? <PitchMotif /> : null}
+      <OfflineNote />
       {scroll ? (
         <ScrollView
           style={{ flex: 1 }}
@@ -64,6 +66,30 @@ export function Screen({
         children
       )}
     </SafeAreaView>
+  );
+}
+
+/** When the data on screen is older than the network's: since what time, or null if everything is live. */
+export function useOffline() {
+  const [since, setSince] = useState<number | null>(null);
+  useEffect(() => subscribeOffline(setSince), []);
+  return since;
+}
+
+/** A slim line under the status bar while any screen is showing a saved copy instead of live data. */
+function OfflineNote() {
+  const since = useOffline();
+  if (since === null) return null;
+  const d = new Date(since);
+  const sameDay = d.toDateString() === new Date().toDateString();
+  const when = sameDay
+    ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString([], { day: 'numeric', month: 'short' });
+  return (
+    <View style={styles.offline} accessibilityRole="alert">
+      <Ionicons name="cloud-offline-outline" size={14} color={C.night} />
+      <Text style={styles.offlineText}>Offline · showing data saved {sameDay ? 'at ' : 'on '}{when}</Text>
+    </View>
   );
 }
 
@@ -265,7 +291,7 @@ export function Failed({ message, code, onRetry }: { message: string; code?: str
   const title = code === 'RATE_LIMIT' ? 'Busy for a moment' : code === 'NO_KEY' ? 'Live data unavailable' : "Couldn't load this";
   const text =
     code === 'RATE_LIMIT'
-      ? 'The free data feed is taking a breather. Retrying on its own.'
+      ? 'The free data feed is taking a breather. It retries on its own, or try again in a moment.'
       : code === 'NO_KEY'
       ? "FootSnap can't reach its data service right now. Try again in a little while."
       : message;
@@ -274,7 +300,7 @@ export function Failed({ message, code, onRetry }: { message: string; code?: str
       <Ionicons name={code === 'RATE_LIMIT' ? 'timer-outline' : 'cloud-offline-outline'} size={24} color={C.draw} />
       <Text style={[T.label, { color: C.chalk, fontSize: 16 }]}>{title}</Text>
       <Text style={[T.small, { textAlign: 'center' }]}>{text}</Text>
-      {onRetry && code !== 'RATE_LIMIT' ? <Button label="Try again" kind="ghost" onPress={onRetry} /> : null}
+      {onRetry ? <Button label="Try again" kind="ghost" onPress={onRetry} /> : null}
     </View>
   );
 }
@@ -300,6 +326,8 @@ export function Num({ children, style }: { children: React.ReactNode; style?: St
 }
 
 export const styles = StyleSheet.create({
+  offline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.icon, paddingVertical: 5, paddingHorizontal: S.md },
+  offlineText: { fontFamily: F.label, fontSize: 12, letterSpacing: 0.6, color: C.night },
   safe: { flex: 1, backgroundColor: C.night },
   header: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: S.base, paddingTop: S.lg, paddingBottom: S.sm, gap: S.md },
   tabs: { paddingHorizontal: S.base, gap: S.lg, paddingVertical: S.sm },

@@ -15,6 +15,7 @@ import { useLeague } from '../../context/league';
 import { useCards } from '../../hooks/data';
 import { useCollection, useProfile } from '../../lib/storage';
 import { canUpgrade, FINISH_NAME, lookOf, nextTier, TIERS, upgrade, upgradeSeed } from '../../lib/collection';
+import { cardStats } from '../../lib/game';
 import { alpha } from '../../lib/colors';
 import { C, F, R, S, T } from '../../constants/theme';
 
@@ -98,7 +99,25 @@ export default function CardView() {
               </Pressable>
             </Animated.View>
             <Text style={styles.hint}>{flipped ? 'Tap to flip back' : 'Tilt your phone · tap to flip'}</Text>
-            <PhotoCredit name={card.name} born={card.dateOfBirth} />
+            {/* inspect view, as in Snap: the card's ability text lives under the card, not on its face */}
+            <View style={styles.abilities}>
+              {(() => {
+                const g = cardStats(card);
+                return g.effect ? (
+                  <View style={styles.ability}>
+                    <Text style={styles.abilityKind}>DUEL · {g.effect.trigger === 'reveal' ? 'ON REVEAL' : g.effect.trigger === 'ongoing' ? 'ONGOING' : 'END OF TURN'}</Text>
+                    <Text style={styles.abilityText}>{g.effect.text}</Text>
+                  </View>
+                ) : null;
+              })()}
+              {card.abilities.map((a) => (
+                <View key={a.title} style={styles.ability}>
+                  <Text style={styles.abilityKind}>{a.kind === 'ongoing' ? 'THIS SEASON' : 'TRAIT'} · {a.title.toUpperCase()}</Text>
+                  <Text style={styles.abilityText}>{a.text}</Text>
+                </View>
+              ))}
+            </View>
+            <PhotoCredit card={card} />
 
             {state ? (
               <View style={styles.panel}>
@@ -133,7 +152,7 @@ export default function CardView() {
                     {!affordable ? <Text style={T.small}>Boosters come from duplicate pulls of this card and from naming the player. Credits come from packs, duplicates and correct picks.</Text> : null}
                   </View>
                 ) : (
-                  <Text style={[styles.nextTitle, { color: '#F6DC8A' }]}>Fully upgraded: Infinity</Text>
+                  <Text style={[styles.nextTitle, { color: '#F6DC8A' }]}>Fully upgraded: Legend</Text>
                 )}
               </View>
             ) : (
@@ -156,12 +175,16 @@ const styles = StyleSheet.create({
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: S.lg, paddingTop: S.md },
   wallet: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: alpha(C.icon, 0.12), borderRadius: R.pill, paddingHorizontal: 10, paddingVertical: 4 },
   walletText: { fontFamily: F.num, fontSize: 15, color: C.icon },
-  scroll: { alignItems: 'center', paddingTop: S.lg, paddingBottom: 60, gap: S.md, paddingHorizontal: S.base },
+  scroll: { alignItems: 'center', paddingTop: S.xxl + S.md, paddingBottom: 60, gap: S.md, paddingHorizontal: S.base },
   hint: { fontFamily: F.label, fontSize: 12, letterSpacing: 1.4, color: C.muted, textTransform: 'uppercase', marginTop: S.sm },
   panel: { alignSelf: 'stretch', maxWidth: 420, width: '100%', backgroundColor: C.pitch, borderRadius: R.md, borderWidth: 1, borderColor: C.line, padding: S.base, gap: S.md, marginTop: S.sm },
   row: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: S.sm },
   nextTitle: { fontFamily: F.display, fontSize: 22, color: C.chalk },
   meter: { height: 6, borderRadius: 3, backgroundColor: C.turf, overflow: 'hidden' },
   meterFill: { height: '100%', borderRadius: 3 },
+  abilities: { alignSelf: 'stretch', maxWidth: 420, width: '100%', gap: S.sm },
+  ability: { borderLeftWidth: 3, borderLeftColor: C.flare, paddingLeft: S.md, paddingVertical: 2 },
+  abilityKind: { fontFamily: F.label, fontSize: 11, letterSpacing: 1.3, color: C.muted },
+  abilityText: { fontFamily: F.bodyMedium, fontSize: 15, lineHeight: 21, color: C.chalk },
   meterLabel: { fontFamily: F.label, fontSize: 11, letterSpacing: 1.2, color: C.muted },
 });

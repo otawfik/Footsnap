@@ -40,32 +40,43 @@ export function useRatings(league: League) {
 /** Live polling for the matchday screen: every 30s only while something is live or about to start. */
 export function useLiveSeason(league: League) {
   const [poll, setPoll] = useState(false);
+  // a clock tick, so a kick-off that arrives while the screen is open starts the polling
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
   const season = useSeason(league, poll ? 30_000 : null);
-  const view = useMemo(() => splitMatches(season.data?.matches ?? [], Date.now(), 6, 8), [season.data]);
-  const should = view.live.length > 0 || view.upcoming.some((m) => new Date(m.utcDate).getTime() - Date.now() < 15 * 60_000);
+  const view = useMemo(() => splitMatches(season.data?.matches ?? [], now, 6, 8), [season.data, now]);
+  const should = view.live.length > 0 || view.upcoming.some((m) => new Date(m.utcDate).getTime() - now < 15 * 60_000);
   useEffect(() => setPoll(should), [should]);
   return { ...season, view };
 }
 
-/** Every player card in the competition. */
+/**
+ * Every player card in the competition. Cards wait for both the squads and the
+ * scorers: without the scorers list every rarity and stat line would be wrong,
+ * and packs opened then would be all Commons.
+ */
 export function useCards(league: League) {
   const teams = useTeams(league);
   const scorers = useScorers(league);
   const cards = useMemo(() => {
-    if (!teams.data) return null;
-    return buildCards(teams.data.teams, scorers.data?.scorers ?? [], league.name, league.nation);
+    if (!teams.data || !scorers.data) return null;
+    return buildCards(teams.data.teams, scorers.data.scorers ?? [], league.name, league.nation);
   }, [teams.data, scorers.data, league.name, league.nation]);
   const list = useMemo(() => {
     if (!cards) return [] as PlayerCard[];
     const order = { icon: 0, elite: 1, rare: 2, common: 3 };
     return [...cards.values()].sort((a, b) => order[a.rarity] - order[b.rarity] || (a.rank ?? 999) - (b.rank ?? 999) || a.name.localeCompare(b.name));
   }, [cards]);
+  const failed = (q: { error: string | null; data: unknown }) => !!q.error && !q.data;
   return {
     cards,
     list,
-    loading: teams.loading && !teams.data,
-    error: teams.error && !teams.data ? teams.error : null,
-    errorCode: teams.errorCode,
+    loading: !cards && !failed(teams) && !failed(scorers),
+    error: failed(teams) ? teams.error : failed(scorers) ? scorers.error : null,
+    errorCode: failed(teams) ? teams.errorCode : scorers.errorCode,
     refetch: async () => {
       await Promise.all([teams.refetch(), scorers.refetch()]);
     },

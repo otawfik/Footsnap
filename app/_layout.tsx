@@ -44,6 +44,7 @@ export default function RootLayout() {
           <Stack.Screen name="card/[id]" options={{ presentation: 'transparentModal', animation: 'fade' }} />
           <Stack.Screen name="pack" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
           <Stack.Screen name="guess" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+          <Stack.Screen name="arena" options={{ presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false }} />
         </Stack>
       </View>
     </LeagueProvider>

@@ -82,7 +82,7 @@ function PickRow({ m, pick, colors, snapTaken, onPick, onSnap, model }: {
             }}
             style={[styles.snap, pick?.snapped && styles.snapOn, (isLocked || !pick || (snapTaken && !pick?.snapped)) && { opacity: 0.35 }]}
             accessibilityRole="button"
-            accessibilityLabel={pick?.snapped ? 'Snapped: double stakes. Tap to undo' : 'Snap this pick to double the stakes'}
+            accessibilityLabel={pick?.snapped ? 'Pressed: double stakes. Tap to undo' : 'Press this pick to double the stakes'}
           >
             <Ionicons name="flash" size={18} color={pick?.snapped ? C.night : C.flare} />
           </Pressable>
@@ -116,25 +116,25 @@ export default function Picks() {
   const mine = useMemo(() => Object.values(picks).filter((p) => matches.some((m) => m.id === p.matchId)), [picks, matches]);
   const score = useMemo(() => tally(mine, matches), [mine, matches]);
   const calls = useMemo(() => new Map(open.map((m) => [m.id, modelCall(matches, m)])), [open, matches]);
-  const settled = useMemo(
+  const allSettled = useMemo(
     () =>
       mine
         .map((p) => ({ p, m: matches.find((x) => x.id === p.matchId)! }))
         .filter((x) => x.m && isFinished(x.m))
-        .sort((a, b) => b.m.utcDate.localeCompare(a.m.utcDate))
-        .slice(0, 15),
+        .sort((a, b) => b.m.utcDate.localeCompare(a.m.utcDate)),
     [mine, matches]
   );
+  const settled = allSettled.slice(0, 15);
   // correct picks pay credits once each: +10, or +20 if Snapped
   useEffect(() => {
-    const due = settled.filter(({ p, m }) => p.outcome === outcome(m) && !profile.creditedPicks.includes(m.id));
+    const due = allSettled.filter(({ p, m }) => p.outcome === outcome(m) && !profile.creditedPicks.includes(m.id));
     if (!due.length) return;
     setProfile((pr) => ({
       ...pr,
       credits: pr.credits + due.reduce((s, { p }) => s + REWARDS.pickRight * (p.snapped ? 2 : 1), 0),
       creditedPicks: [...pr.creditedPicks, ...due.map(({ m }) => m.id)],
     }));
-  }, [settled, profile.creditedPicks, setProfile]);
+  }, [allSettled, profile.creditedPicks, setProfile]);
   const md = open[0]?.matchday ?? null;
   const snapTaken = open.some((m) => picks[String(m.id)]?.snapped);
 
@@ -179,7 +179,7 @@ export default function Picks() {
             <Text style={T.small}>{score.settled ? `${score.modelCorrect}/${score.settled} right` : '—'}</Text>
           </View>
         </Panel>
-        <Text style={[T.small, { marginTop: S.sm }]}>Right +2 · wrong 0 · Snap one pick each matchday to double it: right +4, wrong −2. Every right pick also earns {REWARDS.pickRight} credits for upgrading cards ({REWARDS.pickRight * 2} if Snapped).</Text>
+        <Text style={[T.small, { marginTop: S.sm }]}>Right +2 · wrong 0 · Press one pick each matchday to double it: right +4, wrong −2. Every right pick also earns {REWARDS.pickRight} credits for upgrading cards ({REWARDS.pickRight * 2} if pressed).</Text>
       </View>
 
       {season.error && !season.data ? (
@@ -192,7 +192,7 @@ export default function Picks() {
         </Section>
       ) : (
         <>
-          <Section title={md ? `Matchday ${md}` : 'Next fixtures'} note={snapTaken ? 'Snap used for this matchday' : 'Snap still available'}>
+          <Section title={md ? `Matchday ${md}` : 'Next fixtures'} note={snapTaken ? 'Press used for this matchday' : 'Press still available'}>
             {open.length === 0 ? (
               <Empty icon="calendar-outline" title="No fixtures open" text="New picks open when the next matchday is scheduled." />
             ) : (
@@ -223,7 +223,7 @@ export default function Picks() {
                       <Text style={styles.settledText} numberOfLines={1}>
                         {teamName(m.homeTeam)} {m.score.fullTime.home}–{m.score.fullTime.away} {teamName(m.awayTeam)}
                       </Text>
-                      <Text style={styles.settledPick}>{LABEL[p.outcome]}{p.snapped ? ' · SNAP' : ''}</Text>
+                      <Text style={styles.settledPick}>{LABEL[p.outcome]}{p.snapped ? ' · PRESS' : ''}</Text>
                       <Text style={[styles.settledPts, { color: pts > 0 ? C.win : pts < 0 ? C.loss : C.dim }]}>{pts > 0 ? `+${pts}` : pts}</Text>
                     </View>
                   );

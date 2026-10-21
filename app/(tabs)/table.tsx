@@ -26,7 +26,8 @@ const ZONE_COLOR: Record<Exclude<Zone, null>, string> = { top: '#6FB7FF', europe
 
 function legend(id: number): [Exclude<Zone, null>, string][] {
   if (id === 2001) return [['top', 'Round of 16'], ['playoff', 'Play-offs'], ['relegation', 'Out']];
-  const l: [Exclude<Zone, null>, string][] = [['top', 'Champions League'], ['europe', 'Europe']];
+  // the exact number of European places varies by season and cup results, so these are positions, not promises
+  const l: [Exclude<Zone, null>, string][] = [['top', 'Top 4'], ['europe', '5th–6th']];
   if (id === 2002 || id === 2015) l.push(['playoff', 'Play-off']);
   l.push(['relegation', 'Relegation']);
   return l;

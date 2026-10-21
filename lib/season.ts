@@ -34,7 +34,8 @@ export interface Projection {
 export const remaining = (matches: Match[], competitionId: number) =>
   matches.filter(
     (m) =>
-      (m.status === 'SCHEDULED' || m.status === 'TIMED' || m.status === 'POSTPONED') &&
+      // live games count as still to play: their result isn't in the table yet
+      (m.status === 'SCHEDULED' || m.status === 'TIMED' || m.status === 'POSTPONED' || m.status === 'IN_PLAY' || m.status === 'PAUSED') &&
       (competitionId !== 2001 || !m.stage || m.stage === 'LEAGUE_STAGE')
   );
 

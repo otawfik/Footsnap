@@ -16,7 +16,8 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_SHOW_CRESTS": "true"
+        "EXPO_PUBLIC_SHOW_CRESTS": "false",
+        "EXPO_PUBLIC_SHOW_PHOTOS": "false"
       }
     }
   },

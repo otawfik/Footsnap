@@ -2,7 +2,7 @@
  * "Who's this?": name the player behind a mystery card. Right answers unlock
  * that card's Premium variant and pay credits and boosters. Five a day.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Image, useWindowDimensions, Platform, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,10 +14,11 @@ import { SnapCard, cardHeight } from '../components/SnapCard';
 import { Button, Wallet, tap } from '../components/ui';
 import { useLeague } from '../context/league';
 import { useCards } from '../hooks/data';
-import { usePhoto } from '../lib/photos';
+import { useArt } from '../lib/art';
 import { useCollection, useProfile, today } from '../lib/storage';
 import { GUESSES_PER_DAY, clues, puzzle } from '../lib/guess';
 import { REWARDS, lookOf, unlockPremium } from '../lib/collection';
+import { cardStats } from '../lib/game';
 import type { PlayerCard } from '../lib/cards';
 import { RARITY_NAME } from '../lib/cards';
 import { alpha } from '../lib/colors';
@@ -29,19 +30,19 @@ const FRAME = { common: [C.lineHi, C.line], rare: [C.rare, '#2C5A8A'], elite: ['
 function Mystery({ card, width }: { card: PlayerCard; width: number }) {
   const h = cardHeight(width);
   const k = width / 300;
-  const { photo } = usePhoto(card.name, true, card.dateOfBirth);
+  const art = useArt(card.id);
   return (
     <LinearGradient colors={[...FRAME[card.rarity]] as [string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width, height: h, borderRadius: 16 * k + 4, padding: 6 * k + 1 }}>
       <View style={{ flex: 1, borderRadius: 12 * k + 3, overflow: 'hidden', backgroundColor: card.team.colors.primary }}>
         <LinearGradient colors={[card.team.colors.primary, C.night]} style={StyleSheet.absoluteFill} />
-        {photo ? <Image source={{ uri: photo.src }} blurRadius={22} style={{ position: 'absolute', top: 0, width: '100%', height: h * 0.75, opacity: 0.85 }} resizeMode="cover" /> : null}
+        {art ? <Image source={{ uri: art.src }} tintColor={C.night} style={{ position: 'absolute', top: h * 0.02, alignSelf: 'center', width: width * 0.95, height: width * 1.27, opacity: 0.92 }} resizeMode="cover" /> : null}
         <LinearGradient colors={['rgba(10,14,11,0.2)', 'rgba(10,14,11,0.55)', C.night]} style={StyleSheet.absoluteFill} />
         <View style={{ position: 'absolute', top: h * 0.16, left: 0, right: 0, alignItems: 'center' }}>
           <Text style={{ fontFamily: F.display, fontSize: 150 * k, color: alpha(C.chalk, 0.9) }}>?</Text>
         </View>
         <View style={{ position: 'absolute', top: 12 * k, left: 12 * k, right: 12 * k, flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Text style={{ fontFamily: F.num, fontSize: 20 * k + 4, color: C.chalk }}>{card.line ?? '—'}</Text>
-          {card.power !== null ? <Text style={{ fontFamily: F.numHeavy, fontSize: 52 * k + 6, color: C.chalk }}>{card.power}</Text> : null}
+          <Text style={{ fontFamily: F.numHeavy, fontSize: 40 * k + 6, color: '#7FC4FF' }}>{cardStats(card).cost}</Text>
+          <Text style={{ fontFamily: F.numHeavy, fontSize: 52 * k + 6, color: C.chalk }}>{cardStats(card).power}</Text>
         </View>
         <View style={{ position: 'absolute', bottom: 18 * k, left: 0, right: 0, alignItems: 'center', gap: 6 * k }}>
           <View style={{ flexDirection: 'row', gap: 6 * k }}>
@@ -93,14 +94,18 @@ export default function Guess() {
   }, [league.id]);
   const nextPlayer = () => {
     tap('medium');
+    answering.current = false;
     flip.value = 0;
     burst.value = 0;
     setAnswered(null);
     setP(null);
   };
 
+  const answering = useRef(false);
   const answer = (c: PlayerCard) => {
-    if (!p || answered || !left) return;
+    // a ref, not state: two taps in the same frame both see stale state
+    if (!p || answered || !left || answering.current) return;
+    answering.current = true;
     const right = c.id === p.answer.id;
     setAnswered({ pick: c.id, right });
     setProfile((pr) => ({
