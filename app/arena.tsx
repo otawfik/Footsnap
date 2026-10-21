@@ -44,13 +44,14 @@ import {
   zonePower,
 } from '../lib/game';
 import type { PlayerCard } from '../lib/cards';
+import { bannerName } from '../lib/cards';
 import { alpha, mix } from '../lib/colors';
 import { C, F, R, S, T } from '../constants/theme';
 
 /** A card on the board: a miniature of the full card (metal frame, studio backdrop, art) with its current Power. */
 function BoardCard({ card, power, pending, w, onPress }: { card: PlayerCard; power: number; pending?: boolean; w: number; onPress?: () => void }) {
   const art = useArt(card.id);
-  const h = Math.round(w * 1.25);
+  const h = Math.round(w * 1.42);
   const f = 2;
   const iw = w - f * 2;
   const ih = h - f * 2;
@@ -77,6 +78,10 @@ function BoardCard({ card, power, pending, w, onPress }: { card: PlayerCard; pow
           </View>
         )}
         <LinearGradient colors={['rgba(10,14,11,0)', 'rgba(10,14,11,0.55)']} locations={[0.55, 1]} style={StyleSheet.absoluteFill} />
+        {/* whose card this is, at a glance */}
+        <View style={styles.bcName}>
+          <Text style={styles.bcNameText} numberOfLines={1}>{bannerName(card.name, 9).toUpperCase()}</Text>
+        </View>
       </View>
       <Svg width={sw} height={sw * 1.1} style={{ position: 'absolute', right: -sw * 0.18, bottom: -sw * 0.18 }} pointerEvents="none">
         <Defs>
@@ -136,7 +141,7 @@ function ZoneTile({ s, zone, selected, onPress, w }: { s: GameState; zone: Zone;
 
 function Slots({ items, w, colW, onPressPending }: { items: { card: PlayerCard; power: number; pending: boolean }[]; w: number; colW: number; onPressPending: (id: number) => void }) {
   return (
-    <View style={[styles.slots, { width: colW, minHeight: Math.round(w * 1.25) * 2 + 4 }]}>
+    <View style={[styles.slots, { width: colW, minHeight: Math.round(w * 1.42) * 2 + 4 }]}>
       {items.map((it) => (
         <BoardCard key={it.card.id} card={it.card} power={it.power} pending={it.pending} w={w} onPress={it.pending ? () => onPressPending(it.card.id) : undefined} />
       ))}
@@ -246,6 +251,8 @@ export default function Arena() {
   };
 
   const energy = energyLeft(s, 'you');
+  const selectedCard = selected !== null ? s.hands.you.find((c) => c.id === selected) : undefined;
+  const selectedEffect = selectedCard ? cardStats(selectedCard).effect?.text : undefined;
   const snapPending = s.snapsThisTurn.length ? s.stakes * 2 ** s.snapsThisTurn.length : null;
 
   return (
@@ -315,8 +322,8 @@ export default function Arena() {
           <Text style={styles.energyNum}>{energy}</Text>
           <Text style={styles.energyLabel}>ENERGY</Text>
         </View>
-        <Text style={[T.small, { flex: 1 }]} numberOfLines={2}>
-          {s.over ? 'Full time.' : selected !== null ? 'Now tap a highlighted zone.' : s.hands.you.length ? 'Tap a card to play it.' : 'No cards in hand.'}
+        <Text style={[T.small, { flex: 1 }]} numberOfLines={3}>
+          {s.over ? 'Full time.' : selected !== null ? `Now tap a highlighted zone.${selectedEffect ? ` ${selectedEffect}` : ''}` : s.hands.you.length ? 'Tap a card to play it.' : 'No cards in hand.'}
         </Text>
         <Button label={revealing ? 'Revealing…' : s.turn === TURNS ? 'Final whistle' : 'End turn'} onPress={onEnd} disabled={revealing || s.over} />
       </View>
@@ -338,7 +345,6 @@ export default function Arena() {
               accessibilityLabel={`${c.name}, cost ${cardStats(c).cost}, power ${cardStats(c).power}. ${cardStats(c).effect?.text ?? ''}`}
             >
               <SnapCard card={c} width={84} look={lookOf(owned[String(c.id)])} competition={league.name} />
-              {on && cardStats(c).effect ? <Text style={styles.handEffect} numberOfLines={3}>{cardStats(c).effect!.text}</Text> : null}
             </Pressable>
           );
         })}
@@ -392,6 +398,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: S.sm, justifyContent: 'space-between' },
   slots: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, alignContent: 'center', justifyContent: 'center' },
   bcPending: { opacity: 0.55 },
+  bcName: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(10,14,11,0.75)', paddingVertical: 1, paddingRight: 10 },
+  bcNameText: { fontFamily: F.label, fontSize: 9, letterSpacing: 0.4, color: C.chalk, textAlign: 'center' },
   zone: { minHeight: 112, borderRadius: R.md, borderWidth: 1, borderColor: C.lineHi, backgroundColor: 'rgba(243,241,231,0.04)', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, paddingHorizontal: 4 },
   zoneTarget: { borderColor: C.flare, borderWidth: 2, backgroundColor: alpha(C.flare, 0.1) },
   zoneName: { fontFamily: F.label, fontSize: 11, letterSpacing: 1.3, color: C.chalk2 },
@@ -408,7 +416,6 @@ const styles = StyleSheet.create({
   energyNum: { fontFamily: F.numHeavy, fontSize: 22, color: '#FFFFFF', lineHeight: 24 },
   energyLabel: { fontFamily: F.label, fontSize: 7, letterSpacing: 1, color: '#DCEBFF' },
   hand: { gap: S.sm, paddingHorizontal: S.md, paddingTop: 18, paddingBottom: S.md, alignItems: 'flex-end' },
-  handEffect: { position: 'absolute', bottom: -2, left: -10, right: -10, fontFamily: F.bodyMedium, fontSize: 9, lineHeight: 11, color: C.night, backgroundColor: C.chalk, borderRadius: 4, padding: 3, textAlign: 'center' },
   over: { ...StyleSheet.absoluteFillObject, zIndex: 50, elevation: 50, backgroundColor: 'rgba(5,8,6,0.93)', alignItems: 'center', justifyContent: 'center', gap: S.sm, padding: S.xl },
   overTitle: { fontFamily: F.display, fontSize: 56, letterSpacing: 2 },
   reward: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: S.sm },
