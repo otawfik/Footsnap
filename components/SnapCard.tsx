@@ -740,19 +740,58 @@ export function SnapCard({
   );
 }
 
-/** The face-down card, for packs. */
+/** The face-down card, for packs: the same metal frame as the face, a pitch drawn in fine lines, the wordmark. */
 export function CardBack({ width }: { width: number }) {
   const h = cardHeight(width);
   const k = width / 300;
+  const r = 18 * k + 4;
+  const f = Math.max(3, Math.round(6 * k));
+  const iw = width - f * 2;
+  const ih = h - f * 2;
+  const line = 'rgba(245,196,81,0.22)';
+  const sw = Math.max(1, 1.4 * k);
+  // a full pitch, top to bottom, inset in the window
+  const px = iw * 0.1;
+  const py = ih * 0.06;
+  const pw = iw - px * 2;
+  const ph = ih - py * 2;
   return (
-    <LinearGradient colors={['#1A2A1F', C.night, '#1A2A1F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width, height: h, borderRadius: 18 * k + 4, borderWidth: 2, borderColor: C.lineHi, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-      <Svg width={width * 0.62} height={width * 0.62} viewBox="0 0 100 100">
-        <Circle cx={50} cy={50} r={44} stroke={C.lineHi} strokeWidth={2} fill="none" />
-        <Circle cx={50} cy={50} r={3} fill={C.flare} />
-        <Path d="M50 6 V94" stroke={C.lineHi} strokeWidth={2} />
-      </Svg>
-      <Text style={{ position: 'absolute', bottom: 18 * k + 6, fontFamily: F.display, fontSize: 22 * k + 6, color: C.chalk2, letterSpacing: 2 }}>FOOTSNAP</Text>
-    </LinearGradient>
+    <View style={{ width, height: h }}>
+      <LinearGradient colors={['#4A4F48', '#1C211D', '#3E433C', '#191D1A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: r }]} />
+      <LinearGradient
+        colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.3)']}
+        locations={[0, 0.25, 0.7, 1]}
+        style={[StyleSheet.absoluteFill, { borderRadius: r, borderWidth: 1, borderColor: 'rgba(10,14,11,0.7)' }]}
+      />
+      <View style={{ position: 'absolute', left: f, top: f, width: iw, height: ih, borderRadius: Math.max(2, r - f * 0.6), overflow: 'hidden' }}>
+        <LinearGradient colors={['#173022', '#0E1B14', '#0A120D']} locations={[0, 0.6, 1]} style={StyleSheet.absoluteFill} />
+        <Svg width={iw} height={ih} style={StyleSheet.absoluteFill}>
+          <Defs>
+            <RadialGradient id={`backglow${Math.round(width)}`} cx="50%" cy="50%" r="50%">
+              <Stop offset="0" stopColor="#F5C451" stopOpacity="0.14" />
+              <Stop offset="1" stopColor="#F5C451" stopOpacity="0" />
+            </RadialGradient>
+          </Defs>
+          <Rect width={iw} height={ih} fill={`url(#backglow${Math.round(width)})`} />
+          <Rect x={px} y={py} width={pw} height={ph} stroke={line} strokeWidth={sw} fill="none" />
+          <Path d={`M ${px} ${ih / 2} H ${px + pw}`} stroke={line} strokeWidth={sw} />
+          <Circle cx={iw / 2} cy={ih / 2} r={pw * 0.2} stroke={line} strokeWidth={sw} fill="none" />
+          {[py, py + ph].map((y, n) => (
+            <G key={n}>
+              <Rect x={iw / 2 - pw * 0.3} y={n ? y - ph * 0.14 : y} width={pw * 0.6} height={ph * 0.14} stroke={line} strokeWidth={sw} fill="none" />
+              <Rect x={iw / 2 - pw * 0.13} y={n ? y - ph * 0.05 : y} width={pw * 0.26} height={ph * 0.05} stroke={line} strokeWidth={sw} fill="none" />
+            </G>
+          ))}
+        </Svg>
+        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
+          <View style={{ backgroundColor: '#0E1B14', paddingHorizontal: 10 * k + 4, paddingVertical: 4 * k + 2, borderRadius: 4, alignItems: 'center' }}>
+            <Text style={{ fontFamily: F.display, fontSize: 30 * k + 6, color: '#F3F1E7', letterSpacing: 2 * k + 0.5 }}>FOOTSNAP</Text>
+            <View style={{ width: 8 * k + 4, height: 8 * k + 4, marginTop: 4 * k + 1, transform: [{ rotate: '45deg' }], backgroundColor: '#F5C451' }} />
+          </View>
+        </View>
+        <View style={[StyleSheet.absoluteFill, { borderRadius: Math.max(2, r - f * 0.6), borderWidth: Math.max(1, 1.2 * k), borderColor: 'rgba(10,14,11,0.75)' }]} />
+      </View>
+    </View>
   );
 }
 
