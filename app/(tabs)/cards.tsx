@@ -14,9 +14,11 @@ import { GUESSES_PER_DAY } from '../../lib/guess';
 import { alpha } from '../../lib/colors';
 import { RARITY_NAME, Rarity } from '../../lib/cards';
 import { ODDS } from '../../lib/packs';
+import { cardStats } from '../../lib/game';
 import { C, F, R, S, T } from '../../constants/theme';
 
 type Filter = 'all' | 'collected' | Rarity;
+const RARITY_ORDER: Record<Rarity, number> = { icon: 0, elite: 1, rare: 2, common: 3 };
 const PAGE = 45;
 
 function untilMidnight() {
@@ -118,12 +120,21 @@ export default function Cards() {
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return list.filter((c) => {
-      if (filter === 'collected' && !owned[String(c.id)]) return false;
-      if (filter !== 'all' && filter !== 'collected' && c.rarity !== filter) return false;
-      if (q.length >= 2 && !c.name.toLowerCase().includes(q) && !c.team.shortName.toLowerCase().includes(q)) return false;
-      return true;
-    });
+    return list
+      .filter((c) => {
+        if (filter === 'collected' && !owned[String(c.id)]) return false;
+        if (filter !== 'all' && filter !== 'collected' && c.rarity !== filter) return false;
+        if (q.length >= 2 && !c.name.toLowerCase().includes(q) && !c.team.shortName.toLowerCase().includes(q)) return false;
+        return true;
+      })
+      // yours first, then rarest and strongest, so the grid opens on variety rather than A-to-Z commons
+      .sort(
+        (a, b) =>
+          Number(!!owned[String(b.id)]) - Number(!!owned[String(a.id)]) ||
+          RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity] ||
+          cardStats(b).power - cardStats(a).power ||
+          a.name.localeCompare(b.name)
+      );
   }, [list, filter, query, owned]);
 
   const icons = list.filter((c) => c.rarity === 'icon');
@@ -215,19 +226,23 @@ export default function Cards() {
                     <Pressable
                       key={c.id}
                       onPress={() => router.push({ pathname: '/card/[id]', params: { id: String(c.id) } })}
-                      style={{ width: cardW, height: cardHeight(cardW), opacity: have || c.rarity !== 'common' ? 1 : 0.55 }}
+                      style={{ width: cardW, height: cardHeight(cardW) }}
                       accessibilityRole="button"
                     >
-                      <SnapCard card={c} width={cardW} collected={have} loadPhoto={c.rarity !== 'common' || have} competition={league.name} look={lookOf(owned[String(c.id)])} />
-                      {!have ? (
-                        <View style={styles.lock}>
-                          <Ionicons name="lock-closed" size={11} color={C.chalk2} />
-                        </View>
-                      ) : owned[String(c.id)].copies > 1 ? (
-                        <View style={styles.copies}>
-                          <Text style={styles.copiesText}>×{owned[String(c.id)].copies}</Text>
-                        </View>
-                      ) : null}
+                      <SnapCard card={c} width={cardW} collected={have} competition={league.name} look={lookOf(owned[String(c.id)])} />
+                      {/* not collected yet: dimmed, never see-through */}
+                      {!have ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.dim, { borderRadius: (18 * cardW) / 300 + 4 }]} /> : null}
+                      <View pointerEvents="none" style={styles.marks}>
+                        {!have ? (
+                          <View style={styles.lock}>
+                            <Ionicons name="lock-closed" size={9} color={C.chalk2} />
+                          </View>
+                        ) : owned[String(c.id)].copies > 1 ? (
+                          <View style={styles.copies}>
+                            <Text style={styles.copiesText}>×{owned[String(c.id)].copies}</Text>
+                          </View>
+                        ) : null}
+                      </View>
                     </Pressable>
                   );
                 })}
@@ -260,7 +275,10 @@ const styles = StyleSheet.create({
   search: { flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: C.pitch, borderWidth: 1, borderColor: C.line, borderRadius: R.sm, paddingHorizontal: S.md },
   searchInput: { flex: 1, color: C.chalk, fontFamily: F.body, fontSize: 15, paddingVertical: 10 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: S.sm },
-  lock: { position: 'absolute', bottom: 7, right: 7, backgroundColor: 'rgba(10,14,11,0.75)', borderRadius: 10, padding: 4 },
-  copies: { position: 'absolute', bottom: 7, right: 7, backgroundColor: C.flare, borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1 },
-  copiesText: { fontFamily: F.num, fontSize: 11, color: C.night },
+  dim: { backgroundColor: 'rgba(10,14,11,0.42)' },
+  // in the bottom corner strip, below the name and clear of the player's face
+  marks: { position: 'absolute', bottom: 3, right: 7 },
+  lock: { backgroundColor: 'rgba(10,14,11,0.8)', borderRadius: 8, padding: 2 },
+  copies: { backgroundColor: C.flare, borderRadius: 7, paddingHorizontal: 4 },
+  copiesText: { fontFamily: F.num, fontSize: 10, color: C.night },
 });

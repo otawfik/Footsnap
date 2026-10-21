@@ -10,7 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSequence, withSpring, interpolate, useReducedMotion, Easing } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { Badges, RARITY_FRAME, SnapCard, cardHeight } from '../components/SnapCard';
+import { Badges, KitArt, RARITY_FRAME, SnapCard, cardHeight } from '../components/SnapCard';
 import { Button, Wallet, tap } from '../components/ui';
 import { useLeague } from '../context/league';
 import { useCards } from '../hooks/data';
@@ -58,9 +58,13 @@ function Mystery({ card, width }: { card: PlayerCard; width: number }) {
             <Image source={{ uri: art.src }} tintColor="#0B100C" style={at(0, 0)} resizeMode="cover" />
           </>
         ) : (
-          <View style={{ position: 'absolute', top: ih * 0.14, left: 0, right: 0, alignItems: 'center' }}>
-            <Text style={{ fontFamily: F.display, fontSize: 170 * k, color: alpha(C.chalk, 0.85) }}>?</Text>
-          </View>
+          <>
+            {/* no photo: the shirt, as a backlit silhouette, with the question on its chest */}
+            <KitArt card={card} w={iw} h={ih} top={0.12} silhouette />
+            <View style={{ position: 'absolute', top: ih * 0.26, left: 0, right: 0, alignItems: 'center' }}>
+              <Text style={{ fontFamily: F.display, fontSize: 120 * k, color: alpha(rim, 0.9) }}>?</Text>
+            </View>
+          </>
         )}
         <LinearGradient colors={[alpha(C.night, 0), alpha(C.night, 0.6), alpha(C.night, 0.95)]} locations={[0.55, 0.75, 1]} style={StyleSheet.absoluteFill} />
         <View style={{ position: 'absolute', bottom: 16 * k + 2, left: 0, right: 0, alignItems: 'center', gap: 4 * k }}>
