@@ -3,7 +3,9 @@ import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, useWindowDime
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Header, LeagueTabs, Section, Panel, Skeleton, Failed, Pill, Button, Empty, Wallet, tap } from '../../components/ui';
-import { SnapCard, CardBack, cardHeight } from '../../components/SnapCard';
+import { SnapCard, CardBack, RARITY_FRAME, cardHeight } from '../../components/SnapCard';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path, Text as SvgText } from 'react-native-svg';
 import { useLeague } from '../../context/league';
 import { useCards } from '../../hooks/data';
 import { useCollection, usePacks, useProfile, today } from '../../lib/storage';
@@ -48,6 +50,32 @@ function PackHero({ opened, leagueName, onOpen }: { opened: boolean; leagueName:
       </View>
       <Ionicons name="chevron-forward" size={20} color={C.muted} />
     </Panel>
+  );
+}
+
+/** A small mystery card: gold frame, a backlit head-and-shoulders silhouette, a question mark. */
+function MysteryThumb({ width }: { width: number }) {
+  const h = cardHeight(width);
+  const f = 3;
+  const iw = width - f * 2;
+  const ih = h - f * 2;
+  // a generic head and shoulders, not any real player's outline
+  const P = (x: number, y: number) => `${(x * iw).toFixed(1)} ${(y * ih).toFixed(1)}`;
+  const figure = `M ${P(0.5, 0.14)} C ${P(0.36, 0.14)} ${P(0.32, 0.26)} ${P(0.34, 0.36)} C ${P(0.36, 0.44)} ${P(0.4, 0.5)} ${P(0.44, 0.53)} L ${P(0.43, 0.58)} C ${P(0.2, 0.62)} ${P(0.06, 0.7)} ${P(0.02, 1)} L ${P(0.98, 1)} C ${P(0.94, 0.7)} ${P(0.8, 0.62)} ${P(0.57, 0.58)} L ${P(0.56, 0.53)} C ${P(0.6, 0.5)} ${P(0.64, 0.44)} ${P(0.66, 0.36)} C ${P(0.68, 0.26)} ${P(0.64, 0.14)} ${P(0.5, 0.14)} Z`;
+  return (
+    <View style={{ width, height: h }}>
+      <LinearGradient colors={RARITY_FRAME.icon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 8, borderWidth: 1, borderColor: 'rgba(10,14,11,0.7)' }]} />
+      <View style={{ position: 'absolute', left: f, top: f, width: iw, height: ih, borderRadius: 6, overflow: 'hidden' }}>
+        <LinearGradient colors={['#3A2F12', '#14120A']} style={StyleSheet.absoluteFill} />
+        <Svg width={iw} height={ih} style={StyleSheet.absoluteFill}>
+          <Path d={figure} fill="none" stroke="rgba(255,229,154,0.75)" strokeWidth={2.4} transform={`translate(0 -1)`} />
+          <Path d={figure} fill="#0B100C" />
+          <SvgText x={iw / 2} y={ih * 0.88} fontSize={ih * 0.32} fontFamily={F.display} fontWeight="900" fill="#F5C451" textAnchor="middle">
+            ?
+          </SvgText>
+        </Svg>
+      </View>
+    </View>
   );
 }
 
@@ -133,8 +161,8 @@ export default function Cards() {
             </Panel>
             <PackHero opened={opened} leagueName={profile.bonusPacks && packs[String(league.id)] === today() ? `bonus · ${league.name}` : league.name} onOpen={() => router.push('/pack')} />
             <Panel style={styles.guess} onPress={() => router.push('/guess')} label="Who's this? Name the player to unlock Premium cards">
-              <View style={styles.guessIcon}>
-                <Text style={styles.guessQ}>?</Text>
+              <View style={{ marginHorizontal: 16 }}>
+                <MysteryThumb width={64} />
               </View>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={T.kicker}>{Math.max(0, guessesLeft)} of {GUESSES_PER_DAY} left today</Text>
@@ -226,8 +254,6 @@ const styles = StyleSheet.create({
   bar: { height: 6, borderRadius: 3, backgroundColor: C.turf, overflow: 'hidden' },
   barFill: { height: '100%', backgroundColor: C.icon, borderRadius: 3 },
   guess: { flexDirection: 'row', alignItems: 'center', gap: S.lg, padding: S.base, paddingLeft: S.lg },
-  guessIcon: { width: 64, height: 88, borderRadius: 10, borderWidth: 2, borderColor: C.icon, alignItems: 'center', justifyContent: 'center', backgroundColor: alpha(C.icon, 0.08), marginHorizontal: 16 },
-  guessQ: { fontFamily: F.display, fontSize: 48, color: C.icon },
   pack: { flexDirection: 'row', alignItems: 'center', gap: S.lg, padding: S.base, paddingLeft: S.lg },
   fan: { width: 96, height: 96, alignItems: 'center', justifyContent: 'center' },
   fanCard: { position: 'absolute' },
