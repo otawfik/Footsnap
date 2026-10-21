@@ -2,16 +2,16 @@
  * The player card, built the way Marvel Snap builds its cards:
  *
  *   - the art is the card: a cut-out of the player (background removed, from a
- *     freely licensed Wikimedia photo) standing in front of a background drawn
- *     in the club's colours: energy rays, halftone, speed lines
- *   - two big outlined numbers, Cost top-left and Power top-right (the Duel
- *     game's stats, derived from real data in lib/game.ts), and a slanted,
- *     outlined name like a card logo; nothing else on the face
+ *     freely licensed Wikimedia photo) standing in a studio-lit backdrop in the
+ *     club's colours, with a soft shadow behind them
+ *   - Cost top-left and Power top-right (the Duel game's stats, derived from
+ *     real data in lib/game.ts), and the name set big at the bottom, where the
+ *     art fades out; nothing else on the face
  *   - rarer cards come alive: Elite and Icon backgrounds rotate and sparkle, and
  *     their player breaks out over the top of the frame
  *   - upgrades work like Snap's: the frame colour follows the upgrade tier, and
  *     each tier adds an effect (frame break, 3D parallax, glow, crest, holo,
- *     Infinity with a finish)
+ *     Legend with a finish)
  *
  * The real stats and abilities are on the back and in the card view.
  * Players with no free photo get a kit in their club's colours instead.
@@ -31,14 +31,14 @@ import Animated, {
   useReducedMotion,
   SharedValue,
 } from 'react-native-reanimated';
-import Svg, { Defs, LinearGradient as SvgGrad, RadialGradient, Stop, Rect, Circle, Path, G, Text as SvgText, Pattern, Line } from 'react-native-svg';
+import Svg, { Defs, LinearGradient as SvgGrad, RadialGradient, Stop, Rect, Circle, Path, G, Text as SvgText } from 'react-native-svg';
 import { DeviceMotion } from 'expo-sensors';
 import type { PlayerCard } from '../lib/cards';
 import { RARITY_NAME, bannerName } from '../lib/cards';
 import type { Finish, Tier } from '../lib/collection';
 import { cardStats } from '../lib/game';
 import { useArt } from '../lib/art';
-import { alpha } from '../lib/colors';
+import { alpha, mix } from '../lib/colors';
 import { C, F } from '../constants/theme';
 
 export type CardSize = 'sm' | 'md' | 'lg';
@@ -70,6 +70,8 @@ const TIER_FRAME: Record<number, Grad> = {
 };
 const RARITY_COLOR = { common: C.common, rare: C.rare, elite: C.elite, icon: C.icon } as const;
 
+const OUTLINE: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]];
+
 export const breaksFrame = (card: PlayerCard, look: Look) => look.tier >= 1 || card.rarity === 'icon' || card.rarity === 'elite';
 
 // ---------------------------------------------------------------------------
@@ -92,52 +94,49 @@ function Rays({ size, color, count }: { size: number; color: string; count: numb
   );
 }
 
-function Background({ card, w, h, look, animate }: { card: PlayerCard; w: number; h: number; look: Look; animate: boolean }) {
+function Background({ card, w, h, look, animate, kit }: { card: PlayerCard; w: number; h: number; look: Look; animate: boolean; kit: boolean }) {
   const { primary, secondary, accent } = card.team.colors;
-  const infinity = look.tier === 6;
-  const lively = card.rarity === 'icon' || card.rarity === 'elite' || look.tier >= 3 || look.premium;
+  const legend = look.tier === 6;
+  const lively = card.rarity === 'icon' || look.tier >= 3 || look.premium;
   const spin = useSharedValue(0);
   const reduced = useReducedMotion();
   useEffect(() => {
-    if (animate && lively && !reduced) spin.value = withRepeat(withTiming(1, { duration: 38000, easing: Easing.linear }), -1);
+    if (animate && lively && !reduced) spin.value = withRepeat(withTiming(1, { duration: 60000, easing: Easing.linear }), -1);
   }, [animate, lively, reduced, spin]);
   const spinStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.value * 360}deg` }] }));
   const id = `bg${card.id}_${Math.round(w)}`;
   const S = Math.hypot(w, h) * 1.25;
+  // a studio backdrop: the club colour, lit from above and falling off to near-black
+  // (behind a shirt in the club colour, a deep shade of it, so the shirt stands out)
+  const base = legend ? '#2B2412' : look.premium ? secondary : kit ? mix(primary, C.night, 0.62) : primary;
+  const light = legend ? '#F6DC8A' : look.premium ? mix(secondary, '#FFFFFF', 0.5) : mix(accent, '#FFFFFF', 0.35);
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <LinearGradient
-        colors={infinity ? ['#2A2410', '#0B0B0B'] : look.premium ? [secondary, primary] : [primary, alpha(primary, 0.55), C.night]}
-        locations={infinity || look.premium ? undefined : [0, 0.55, 1]}
-        style={StyleSheet.absoluteFill}
-      />
-      {/* energy rays from behind the player's head; they turn slowly on lively cards */}
-      <Animated.View style={[{ position: 'absolute', width: S, height: S, left: w / 2 - S / 2, top: h * 0.36 - S / 2 }, spinStyle]}>
-        <Rays size={S} color={alpha(infinity ? '#F6DC8A' : look.premium ? C.night : secondary, lively ? 0.17 : 0.08)} count={lively ? 20 : 14} />
-      </Animated.View>
+      <LinearGradient colors={[mix(base, '#FFFFFF', 0.08), base, mix(base, C.night, 0.72)]} locations={[0, 0.42, 1]} style={StyleSheet.absoluteFill} />
+      {lively ? (
+        <Animated.View style={[{ position: 'absolute', width: S, height: S, left: w / 2 - S / 2, top: h * 0.3 - S / 2 }, spinStyle]}>
+          <Rays size={S} color={alpha(legend ? '#F6DC8A' : look.premium ? primary : secondary, 0.07)} count={18} />
+        </Animated.View>
+      ) : null}
+      {look.tier >= 4 && card.team.crest ? (
+        <Image source={{ uri: card.team.crest }} style={{ position: 'absolute', width: w * 0.9, height: w * 0.9, left: w * 0.05, top: h * 0.08, opacity: 0.09 }} resizeMode="contain" />
+      ) : null}
       <Svg width={w} height={h} style={StyleSheet.absoluteFill}>
         <Defs>
-          <RadialGradient id={`${id}g`} cx="50%" cy="34%" r="55%">
-            <Stop offset="0" stopColor={infinity ? '#F6DC8A' : accent} stopOpacity={lively ? 0.5 : 0.28} />
-            <Stop offset="1" stopColor={accent} stopOpacity="0" />
+          <RadialGradient id={`${id}l`} cx="50%" cy="30%" r="48%">
+            <Stop offset="0" stopColor={light} stopOpacity={lively ? 0.5 : 0.38} />
+            <Stop offset="1" stopColor={light} stopOpacity="0" />
           </RadialGradient>
-          <Pattern id={`${id}d`} width={7} height={7} patternUnits="userSpaceOnUse">
-            <Circle cx={3.5} cy={3.5} r={1.2} fill={alpha(look.premium ? C.night : C.chalk, look.premium ? 0.35 : 0.1)} />
-          </Pattern>
+          <RadialGradient id={`${id}v`} cx="50%" cy="45%" r="75%">
+            <Stop offset="0.6" stopColor={C.night} stopOpacity="0" />
+            <Stop offset="1" stopColor={C.night} stopOpacity="0.45" />
+          </RadialGradient>
         </Defs>
-        <Rect width={w} height={h} fill={`url(#${id}g)`} />
-        <Rect y={h * 0.45} width={w} height={h * 0.55} fill={`url(#${id}d)`} />
-        {card.rarity !== 'common' || look.tier >= 2
-          ? Array.from({ length: 7 }, (_, i) => (
-              <Line key={i} x1={-w * 0.2 + i * w * 0.24} y1={h} x2={w * 0.25 + i * w * 0.24} y2={h * 0.42} stroke={alpha(C.chalk, 0.07)} strokeWidth={Math.max(1, w / 90)} />
-            ))
-          : null}
+        <Rect width={w} height={h} fill={`url(#${id}l)`} />
+        <Rect width={w} height={h} fill={`url(#${id}v)`} />
       </Svg>
-      {look.tier >= 4 && card.team.crest ? (
-        <Image source={{ uri: card.team.crest }} style={{ position: 'absolute', width: w * 0.95, height: w * 0.95, left: w * 0.025, top: h * 0.06, opacity: 0.16 }} resizeMode="contain" />
-      ) : null}
-      {animate && lively ? <Sparks w={w} h={h} color={infinity ? '#F6DC8A' : '#FFFFFF'} seed={card.id} /> : null}
+      {animate && (card.rarity === 'icon' || look.tier >= 3) ? <Sparks w={w} h={h} color={legend ? '#F6DC8A' : '#FFFFFF'} seed={card.id} /> : null}
     </View>
   );
 }
@@ -160,7 +159,7 @@ function Sparks({ w, h, color, seed }: { w: number; h: number; color: string; se
   const sparks = useMemo(() => {
     let x = seed;
     const rand = () => ((x = (x * 1664525 + 1013904223) >>> 0) / 4294967296);
-    return Array.from({ length: 9 }, (_, i) => ({ x: rand() * w, size: 2 + rand() * (w / 90), delay: i * 360 }));
+    return Array.from({ length: 6 }, (_, i) => ({ x: rand() * w, size: 1.5 + rand() * (w / 120), delay: i * 520 }));
   }, [w, seed]);
   if (reduced) return null;
   return (
@@ -184,28 +183,66 @@ function Sparks({ w, h, color, seed }: { w: number; h: number; color: string; se
 function KitArt({ card, w, h }: { card: PlayerCard; w: number; h: number }) {
   const { primary, secondary } = card.team.colors;
   const initials = card.name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
-  const sw = w * 0.8;
-  const sh = sw * 0.92;
+  const sw = w * 0.84;
+  const sh = sw * 0.95;
   const x0 = (w - sw) / 2;
-  const y0 = h * 0.13;
+  const y0 = h * 0.15;
   const P = (fx: number, fy: number) => `${(x0 + fx * sw).toFixed(1)} ${(y0 + fy * sh).toFixed(1)}`;
-  const shirt = `M ${P(0.36, 0)} L ${P(0.18, 0.06)} L ${P(0, 0.3)} L ${P(0.14, 0.42)} L ${P(0.22, 0.34)} L ${P(0.22, 1)} L ${P(0.78, 1)} L ${P(0.78, 0.34)} L ${P(0.86, 0.42)} L ${P(1, 0.3)} L ${P(0.82, 0.06)} L ${P(0.64, 0)} Q ${P(0.5, 0.12)} ${P(0.36, 0)} Z`;
+  // rounded shoulders, set-in sleeves, a slightly tapered body
+  const shirt = [
+    `M ${P(0.37, 0.02)}`,
+    `C ${P(0.3, 0.03)} ${P(0.2, 0.06)} ${P(0.15, 0.1)}`,
+    `C ${P(0.08, 0.16)} ${P(0.03, 0.24)} ${P(0, 0.31)}`,
+    `L ${P(0.13, 0.42)}`,
+    `L ${P(0.22, 0.35)}`,
+    `C ${P(0.23, 0.55)} ${P(0.22, 0.8)} ${P(0.21, 1)}`,
+    `Q ${P(0.5, 1.03)} ${P(0.79, 1)}`,
+    `C ${P(0.78, 0.8)} ${P(0.77, 0.55)} ${P(0.78, 0.35)}`,
+    `L ${P(0.87, 0.42)}`,
+    `L ${P(1, 0.31)}`,
+    `C ${P(0.97, 0.24)} ${P(0.92, 0.16)} ${P(0.85, 0.1)}`,
+    `C ${P(0.8, 0.06)} ${P(0.7, 0.03)} ${P(0.63, 0.02)}`,
+    `Q ${P(0.5, 0.13)} ${P(0.37, 0.02)} Z`,
+  ].join(' ');
   const id = `kit${card.id}_${Math.round(w)}`;
+  const edge = mix(primary, C.night, 0.45);
   return (
     <Svg width={w} height={h} style={StyleSheet.absoluteFill}>
       <Defs>
-        <SvgGrad id={id} x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.22" />
-          <Stop offset="1" stopColor="#000000" stopOpacity="0.3" />
+        <SvgGrad id={`${id}f`} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={mix(primary, '#FFFFFF', 0.14)} />
+          <Stop offset="0.55" stopColor={primary} />
+          <Stop offset="1" stopColor={mix(primary, C.night, 0.35)} />
+        </SvgGrad>
+        <SvgGrad id={`${id}s`} x1="0" y1="0" x2="1" y2="0">
+          <Stop offset="0" stopColor="#000000" stopOpacity="0.28" />
+          <Stop offset="0.22" stopColor="#000000" stopOpacity="0" />
+          <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0.1" />
+          <Stop offset="0.78" stopColor="#000000" stopOpacity="0" />
+          <Stop offset="1" stopColor="#000000" stopOpacity="0.28" />
         </SvgGrad>
       </Defs>
-      <Path d={shirt} fill={primary} stroke={C.night} strokeWidth={Math.max(1.5, w / 80)} />
+      {/* soft shadow on the backdrop */}
+      <Path d={shirt} fill={C.night} opacity={0.3} transform={`translate(${w * 0.018} ${w * 0.026})`} />
+      <Path d={shirt} fill={`url(#${id}f)`} stroke={edge} strokeWidth={Math.max(1, w / 140)} strokeLinejoin="round" />
       {/* sleeve cuffs in the second colour */}
-      <Path d={`M ${P(0.02, 0.32)} L ${P(0.13, 0.41)} L ${P(0.18, 0.36)} L ${P(0.06, 0.26)} Z`} fill={secondary} />
-      <Path d={`M ${P(0.98, 0.32)} L ${P(0.87, 0.41)} L ${P(0.82, 0.36)} L ${P(0.94, 0.26)} Z`} fill={secondary} />
-      <Path d={shirt} fill={`url(#${id})`} />
-      <Path d={`M ${P(0.36, 0)} Q ${P(0.5, 0.12)} ${P(0.64, 0)}`} stroke={secondary} strokeWidth={Math.max(2, w / 40)} fill="none" />
-      <SvgText x={w / 2} y={y0 + sh * 0.7} fontSize={sw * 0.3} fontFamily={F.numHeavy} fill={secondary} stroke={C.night} strokeWidth={Math.max(1, w / 120)} textAnchor="middle">
+      <Path d={`M ${P(0.015, 0.29)} L ${P(0.135, 0.405)} L ${P(0.16, 0.38)} L ${P(0.04, 0.265)} Z`} fill={secondary} />
+      <Path d={`M ${P(0.985, 0.29)} L ${P(0.865, 0.405)} L ${P(0.84, 0.38)} L ${P(0.96, 0.265)} Z`} fill={secondary} />
+      {/* fabric shading: darker sides, a soft highlight down the chest */}
+      <Path d={shirt} fill={`url(#${id}s)`} />
+      {/* collar */}
+      <Path d={`M ${P(0.37, 0.02)} Q ${P(0.5, 0.13)} ${P(0.63, 0.02)}`} stroke={secondary} strokeWidth={Math.max(2, w / 45)} fill="none" strokeLinecap="round" />
+      <SvgText
+        x={w / 2}
+        y={y0 + sh * 0.66}
+        fontSize={sw * 0.28}
+        fontFamily={F.numHeavy}
+        fill={secondary}
+        stroke={mix(secondary, C.night, 0.6)}
+        strokeWidth={Math.max(0.8, w / 200)}
+        textAnchor="middle"
+        letterSpacing={sw * 0.01}
+      >
         {initials}
       </SvgText>
     </Svg>
@@ -271,26 +308,25 @@ function Badges({ card, w }: { card: PlayerCard; w: number }) {
   );
 }
 
-/** The name as a card logo: slanted, outlined, with a shadow in the club's colour. */
+/** The name, set big and upright where the art fades out. Premium cards get an outlined name. */
 function NameLogo({ card, w, h, premium }: { card: PlayerCard; w: number; h: number; premium: boolean }) {
   const k = w / 300;
   const small = w < 140;
   const label = bannerName(card.name, small ? 9 : 12).toUpperCase();
-  const size = Math.min(46 * k + 6, (w * 1.55) / Math.max(5, label.length));
-  const y = h * 0.865;
+  const size = Math.min(44 * k + 6, (w * 1.5) / Math.max(5, label.length));
+  const y = h * 0.885;
+  const props = { x: w / 2, fontSize: size, fontFamily: F.display, fontWeight: '900' as const, textAnchor: 'middle' as const, letterSpacing: size * 0.02 };
   return (
     <Svg width={w} height={h} style={StyleSheet.absoluteFill} pointerEvents="none">
-      <G transform={`translate(${w / 2} ${y}) skewX(-9)`}>
-        <SvgText x={size * 0.06} y={size * 0.08} fontSize={size} fontFamily={F.display} fontWeight="900" fill={card.team.colors.accent} opacity={0.85} textAnchor="middle">
-          {label}
-        </SvgText>
-        <SvgText x={0} y={0} fontSize={size} fontFamily={F.display} fontWeight="900" fill="none" stroke={C.night} strokeWidth={Math.max(2.5, size * 0.17)} strokeLinejoin="round" textAnchor="middle">
-          {label}
-        </SvgText>
-        <SvgText x={0} y={0} fontSize={size} fontFamily={F.display} fontWeight="900" fill={premium ? 'none' : C.chalk} stroke={premium ? C.chalk : 'none'} strokeWidth={premium ? Math.max(1.2, 1.6 * k) : 0} textAnchor="middle">
-          {label}
-        </SvgText>
-      </G>
+      <SvgText {...props} y={y + size * 0.07} fill={C.night} opacity={0.55}>
+        {label}
+      </SvgText>
+      <SvgText {...props} y={y} fill="none" stroke={C.night} strokeWidth={Math.max(1.5, size * 0.09)} strokeLinejoin="round" opacity={0.85}>
+        {label}
+      </SvgText>
+      <SvgText {...props} y={y} fill={premium ? 'none' : '#FFFFFF'} stroke={premium ? '#FFFFFF' : 'none'} strokeWidth={premium ? Math.max(1.2, 1.8 * k) : 0}>
+        {label}
+      </SvgText>
     </Svg>
   );
 }
@@ -393,7 +429,7 @@ function Front({
 }) {
   const h = cardHeight(w);
   const k = w / 300;
-  const f = Math.max(3, Math.round(7 * k));
+  const f = Math.max(3, Math.round(6 * k));
   const r = 18 * k + 4;
   const iw = w - f * 2;
   const ih = h - f * 2;
@@ -402,11 +438,13 @@ function Front({
   const breakPx = brk ? Math.round(h * 0.075) : 0;
   const depth = look.tier >= 2;
 
-  // place the cut-out so the top of the head sits above the frame (break) or just inside it
-  const imgW = iw * 1.06;
-  const imgH = (imgW * 4) / 3;
-  const headY = brk ? -breakPx * 0.85 : ih * 0.05;
-  const imgTop = headY - (art?.headTop ?? 0.06) * imgH;
+  // place the cut-out so the top of the head sits above the frame (break) or just inside it,
+  // big enough that the photo's bottom edge is always below the window, never a visible line
+  const headY = brk ? -breakPx * 0.85 : ih * 0.06;
+  const headTop = art?.headTop ?? 0.06;
+  const imgH = Math.max(iw * 1.06 * (4 / 3), (ih + 2 - headY) / (1 - headTop));
+  const imgW = (imgH * 3) / 4;
+  const imgTop = headY - headTop * imgH;
   const imgLeft = (iw - imgW) / 2;
 
   // 3D: the player moves against the tilt more than the background does
@@ -418,22 +456,48 @@ function Front({
   );
 
   const frame = look.tier >= 1 ? TIER_FRAME[look.tier] : RARITY_FRAME[card.rarity];
+  // the art fades into a deep shade of the club colour behind the name
+  const fade = mix(look.tier === 6 ? '#2B2412' : card.team.colors.primary, C.night, 0.82);
   const cutout = { position: 'absolute' as const, left: imgLeft, top: imgTop, width: imgW, height: imgH };
+  const outlinePx = Math.max(1.5, 3.2 * k);
+  // a soft shadow cast on the backdrop, so the player stands in the card rather than on it
+  const shadow = art ? (
+    <Image
+      source={{ uri: art.src }}
+      style={[cutout, { left: imgLeft + 5 * k, top: imgTop + 7 * k, opacity: 0.42 }]}
+      tintColor={C.night}
+      blurRadius={Math.max(2, 7 * k)}
+      resizeMode="cover"
+    />
+  ) : null;
   const sticker = look.premium && art ? (
     // Premium: a sticker-style white outline around the player
-    <Image source={{ uri: art.src }} style={[cutout, { transform: [{ scale: 1.035 }] }]} tintColor="#FFFFFF" resizeMode="cover" />
+    // (white copies nudged in eight directions, so the outline is the same thickness all the way round)
+    <>
+      {OUTLINE.map(([dx, dy], i) => (
+        <Image key={i} source={{ uri: art.src }} style={[cutout, { left: imgLeft + dx * outlinePx, top: imgTop + dy * outlinePx }]} tintColor="#FFFFFF" resizeMode="cover" />
+      ))}
+    </>
   ) : null;
 
   return (
     <View style={{ width: w, height: h }}>
+      {/* the frame: metal in the rarity or tier colour, a sheen across the top, crisp dark hairlines */}
       <LinearGradient colors={frame} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: r }]} />
+      <LinearGradient
+        colors={['rgba(255,255,255,0.45)', 'rgba(255,255,255,0)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.3)']}
+        locations={[0, 0.25, 0.7, 1]}
+        style={[StyleSheet.absoluteFill, { borderRadius: r, borderWidth: 1, borderColor: 'rgba(10,14,11,0.7)' }]}
+        pointerEvents="none"
+      />
       <View style={{ position: 'absolute', left: f, top: f, width: iw, height: ih, borderRadius: Math.max(2, r - f * 0.6), overflow: 'hidden', backgroundColor: card.team.colors.primary }}>
         <Animated.View style={[StyleSheet.absoluteFill, bgMove]}>
-          <Background card={card} w={iw} h={ih} look={look} animate={animate} />
+          <Background card={card} w={iw} h={ih} look={look} animate={animate} kit={!art} />
         </Animated.View>
         <Animated.View style={[StyleSheet.absoluteFill, playerMove]}>
           {art ? (
             <>
+              {shadow}
               {sticker}
               <Image source={{ uri: art.src }} style={cutout} resizeMode="cover" accessibilityIgnoresInvertColors />
             </>
@@ -441,7 +505,13 @@ function Front({
             <KitArt card={card} w={iw} h={ih} />
           )}
         </Animated.View>
-        <LinearGradient colors={['rgba(10,14,11,0)', 'rgba(10,14,11,0.15)', 'rgba(10,14,11,0.92)']} locations={[0, 0.58, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
+        <LinearGradient
+          colors={[alpha(fade, 0), alpha(fade, 0.55), alpha(fade, 0.97)]}
+          locations={[0.56, 0.76, 1]}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+        <View style={[StyleSheet.absoluteFill, { borderRadius: Math.max(2, r - f * 0.6), borderWidth: Math.max(1, 1.2 * k), borderColor: 'rgba(10,14,11,0.75)' }]} pointerEvents="none" />
       </View>
 
       {/* frame break: the part of the player above the window, drawn over the frame */}
@@ -604,7 +674,7 @@ export function SnapCard({
   const foilStyle = useAnimatedStyle(() => ({ transform: [{ translateX: (tx.value + idle.value * 0.6) * w * 0.55 - w * 0.5 }, { rotate: '25deg' }] }));
   const glareStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: (-tx.value - idle.value * 0.4) * w * 0.7 }, { translateY: ty.value * h * 0.2 }],
-    opacity: 0.1 + Math.abs(tx.value + idle.value * 0.5) * 0.16,
+    opacity: 0.05 + Math.abs(tx.value + idle.value * 0.5) * 0.12,
   }));
 
   const responders = interactive
@@ -647,7 +717,7 @@ export function SnapCard({
               <LinearGradient colors={holo} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFill} />
             </Animated.View>
             <Animated.View style={[{ position: 'absolute', top: -h * 0.1, left: w * 0.15, width: w * 0.7, height: h * 1.2, borderRadius: w }, glareStyle]}>
-              <LinearGradient colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.6)', 'rgba(255,255,255,0)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFill} />
+              <LinearGradient colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.4)', 'rgba(255,255,255,0)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFill} />
             </Animated.View>
           </View>
         ) : null}
