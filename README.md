@@ -11,29 +11,39 @@ same app on the web.
 releasing to the stores: [`docs/app-store.md`](docs/app-store.md), a step-by-step guide.
 
 <p>
-  <img src="docs/screenshots/1-infinity-card.jpg" width="190" alt="An Infinity-tier card for Erling Haaland with a stellar finish and the Golden Boot leader ability">
-  <img src="docs/screenshots/2-collection.jpg" width="190" alt="The collection grid: Icon, Elite and Rare cards at different upgrade tiers">
-  <img src="docs/screenshots/3-whos-this.jpg" width="190" alt="Who's this: a mystery card with the face blurred and four names to choose from">
-  <img src="docs/screenshots/4-what-if.jpg" width="190" alt="What if: a pinned result moves two clubs' relegation odds">
+  <img src="docs/screenshots/1-legend-card.jpg" width="190" alt="A Legend-tier card for Erling Haaland: the player cut out and breaking the frame, with a Starfield finish">
+  <img src="docs/screenshots/3-duel.jpg" width="190" alt="A Duel in progress: cards played into three zones with their Power totals">
+  <img src="docs/screenshots/2-collection.jpg" width="190" alt="The collection grid: Elite and Rare cards at different upgrade tiers">
+  <img src="docs/screenshots/5-what-if.jpg" width="190" alt="What if: a pinned result moves the clubs' odds">
 </p>
 
 ## What's in it
 
-**Cards, Marvel Snap style.** Every player has a card. Rarity is their rank by goals × 2 + assists (top 3 Icon,
+**Cards, inspired by Marvel Snap.** Every player has a card. Rarity is their rank by goals × 2 + assists (top 3 Icon,
 4–10 Elite, 11–20 Rare). The big number is Power (goals × 2 + assists) or age. Abilities are always true statements
 computed from the data, such as "Leads the Premier League with 8 goals", "3 of 8 goals from the penalty spot", or
-"The only player from Japan in the Premier League". Cards tilt with the phone's gyroscope, carry foil on Elite and
-Icon, and flip to show full stats and exactly how each number was worked out.
+"The only player from Japan in the Premier League". The art is
+the player's own photo, cut out of its background so they stand in the card (and break out of the frame on rare
+cards), over an animated background in the club's colours. Cards tilt with the phone's gyroscope, carry foil on
+Elite and Icon, and flip to show full stats and exactly how each number was worked out.
 
-**A collection system modelled on Snap's.** A free daily pack per league (odds shown, nothing to buy), credits
+**A collection system modelled on Marvel Snap's.** A free daily pack per league (odds shown, nothing to buy), credits
 from packs, duplicates and correct picks, and boosters per card from duplicates. Spend them to upgrade a card
-through seven tiers, each with a visible effect: Breakout (the banner breaks the frame), Depth (3D parallax), Pulse
-(animated glow), Crest, Holo, and Infinity, a black-and-gold frame with a random Gold, Prism, Krackle or Stellar
-finish. A Collection Level with milestone rewards ties it together.
+through seven tiers, each with a visible effect: Breakout (the player breaks out of the frame), Depth (3D parallax),
+Pulse (animated glow), Crest, Holo, and Legend, a black-and-gold frame with a random Gilded, Prismatic, Crackle or
+Starfield finish. A Collection Level with milestone rewards ties it together.
 
-**Who's this?** A mystery card shows its rarity, Power, position, age, nationality and club colours, with the face
-blurred and the name hidden. Name the player from four options to unlock their **Premium** variant: halftone art,
-an outlined name and a foil seal. Five a day.
+**Who's this?** A mystery card shows its cost, Power, rarity, position, age and club colours, with the player's
+silhouette and the name hidden. Name the player from four options to unlock their **Premium** variant: a white
+sticker outline around the player and an outlined name. Five a day.
+
+**Duel, a card game with the cards you've collected.** Twelve-card decks, six turns, three zones of the pitch, each
+with a condition revealed as the match goes on (Floodlights, Wet pitch, Derby, Counter-attack...). Both sides play
+face down and reveal together. Win two zones to win. Every card's cost and Power come from the player's real
+season, and abilities turn into effects (a top scorer gets stronger as your best card in a zone; a defender marks
+the enemy's). Press to double the stakes when you think you're winning, or retreat to cut your losses. Decks are
+built from your collection on a curve, topped up with loan players. The AI manager plays the same rules with a
+deck of the same costs.
 
 **The table, three ways.** The official standings; a **time machine** that replays the season matchday by matchday,
 with rows gliding to their new places; and **odds** from 3,000 simulated seasons. The **what-if machine** lets you
@@ -44,7 +54,7 @@ clubs your result really affects move.
 odds; match pages with a tappable scoreline heatmap, the points race and each side's key card; club pages with the
 season's position chart, attack and defence ratings, projections and the squad as cards.
 
-**Picks.** Call the next matchday, Snap one pick to double the stakes (+4 or −2), and play against the model, whose
+**Picks.** Call the next matchday, Press one pick to double the stakes (+4 or −2), and play against the model, whose
 calls are made only from results before each match.
 
 ## The model
@@ -117,10 +127,12 @@ app/
   (tabs)/index.tsx        Matchday: live scoreboards, fixtures with odds, results
   (tabs)/table.tsx        standings, time machine, projected odds, what-if machine
   (tabs)/cards.tsx        collection: level, daily pack, Who's this?, every player's card
-  (tabs)/picks.tsx        picks with a Snap, against the model
+  (tabs)/duel.tsx         Duel lobby: your deck, record, rules
+  (tabs)/picks.tsx        picks with a Press, against the model
   card/[id].tsx           one card: tilt, flip, upgrade, Premium variant
   pack.tsx                opening the daily pack
   guess.tsx               Who's this?
+  arena.tsx               the Duel board
   match/[id].tsx          scoreline heatmap, points race, key cards
   club/[id].tsx           position chart, ratings, projection, fixtures, squad cards
   about.tsx               data sources, privacy, support links
@@ -133,19 +145,26 @@ lib/                      pure logic, unit-tested
   model.ts                Poisson model, odds, scoreline grid, walk-forward backtest
   season.ts               Monte Carlo season simulator (what-if pins), table replay, trajectories
   cards.ts                rarity, Power and abilities from real data
+  game.ts, decks.ts       the Duel engine and AI; deck building
+  art.ts                  player cut-outs (optional per build)
   collection.ts           credits, boosters, upgrade tiers, finishes, Collection Level
   packs.ts, guess.ts      daily packs; Who's this? puzzles
   picks.ts                scoring, the model's calls, you vs the model
   colors.ts               club colours from football-data.org's text
   football.ts, proxy.ts   helpers; proxy allowlist and cache policy
-services/api.ts           client: base URL, request sharing, optional crest stripping
+services/api.ts           client: base URL, request sharing, saved copies for offline, optional crest stripping
 constants/theme.ts        the design system (colours with measured contrast, type)
-public/                   privacy policy and support pages
+public/                   privacy policy and support pages; art/ holds the player cut-outs
+scripts/art/              the photo pipeline (below)
 ```
 
 ## Data and credits
 
-Football data from [football-data.org](https://www.football-data.org). Player photos from Wikipedia, credited
-on each card. FootSnap is an independent app, not affiliated with any league, club or football-data.org.
+Football data from [football-data.org](https://www.football-data.org). Player photos come from Wikimedia
+Commons via each player's Wikipedia / Wikidata entry, credited on every card with the photographer, the licence and
+a link. They're modified (cropped, background removed), and modified photos keep their original licence. A
+photo is only used when the Wikidata birth date matches the squad's, so a namesake never ends up on someone
+else's card. `scripts/art/` rebuilds the set; about 54% of players have one, and the rest get a shirt in their
+club's colours. The App Store build leaves photos and crests out (see [`docs/app-store.md`](docs/app-store.md)). FootSnap is an independent app, not affiliated with any league, club or football-data.org.
 
 React Native · Expo SDK 54 · Expo Router · TypeScript · Vercel Functions · Vitest

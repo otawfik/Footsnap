@@ -1,0 +1,35 @@
+# Card art pipeline
+
+Turns freely licensed player photos into the transparent cut-outs the cards use (`public/art/<playerId>.webp`,
+credits in `public/art/index.json`). Run it again when squads change; it skips players already done.
+
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+pip install requests pillow "rembg[cpu]" "opencv-python-headless<5"
+
+python scripts/art/resolve.py art.json        # find each squad player's photo
+python scripts/art/langs.py art.json          # fill gaps from other-language Wikipedias
+# cut out (4 workers in parallel; each takes a quarter of the players)
+for i in 0 1 2 3; do SHARD=$i/4 python scripts/art/process.py art.json public/art u2net_human_seg "" & done; wait
+python scripts/art/merge.py public/art         # merge the workers' credit files into index.json
+python scripts/art/verify.py art.json public/art  # drop namesakes: Wikidata birth date must match
+```
+
+**Which photos.** For each player in the competitions' squad lists: the English Wikipedia article for
+"<name> (footballer, born <year>)", then "<name> (footballer)", then "<name>". Only articles whose short
+description mentions football count, and disambiguation pages are skipped. If the article has no lead image,
+the article's Wikidata item image (P18) is used. Players with no English article are matched on Wikidata by
+name **and exact date of birth**, so nobody gets a stranger's face. Finally, other-language Wikipedias, but
+only images hosted on Wikimedia Commons. A last check compares every matched article's Wikidata birth date with
+the squad's date of birth and drops any photo where they differ. About 61% of the ~3,070 players have a usable free photo; everyone
+else gets a plain shirt in their club's colours.
+
+**What happens to a photo.** A 900 px version is downloaded, the face is found (OpenCV), and the picture is
+cropped to head-and-shoulders at 3:4. The background is removed with `rembg` (u2net_human_seg), and the
+result is saved as a 480×640 WebP with transparency, with the height of the top of the head (for the frame
+break) recorded.
+
+**Licences.** Only Wikimedia Commons files are used (no fair-use images). Each image's author and licence
+come from the Commons API and are shown on the card and in the card view, with a link to the original and a
+note that the background was removed. Under CC BY-SA, the edited cut-outs carry the same licence as their
+originals.

@@ -86,7 +86,7 @@ describe('traitAbilities', () => {
       { club: 'X', ages: [26], keepers: 2, fromNation: 0, u21: 0, over33: 0 },
       { competition: 'L', nation: 'Spain', nationCount: new Map([['England', 40]]) }
     );
-    expect(a).toEqual([{ kind: 'trait', title: 'Midfielder', text: 'Central Midfield at X, from England.' }]);
+    expect(a).toEqual([{ key: 'role-MF', kind: 'trait', title: 'Midfielder', text: 'Central Midfield at X, from England.' }]);
   });
 });
 

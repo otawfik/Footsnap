@@ -29,7 +29,7 @@ describe('upgrades', () => {
     expect(r.credits).toBe(5);
   });
 
-  it('refuses when it can’t afford it, and stops at Infinity', () => {
+  it('refuses when it can’t afford it, and stops at Legend', () => {
     const s = { ...newCard(), boosters: 0 };
     expect(upgrade(s, 1000, 1)).toEqual({ state: s, credits: 1000 });
     const top = { ...newCard(), tier: 6 as const, boosters: 999, finish: 'gold' as const };
@@ -37,7 +37,7 @@ describe('upgrades', () => {
     expect(upgrade(top, 9999, 1).state).toBe(top);
   });
 
-  it('rolls a finish on reaching Infinity, reproducibly', () => {
+  it('rolls a finish on reaching Legend, reproducibly', () => {
     const s = { ...newCard(), tier: 5 as const, boosters: 50 };
     const a = upgrade(s, 500, 42).state;
     expect(a.tier).toBe(6);

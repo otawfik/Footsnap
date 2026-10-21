@@ -51,9 +51,15 @@ function makeStore<T>(key: string, initial: T) {
       };
     }, []);
     const update = useCallback((fn: (v: T) => T) => {
-      value = fn(value);
-      subs.forEach((s) => s(value));
-      write(key, value);
+      const apply = () => {
+        value = fn(value);
+        subs.forEach((s) => s(value));
+        write(key, value);
+      };
+      // an update before the saved value has loaded would be overwritten by it (and would
+      // briefly write a reset value to disk), so queue it until the load finishes
+      if (loaded) apply();
+      else load.then(apply);
     }, []);
     return [v, update, ready];
   };
@@ -72,6 +78,10 @@ export interface Profile {
   guesses: { day: string; used: number; solved: number[] };
   /** unopened bonus packs from milestones */
   bonusPacks: number;
+  /** bonus packs opened, ever (seeds each one differently) */
+  bonusOpened?: number;
+  /** Duel record */
+  duel?: { played: number; won: number; drawn: number; best: number };
 }
 
 export const useProfile = makeStore<Profile>(KEY.profile, {

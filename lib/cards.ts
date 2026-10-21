@@ -2,8 +2,9 @@
  * Player cards, Snap-style: every player in a competition gets a card with a
  * rarity, a big number, and abilities. Nothing on a card is invented:
  *
- *   rarity   from the player's rank by goal contributions (goals × 2 + assists):
- *            top 3 Icon, 4-10 Elite, 11-20 Rare, everyone else Common
+ *   rarity   from the player's rank by goal contributions (goals × 2 + assists)
+ *            among the competition's top 20 scorers (the scorers list the data
+ *            provides): top 3 Icon, 4-10 Elite, 11-20 Rare, everyone else Common
  *   number   Power = goals × 2 + assists for scorers; age for everyone else
  *   ability  a true statement computed from this season's numbers or from the
  *            squad lists (age, nationality, position), with the figures in it
@@ -17,6 +18,8 @@ export const RARITY_ORDER: Rarity[] = ['icon', 'elite', 'rare', 'common'];
 export const RARITY_NAME: Record<Rarity, string> = { icon: 'Icon', elite: 'Elite', rare: 'Rare', common: 'Common' };
 
 export interface Ability {
+  /** stable id; game effects map from this, so rewording a title can't change a card's effect */
+  key?: string;
   /** ongoing: from this season's numbers; trait: from who the player is */
   kind: 'ongoing' | 'trait';
   title: string;
@@ -90,25 +93,26 @@ export function statAbilities(s: NonNullable<PlayerCard['stats']>, ctx: Pick<Con
   const { goals: g, assists: a, penalties: p, played: m } = s;
   if (g > 0 && g === ctx.topGoals) {
     out.push({
+      key: 'top-scorer',
       kind: 'ongoing',
       title: ctx.topGoalsCount > 1 ? 'Joint top scorer' : 'Golden Boot leader',
       text: `${ctx.topGoalsCount > 1 ? 'Joint top scorer in' : 'Leads'} the ${ctx.competition} with ${plural(g, 'goal')}.`,
     });
   }
   if (m && m >= 3 && g / m >= 0.75) {
-    out.push({ kind: 'ongoing', title: 'Clinical', text: `${plural(g, 'goal')} in ${plural(m, 'game')}: ${(g / m).toFixed(2)} a game.` });
+    out.push({ key: 'clinical', kind: 'ongoing', title: 'Clinical', text: `${plural(g, 'goal')} in ${plural(m, 'game')}: ${(g / m).toFixed(2)} a game.` });
   }
   if (p !== null && p >= 2) {
-    out.push({ kind: 'ongoing', title: 'Spot-kick specialist', text: `${p} of ${plural(g, 'goal')} from the penalty spot.` });
+    out.push({ key: 'penalties', kind: 'ongoing', title: 'Spot-kick specialist', text: `${p} of ${plural(g, 'goal')} from the penalty spot.` });
   }
   if (a !== null && a >= 3) {
-    out.push({ kind: 'ongoing', title: 'Playmaker', text: `${plural(a, 'assist')} on top of ${plural(g, 'goal')}.` });
+    out.push({ key: 'playmaker', kind: 'ongoing', title: 'Playmaker', text: `${plural(a, 'assist')} on top of ${plural(g, 'goal')}.` });
   }
   if (p === 0 && g >= 4) {
-    out.push({ kind: 'ongoing', title: 'Open-play finisher', text: `All ${g} goals from open play.` });
+    out.push({ key: 'open-play', kind: 'ongoing', title: 'Open-play finisher', text: `All ${g} goals from open play.` });
   }
   if (!out.length && g > 0) {
-    out.push({ kind: 'ongoing', title: 'Goal threat', text: `${plural(g, 'goal')}${m ? ` in ${plural(m, 'game')}` : ''} this season.` });
+    out.push({ key: 'goal-threat', kind: 'ongoing', title: 'Goal threat', text: `${plural(g, 'goal')}${m ? ` in ${plural(m, 'game')}` : ''} this season.` });
   }
   return out;
 }
@@ -132,35 +136,43 @@ export function traitAbilities(
   const nat = p.nationality;
   const natCount = nat ? ctx.nationCount.get(nat) ?? 0 : 0;
   if (nat && nat !== ctx.nation && natCount === 1) {
-    out.push({ kind: 'trait', title: 'One of a kind', text: `The only player from ${nat} in the ${ctx.competition}.` });
+    out.push({ key: 'one-of-a-kind', kind: 'trait', title: 'One of a kind', text: `The only player from ${nat} in the ${ctx.competition}.` });
   }
   if (p.age !== null && p.age <= 20) {
     const youngest = squad.ages.length > 1 && p.age === Math.min(...squad.ages);
+    const same = squad.ages.filter((x) => x === p.age).length;
     out.push({
+      key: 'wonderkid',
       kind: 'trait',
       title: 'Wonderkid',
-      text: youngest ? `${p.age} years old: the youngest in the ${squad.club} squad.` : `${p.age} years old: one of ${squad.u21} under-21s at ${squad.club}.`,
+      text: youngest
+        ? `${p.age} years old: ${same > 1 ? 'joint youngest' : 'the youngest'} in the ${squad.club} squad.`
+        : `${p.age} years old: one of ${squad.u21} under-21s at ${squad.club}.`,
     });
   }
   if (p.age !== null && p.age >= 33) {
     const oldest = squad.ages.length > 1 && p.age === Math.max(...squad.ages);
+    const same = squad.ages.filter((x) => x === p.age).length;
     out.push({
+      key: 'veteran',
       kind: 'trait',
       title: 'Veteran',
-      text: oldest ? `${p.age}: the oldest player at ${squad.club}.` : `${p.age}: one of ${squad.over33} players aged 33+ at ${squad.club}.`,
+      text: oldest
+        ? `${p.age}: ${same > 1 ? 'joint oldest' : 'the oldest'} player at ${squad.club}.`
+        : `${p.age}: one of ${squad.over33} players aged 33+ at ${squad.club}.`,
     });
   }
   if (nat && nat !== ctx.nation && natCount > 1 && natCount <= 3) {
-    out.push({ kind: 'trait', title: 'Rare passport', text: `One of ${natCount} players from ${nat} in the ${ctx.competition}.` });
+    out.push({ key: 'rare-passport', kind: 'trait', title: 'Rare passport', text: `One of ${natCount} players from ${nat} in the ${ctx.competition}.` });
   }
   if (nat && ctx.nation && nat === ctx.nation) {
-    out.push({ kind: 'trait', title: 'Home-grown', text: `One of ${squad.fromNation} players from ${nat} in the ${squad.club} squad.` });
+    out.push({ key: 'home-nation', kind: 'trait', title: 'Home nation', text: `One of ${squad.fromNation} players from ${nat} in the ${squad.club} squad.` });
   }
   if (p.line === 'GK') {
-    out.push({ kind: 'trait', title: 'Last line', text: `One of ${squad.keepers} goalkeepers at ${squad.club}.` });
+    out.push({ key: 'keeper', kind: 'trait', title: 'Last line', text: `One of ${squad.keepers} goalkeepers at ${squad.club}.` });
   }
   if (!out.length) {
-    out.push({ kind: 'trait', title: p.line ? LINE_NAME[p.line] : 'Squad player', text: `${p.position} at ${squad.club}${nat ? `, from ${nat}` : ''}.` });
+    out.push({ key: `role-${p.line ?? 'none'}`, kind: 'trait', title: p.line ? LINE_NAME[p.line] : 'Squad player', text: `${p.position} at ${squad.club}${nat ? `, from ${nat}` : ''}.` });
   }
   return out;
 }

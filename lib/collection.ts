@@ -4,7 +4,7 @@
  * Credits are the currency (packs, duplicates, correct picks, correct guesses).
  * Boosters belong to one card; you get them from duplicate pulls and from
  * guessing that player. Spending both upgrades a card through seven tiers, each
- * adding a visible effect, the way Snap upgrades a card from Common to Infinity.
+ * adding a visible effect, the way Snap upgrades a card from Common to its top tier (here: Legend).
  * Every upgrade, new card and Premium variant raises your Collection Level, and
  * every ten levels pays out a reward.
  *
@@ -32,10 +32,10 @@ export const TIERS: TierInfo[] = [
   { name: 'Pulse', effect: 'An animated glow in the club colours.', credits: 200, boosters: 20 },
   { name: 'Crest', effect: 'The club crest, embossed into the art.', credits: 300, boosters: 30 },
   { name: 'Holo', effect: 'Holographic foil, whatever the rarity.', credits: 400, boosters: 40 },
-  { name: 'Infinity', effect: 'The black-and-gold Infinity frame and a random finish.', credits: 500, boosters: 50 },
+  { name: 'Legend', effect: 'The black-and-gold Legend frame and a random finish.', credits: 500, boosters: 50 },
 ];
 
-export const FINISH_NAME: Record<Finish, string> = { gold: 'Gold', prism: 'Prism', krackle: 'Krackle', stellar: 'Stellar' };
+export const FINISH_NAME: Record<Finish, string> = { gold: 'Gilded', prism: 'Prismatic', krackle: 'Crackle', stellar: 'Starfield' };
 const FINISHES: Finish[] = ['gold', 'prism', 'krackle', 'stellar'];
 
 export interface CardState {
@@ -45,7 +45,7 @@ export interface CardState {
   premium: boolean;
   /** show the Premium variant instead of the base art */
   showPremium: boolean;
-  /** decided when the card reaches Infinity */
+  /** decided when the card reaches Legend */
   finish: Finish | null;
 }
 
@@ -79,7 +79,7 @@ export function canUpgrade(state: CardState, credits: number): boolean {
   return !!next && credits >= next.credits && state.boosters >= next.boosters;
 }
 
-/** Spend credits and boosters to go up one tier; reaching Infinity rolls a finish. */
+/** Spend credits and boosters to go up one tier; reaching Legend rolls a finish. */
 export function upgrade(state: CardState, credits: number, seed: number): { state: CardState; credits: number } {
   const next = nextTier(state);
   if (!next || !canUpgrade(state, credits)) return { state, credits };

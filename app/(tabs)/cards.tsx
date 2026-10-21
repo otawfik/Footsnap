@@ -146,7 +146,7 @@ export default function Cards() {
           </View>
 
           {icons.length > 0 && (
-            <Section title="Icons" note={`The ${league.name}'s top three by goals × 2 + assists`}>
+            <Section title="Icons" note={`Top three of the ${league.name}'s top 20 scorers, by goals × 2 + assists`}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: S.md, paddingRight: S.base }} style={{ marginHorizontal: -S.base, paddingLeft: S.base }}>
                 {icons.map((c) => (
                   <Pressable key={c.id} onPress={() => router.push({ pathname: '/card/[id]', params: { id: String(c.id) } })} accessibilityRole="button">

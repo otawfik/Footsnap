@@ -132,7 +132,7 @@ export default function Pack() {
   // milestones award bonus packs; with today's pack open, the next one is a bonus pack
   const bonus = dailyOpen && profile.bonusPacks > 0;
   const alreadyOpen = dailyOpen && !bonus;
-  const seed = bonus ? packSeed(`${day}:bonus:${profile.bonusPacks}`, league.id) : packSeed(day, league.id);
+  const seed = bonus ? packSeed(`bonus:${profile.bonusOpened ?? 0}`, league.id) : packSeed(day, league.id);
   const drawn = useMemo(() => (list.length ? drawPack(list, seed) : []), [list, seed]);
   // frozen at tear time: tearing changes the state the seed depends on
   const [frozen, setFrozen] = useState<PlayerCard[] | null>(null);
@@ -157,7 +157,7 @@ export default function Pack() {
       earned += r.credits;
     }
     setCollection((c) => ({ ...c, [key]: mine }));
-    if (bonus) setProfile((p) => ({ ...p, bonusPacks: p.bonusPacks - 1, credits: p.credits + earned }));
+    if (bonus) setProfile((p) => ({ ...p, bonusPacks: p.bonusPacks - 1, bonusOpened: (p.bonusOpened ?? 0) + 1, credits: p.credits + earned }));
     else {
       setPacks((p) => ({ ...p, [key]: day }));
       setProfile((p) => ({ ...p, credits: p.credits + earned }));
@@ -189,7 +189,7 @@ export default function Pack() {
       {loading || !pack.length ? (
         <Text style={T.body}>Shuffling…</Text>
       ) : stage === 'sealed' ? (
-        <SealedPack width={cardW} leagueName={bonus ? `Bonus · ${league.name}` : league.name} onTear={tear} />
+        <SealedPack width={cardW} leagueName={`${bonus ? 'Bonus · ' : ''}${league.nation ?? 'Europe'}`} onTear={tear} />
       ) : stage === 'reveal' && card ? (
         <>
           <Reveal key={card.id} card={card} width={cardW} isNew={isNew(card)} onRevealed={() => setRevealed(true)} competition={league.name} />

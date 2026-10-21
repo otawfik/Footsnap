@@ -109,7 +109,7 @@ Sign in with your Apple ID again if asked. When it finishes, the build shows up 
 
 1. Install the **TestFlight** app from the App Store on your iPhone.
 2. In App Store Connect, open FootSnap → **TestFlight** → **Internal Testing** → **+** and add yourself.
-3. Open TestFlight on your iPhone and install FootSnap. Try every tab, open a pack, play "Who's this?", tilt a card.
+3. Open TestFlight on your iPhone and install FootSnap. Try every tab, open a pack, play "Who's this?", play a Duel, tilt a card.
 
 ## Step 8 — Fill in the store listing (about 45 minutes)
 
@@ -117,7 +117,7 @@ In App Store Connect, open FootSnap. Everything below is copy and paste.
 
 ### App Store tab → iOS App 1.0
 
-**Screenshots:** drag in the seven images from `docs/screenshots/ios-6.9/` in the code folder. They're the exact
+**Screenshots:** drag in the eight images from `docs/screenshots/ios-6.9/`, in order in the code folder. They're the exact
 size Apple asks for (6.9-inch iPhone).
 
 **Promotional text:**
@@ -132,7 +132,11 @@ FootSnap is football as a card game, built on real data from Europe's top five l
 COLLECT EVERY PLAYER
 Every player is a card. Rarity comes from real goal contributions, and every card's ability is a true stat or fact:
 "Leads the Premier League with 8 goals", "The only player from Japan in the league". Open a free pack every day,
-upgrade cards through seven tiers to Infinity, and name mystery players in "Who's this?" to unlock Premium cards.
+upgrade cards through seven tiers to Legend, and name mystery players in "Who's this?" to unlock Premium cards.
+
+DUEL
+Build a 12-card deck from your collection and battle the AI manager across three zones of the pitch. Every card's
+cost and power come from the player's real season. Press to double the stakes when you think you're winning.
 
 THE SEASON, YOUR WAY
 Replay the table matchday by matchday with the time machine. See everyone's title and relegation odds from
@@ -142,7 +146,7 @@ EVERY MATCH, OPENED UP
 Live scores, results and fixtures, with the chance of every scoreline and how both teams' seasons have gone.
 
 PICKS
-Call the results, Snap one pick a matchday to double the stakes, and try to beat the model.
+Call the results, Press one pick a matchday to double the stakes, and try to beat the model.
 
 No account. No ads. No tracking. Nothing to buy.
 
@@ -172,12 +176,12 @@ Add your name, email and phone number. Apple only uses them if they have a quest
 
 - **Category:** Sports (secondary: Games → Card, if you like)
 - **Content Rights:** "Yes, it contains third-party content". Apple then asks whether you have the rights to it.
-  Answer honestly. The match data is used under football-data.org's terms, and the player photos are Wikipedia
-  images under licences that allow reuse with credit, which FootSnap gives on every card. **Club crests are
-  different:** they're the clubs' trademarks, and you don't have a licence for them. To be safe on your first
-  submission, turn crests off before step 4: open `eas.json`, change `"EXPO_PUBLIC_SHOW_CRESTS": "true"` to
-  `"false"`, and save. The app then shows a badge in each club's colours instead, and you can say Yes to having the
-  rights to everything left.
+  Answer honestly. The match data is used under football-data.org's terms. **The App Store build already leaves
+  out the two things you don't clearly have rights to:** club crests (the clubs' trademarks) and player photos
+  (the Wikipedia photos allow reuse with credit, but a photo of a real person used on a collectible card can raise
+  "right of publicity" questions in some countries). Both are switched off in `eas.json` (`EXPO_PUBLIC_SHOW_CRESTS`
+  and `EXPO_PUBLIC_SHOW_PHOTOS` set to `"false"`). The store version shows badges and shirts in each club's colours
+  instead. With those off, you can say Yes to having the rights to everything left. The website version keeps both.
 - **Age Rating:** click **Edit** and answer every question **None / No**. FootSnap has no violence, no real
   gambling, no user chat and no web browser. Packs are free, so nothing involves money.
 
