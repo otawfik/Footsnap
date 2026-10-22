@@ -47,6 +47,8 @@ export const F = {
   displayBold: 'BigShouldersDisplay_700Bold',
   num: 'BarlowCondensed_700Bold',
   numHeavy: 'BarlowCondensed_800ExtraBold_Italic',
+  /** a card's Cost and Power: the heaviest italic, so every badge matches */
+  numBlack: 'BarlowCondensed_900Black_Italic',
   label: 'BarlowCondensed_600SemiBold',
   body: 'Barlow_400Regular',
   bodyMedium: 'Barlow_500Medium',

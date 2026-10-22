@@ -13,7 +13,7 @@ import Animated, { FadeIn, useSharedValue, useAnimatedStyle, withTiming, withSeq
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle, Defs, Line, LinearGradient as SvgGrad, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { SnapCard, CardBack, cardHeight } from '../components/SnapCard';
+import { SnapCard, CardBack, cardHeight, frameOf } from '../components/SnapCard';
 import { Button, tap } from '../components/ui';
 import { useLeague } from '../context/league';
 import { useCards } from '../hooks/data';
@@ -101,7 +101,7 @@ function Reveal({ card, width, isNew, onRevealed, competition }: { card: PlayerC
   const chargeStyle = useAnimatedStyle(() => ({ opacity: charge.value }));
   const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
   const h = cardHeight(width);
-  const r = 18 * (width / 300) + 4;
+  const { r } = frameOf(width);
   const rays = width * 2.2;
 
   const pool = width * 1.9;
@@ -145,7 +145,8 @@ function Reveal({ card, width, isNew, onRevealed, competition }: { card: PlayerC
           </Animated.View>
         </View>
       </Pressable>
-      <View style={{ height: 44, justifyContent: 'center' }}>
+      {/* clear of the name logo, which hangs below the card */}
+      <View style={{ height: 44, marginTop: S.md, justifyContent: 'center' }}>
         {shown ? (
           <View style={styles.tagRow}>
             <View style={[styles.rarityPill, { borderColor: color, backgroundColor: alpha(color, 0.14) }]}>
@@ -383,5 +384,6 @@ const styles = StyleSheet.create({
   packCount: { fontFamily: F.num, fontSize: 14, letterSpacing: 2, color: C.icon },
   packFoot: { position: 'absolute', bottom: 24, flexDirection: 'row', gap: 6, alignItems: 'center' },
   packHint: { fontFamily: F.label, fontSize: 12, letterSpacing: 2, color: C.chalk2 },
-  summary: { flexDirection: 'row', flexWrap: 'wrap', gap: S.sm, justifyContent: 'center' },
+  // room between cards for the badges and name logos that overhang them
+  summary: { flexDirection: 'row', flexWrap: 'wrap', columnGap: S.md, rowGap: 16, justifyContent: 'center' },
 });
