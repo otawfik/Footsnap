@@ -34,8 +34,8 @@ Pulse (animated glow), Crest, Holo, and Legend, a black-and-gold frame with a ra
 Starfield finish. A Collection Level with milestone rewards ties it together.
 
 **Who's this?** A mystery card shows its cost, Power, rarity, position, age and club colours, with the player's
-silhouette and the name hidden. Name the player from four options to unlock their **Premium** variant: a white
-sticker outline around the player and an outlined name. Five a day.
+silhouette and the name hidden. Name the player from four options to unlock their **Premium** variant: the
+player redrawn as a four-tone poster in their club's colours, with a white sticker outline and a gold name. Five a day.
 
 **Duel, a card game with the cards you've collected.** Twelve-card decks, six turns, three zones of the pitch, each
 with a condition revealed as the match goes on (Floodlights, Wet pitch, Derby, Counter-attack...). Both sides play

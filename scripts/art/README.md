@@ -15,6 +15,8 @@ python scripts/art/merge.py public/art         # merge the workers' credit files
 python scripts/art/verify.py art.json public/art  # drop namesakes: Wikidata birth date must match
 python scripts/art/clean.py public/art art-clean  # tidy every cut-out (below) into a new folder
 python scripts/art/gate.py art-clean              # drop the ones that would make a card look bad
+npx tsx scripts/art/colors.mts > art-colors.json   # club colours for every squad player
+python scripts/art/premium.py public/art art-colors.json  # the Premium poster versions
 ```
 
 **Which photos.** For each player in the competitions' squad lists: the English Wikipedia article for
@@ -37,6 +39,10 @@ the edge in by a pixel to lose the old background's fringe, and scores the face'
 drops three kinds of photo: blurry ones (the player was small in the original, so the crop is upscaled),
 ones where something touches the top edge (a head cut off flat, or someone standing behind), and ones with a
 second face. A card with a bad photo looks worse than a card with a clean shirt, so when in doubt it goes.
+
+**Premium art.** `premium.py` redraws each cut-out as a four-tone poster in the player's club colours (deep shade,
+shadow, the club colour, cream) with an ink line round the silhouette. Brightness is evened out locally first
+(CLAHE), so every face keeps its features whatever the skin tone or the photo's lighting.
 
 **Licences.** Only Wikimedia Commons files are used (no fair-use images). Each image's author and licence
 come from the Commons API and are shown on the card and in the card view, with a link to the original and a
