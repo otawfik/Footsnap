@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming, withSpring, useReducedMotion, FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { KitArt, RARITY_FRAME, SnapCard } from '../components/SnapCard';
+import { FRAME_END, FRAME_START, KitArt, RARITY_FRAME, SnapCard } from '../components/SnapCard';
 import Svg, { Defs, LinearGradient as SvgGrad, Path, Stop, Text as SvgText } from 'react-native-svg';
 import { Button, Coin, tap } from '../components/ui';
 import { useLeague } from '../context/league';
@@ -67,7 +67,7 @@ function BoardCard({ card, power, pending, w, onPress }: { card: PlayerCard; pow
       style={[{ width: w, height: h }, pending && styles.bcPending]}
       accessibilityLabel={`${card.name}, ${power} power${pending ? ', not revealed yet. Tap to take back' : ''}`}
     >
-      <LinearGradient colors={RARITY_FRAME[card.rarity]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 6, borderWidth: 1, borderColor: 'rgba(10,14,11,0.7)' }]} />
+      <LinearGradient colors={RARITY_FRAME[card.rarity]} start={FRAME_START} end={FRAME_END} style={[StyleSheet.absoluteFill, { borderRadius: 6, borderWidth: 1, borderColor: 'rgba(10,14,11,0.7)' }]} />
       <View style={{ position: 'absolute', left: f, top: f, width: iw, height: ih, borderRadius: 4, overflow: 'hidden' }}>
         <LinearGradient colors={art ? [mix(primary, '#FFFFFF', 0.08), primary, mix(primary, C.night, 0.7)] : [mix(primary, C.night, 0.55), mix(primary, C.night, 0.8)]} style={StyleSheet.absoluteFill} />
         {art ? (
@@ -96,10 +96,10 @@ function BoardCard({ card, power, pending, w, onPress }: { card: PlayerCard; pow
           stroke={C.night}
           strokeWidth={1.5}
         />
-        <SvgText x={sw / 2} y={sw * 0.52 + sw * 0.2} fontSize={sw * 0.52} fontFamily={F.numHeavy} fill="none" stroke={C.night} strokeWidth={2.5} strokeLinejoin="round" textAnchor="middle">
+        <SvgText x={sw / 2} y={sw * 0.52 + sw * 0.2} fontSize={sw * 0.52} fontFamily={F.numBlack} fill="none" stroke={C.night} strokeWidth={2.5} strokeLinejoin="round" textAnchor="middle">
           {power}
         </SvgText>
-        <SvgText x={sw / 2} y={sw * 0.52 + sw * 0.2} fontSize={sw * 0.52} fontFamily={F.numHeavy} fill="#FFFFFF" textAnchor="middle">
+        <SvgText x={sw / 2} y={sw * 0.52 + sw * 0.2} fontSize={sw * 0.52} fontFamily={F.numBlack} fill="#FFFFFF" textAnchor="middle">
           {power}
         </SvgText>
       </Svg>
@@ -415,7 +415,8 @@ const styles = StyleSheet.create({
   energy: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#2563EB', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#7FC4FF' },
   energyNum: { fontFamily: F.numHeavy, fontSize: 22, color: '#FFFFFF', lineHeight: 24 },
   energyLabel: { fontFamily: F.label, fontSize: 7, letterSpacing: 1, color: '#DCEBFF' },
-  hand: { gap: S.sm, paddingHorizontal: S.md, paddingTop: 18, paddingBottom: S.md, alignItems: 'flex-end' },
+  // the gap leaves room for the badges and name logos that overhang each card
+  hand: { gap: S.md, paddingHorizontal: S.md, paddingTop: 18, paddingBottom: S.md, alignItems: 'flex-end' },
   over: { ...StyleSheet.absoluteFillObject, zIndex: 50, elevation: 50, backgroundColor: 'rgba(5,8,6,0.93)', alignItems: 'center', justifyContent: 'center', gap: S.sm, padding: S.xl },
   overTitle: { fontFamily: F.display, fontSize: 56, letterSpacing: 2 },
   reward: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: S.sm },

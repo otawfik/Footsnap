@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, useWindowDime
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Header, LeagueTabs, Section, Panel, Skeleton, Failed, Pill, Button, Empty, Wallet, tap } from '../../components/ui';
-import { SnapCard, CardBack, RARITY_FRAME, cardHeight } from '../../components/SnapCard';
+import { SnapCard, CardBack, RARITY_FRAME, FRAME_START, FRAME_END, cardHeight } from '../../components/SnapCard';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Text as SvgText } from 'react-native-svg';
 import { useLeague } from '../../context/league';
@@ -66,7 +66,7 @@ function MysteryThumb({ width }: { width: number }) {
   const figure = `M ${P(0.5, 0.14)} C ${P(0.36, 0.14)} ${P(0.32, 0.26)} ${P(0.34, 0.36)} C ${P(0.36, 0.44)} ${P(0.4, 0.5)} ${P(0.44, 0.53)} L ${P(0.43, 0.58)} C ${P(0.2, 0.62)} ${P(0.06, 0.7)} ${P(0.02, 1)} L ${P(0.98, 1)} C ${P(0.94, 0.7)} ${P(0.8, 0.62)} ${P(0.57, 0.58)} L ${P(0.56, 0.53)} C ${P(0.6, 0.5)} ${P(0.64, 0.44)} ${P(0.66, 0.36)} C ${P(0.68, 0.26)} ${P(0.64, 0.14)} ${P(0.5, 0.14)} Z`;
   return (
     <View style={{ width, height: h }}>
-      <LinearGradient colors={RARITY_FRAME.icon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 8, borderWidth: 1, borderColor: 'rgba(10,14,11,0.7)' }]} />
+      <LinearGradient colors={RARITY_FRAME.icon} start={FRAME_START} end={FRAME_END} style={[StyleSheet.absoluteFill, { borderRadius: 8, borderWidth: 1, borderColor: 'rgba(10,14,11,0.7)' }]} />
       <View style={{ position: 'absolute', left: f, top: f, width: iw, height: ih, borderRadius: 6, overflow: 'hidden' }}>
         <LinearGradient colors={['#3A2F12', '#14120A']} style={StyleSheet.absoluteFill} />
         <Svg width={iw} height={ih} style={StyleSheet.absoluteFill}>
@@ -114,7 +114,7 @@ export default function Cards() {
   };
 
   const gridW = Math.min(width, 520) - S.base * 2;
-  const cardW = Math.floor((gridW - S.sm * 2) / 3);
+  const cardW = Math.floor((gridW - S.md * 2) / 3);
 
   useEffect(() => setLimit(PAGE), [league.id, filter, query]);
 
@@ -186,7 +186,8 @@ export default function Cards() {
 
           {icons.length > 0 && (
             <Section title="Icons" note={`Top three of the ${league.name}'s top 20 scorers, by goals × 2 + assists`}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: S.md, paddingRight: S.base }} style={{ marginHorizontal: -S.base, paddingLeft: S.base }}>
+              {/* room round each card for the badges and the name logo, which overhang it */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.iconsRow} style={{ marginHorizontal: -S.base, paddingLeft: S.base }}>
                 {icons.map((c) => (
                   <Pressable key={c.id} onPress={() => router.push({ pathname: '/card/[id]', params: { id: String(c.id) } })} accessibilityRole="button">
                     <SnapCard card={c} size="md" idleShimmer collected={!!owned[String(c.id)]} competition={league.name} look={lookOf(owned[String(c.id)])} />
@@ -230,7 +231,7 @@ export default function Cards() {
                       accessibilityRole="button"
                     >
                       <SnapCard card={c} width={cardW} collected={have} competition={league.name} look={lookOf(owned[String(c.id)])} />
-                      <View pointerEvents="none" style={styles.marks}>
+                      <View pointerEvents="none" style={[styles.marks, { top: cardHeight(cardW) * 0.55 }]}>
                         {have && owned[String(c.id)].copies > 1 ? (
                           <View style={styles.copies}>
                             <Text style={styles.copiesText}>×{owned[String(c.id)].copies}</Text>
@@ -268,9 +269,11 @@ const styles = StyleSheet.create({
   fanCard: { position: 'absolute' },
   search: { flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: C.pitch, borderWidth: 1, borderColor: C.line, borderRadius: R.sm, paddingHorizontal: S.md },
   searchInput: { flex: 1, color: C.chalk, fontFamily: F.body, fontSize: 15, paddingVertical: 10 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: S.sm },
-  // on the top edge between the badges, clear of the name logo (uncollected cards are dimmed instead of locked)
-  marks: { position: 'absolute', top: 1, left: 0, right: 0, alignItems: 'center' },
-  copies: { backgroundColor: C.flare, borderRadius: 7, paddingHorizontal: 4 },
-  copiesText: { fontFamily: F.num, fontSize: 10, color: C.night },
+  iconsRow: { gap: S.xxl + S.sm, paddingLeft: S.sm, paddingRight: S.base, paddingTop: S.lg, paddingBottom: S.md },
+  // the column gap leaves room for the badges and the name logo to overhang their card
+  grid: { flexDirection: 'row', flexWrap: 'wrap', columnGap: S.md, rowGap: 16 },
+  // on the right edge, between the badges and the name logo (uncollected cards are dimmed instead of locked)
+  marks: { position: 'absolute', right: -4 },
+  copies: { backgroundColor: '#120D08', borderRadius: 7, borderWidth: 1, borderColor: 'rgba(243,241,231,0.25)', paddingHorizontal: 4 },
+  copiesText: { fontFamily: F.num, fontSize: 11, color: C.chalk },
 });

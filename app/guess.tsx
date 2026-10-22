@@ -10,7 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSequence, withSpring, interpolate, useReducedMotion, Easing } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { Badges, KitArt, RARITY_FRAME, SnapCard, cardHeight } from '../components/SnapCard';
+import { Badges, FRAME_END, FRAME_START, KitArt, RARITY_FRAME, SnapCard, cardHeight, frameOf } from '../components/SnapCard';
 import { Button, Wallet, tap } from '../components/ui';
 import { useLeague } from '../context/league';
 import { useCards } from '../hooks/data';
@@ -28,10 +28,8 @@ import { C, F, R, S, T } from '../constants/theme';
 function Mystery({ card, width }: { card: PlayerCard; width: number }) {
   const h = cardHeight(width);
   const k = width / 300;
-  const r = 18 * k + 4;
-  const f = Math.max(3, Math.round(6 * k));
-  const iw = width - f * 2;
-  const ih = h - f * 2;
+  // the same frame as the real card, so the reveal swaps the art and nothing else
+  const { r, rIn, f, iw, ih } = frameOf(width);
   const art = useArt(card.id);
   const { primary, accent } = card.team.colors;
   const rim = mix(accent, '#FFFFFF', 0.45);
@@ -41,13 +39,8 @@ function Mystery({ card, width }: { card: PlayerCard; width: number }) {
   const at = (dx: number, dy: number) => ({ position: 'absolute' as const, left: (iw - imgW) / 2 + dx, top: imgTop + dy, width: imgW, height: imgH });
   return (
     <View style={{ width, height: h }}>
-      <LinearGradient colors={RARITY_FRAME[card.rarity]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: r }]} />
-      <LinearGradient
-        colors={['rgba(255,255,255,0.45)', 'rgba(255,255,255,0)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.3)']}
-        locations={[0, 0.25, 0.7, 1]}
-        style={[StyleSheet.absoluteFill, { borderRadius: r, borderWidth: 1, borderColor: 'rgba(10,14,11,0.7)' }]}
-      />
-      <View style={{ position: 'absolute', left: f, top: f, width: iw, height: ih, borderRadius: Math.max(2, r - f * 0.6), overflow: 'hidden' }}>
+      <LinearGradient colors={RARITY_FRAME[card.rarity]} start={FRAME_START} end={FRAME_END} style={[StyleSheet.absoluteFill, { borderRadius: r, borderWidth: 1, borderColor: 'rgba(10,14,11,0.7)' }]} />
+      <View style={{ position: 'absolute', left: f, top: f, width: iw, height: ih, borderRadius: rIn, overflow: 'hidden' }}>
         <LinearGradient colors={[mix(primary, '#FFFFFF', 0.06), primary, mix(primary, C.night, 0.75)]} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
         <LinearGradient colors={[alpha(rim, 0.35), alpha(rim, 0)]} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 0.6 }} style={StyleSheet.absoluteFill} />
         {art ? (
@@ -71,7 +64,7 @@ function Mystery({ card, width }: { card: PlayerCard; width: number }) {
           <Text style={{ fontFamily: F.display, fontSize: 38 * k + 6, color: alpha(C.chalk, 0.85), letterSpacing: 8 * k }}>? ? ? ? ?</Text>
           <Text style={{ fontFamily: F.label, fontSize: 11 * k + 3, letterSpacing: 1.6, color: C.chalk2 }}>{RARITY_NAME[card.rarity].toUpperCase()}{card.rank ? ` · #${card.rank}` : ''}</Text>
         </View>
-        <View style={[StyleSheet.absoluteFill, { borderRadius: Math.max(2, r - f * 0.6), borderWidth: Math.max(1, 1.2 * k), borderColor: 'rgba(10,14,11,0.75)' }]} />
+        <View style={[StyleSheet.absoluteFill, { borderRadius: rIn, borderWidth: Math.max(1, 1.2 * k), borderColor: 'rgba(10,14,11,0.75)' }]} />
       </View>
       <Badges card={card} w={width} />
     </View>
