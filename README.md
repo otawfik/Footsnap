@@ -23,8 +23,9 @@ releasing to the stores: [`docs/app-store.md`](docs/app-store.md), a step-by-ste
 4–10 Elite, 11–20 Rare). The big number is Power (goals × 2 + assists) or age. Abilities are always true statements
 computed from the data, such as "Leads the Premier League with 8 goals", "3 of 8 goals from the penalty spot", or
 "The only player from Japan in the Premier League". The art is
-the player's own photo, cut out of its background so they stand in the card (and break out of the frame on rare
-cards), over an animated background in the club's colours. Cards tilt with the phone's gyroscope, carry foil on
+the player's own photo, cut out of its background and redrawn comic-book style (ink lines, cel shading, halftone),
+standing in a floodlit stadium in the club's colours and breaking out of the frame on rare cards. The name is a big
+3D logo across the bottom of the card, coloured by rarity. Cards tilt with the phone's gyroscope, carry foil on
 Elite and Icon, and flip to show full stats and exactly how each number was worked out.
 
 **A collection system modelled on Marvel Snap's.** A free daily pack per league (odds shown, nothing to buy), credits

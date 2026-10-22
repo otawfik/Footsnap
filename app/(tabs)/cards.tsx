@@ -230,14 +230,8 @@ export default function Cards() {
                       accessibilityRole="button"
                     >
                       <SnapCard card={c} width={cardW} collected={have} competition={league.name} look={lookOf(owned[String(c.id)])} />
-                      {/* not collected yet: dimmed, never see-through */}
-                      {!have ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.dim, { borderRadius: (18 * cardW) / 300 + 4 }]} /> : null}
                       <View pointerEvents="none" style={styles.marks}>
-                        {!have ? (
-                          <View style={styles.lock}>
-                            <Ionicons name="lock-closed" size={9} color={C.chalk2} />
-                          </View>
-                        ) : owned[String(c.id)].copies > 1 ? (
+                        {have && owned[String(c.id)].copies > 1 ? (
                           <View style={styles.copies}>
                             <Text style={styles.copiesText}>×{owned[String(c.id)].copies}</Text>
                           </View>
@@ -275,10 +269,8 @@ const styles = StyleSheet.create({
   search: { flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: C.pitch, borderWidth: 1, borderColor: C.line, borderRadius: R.sm, paddingHorizontal: S.md },
   searchInput: { flex: 1, color: C.chalk, fontFamily: F.body, fontSize: 15, paddingVertical: 10 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: S.sm },
-  dim: { backgroundColor: 'rgba(10,14,11,0.42)' },
-  // in the bottom corner strip, below the name and clear of the player's face
-  marks: { position: 'absolute', bottom: 3, right: 7 },
-  lock: { backgroundColor: 'rgba(10,14,11,0.8)', borderRadius: 8, padding: 2 },
+  // on the top edge between the badges, clear of the name logo (uncollected cards are dimmed instead of locked)
+  marks: { position: 'absolute', top: 1, left: 0, right: 0, alignItems: 'center' },
   copies: { backgroundColor: C.flare, borderRadius: 7, paddingHorizontal: 4 },
   copiesText: { fontFamily: F.num, fontSize: 10, color: C.night },
 });

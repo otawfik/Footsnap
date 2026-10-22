@@ -17,6 +17,7 @@ python scripts/art/clean.py public/art art-clean  # tidy every cut-out (below) i
 python scripts/art/gate.py art-clean              # drop the ones that would make a card look bad
 npx tsx scripts/art/colors.mts > art-colors.json   # club colours for every squad player
 python scripts/art/premium.py public/art art-colors.json  # the Premium poster versions
+python scripts/art/comic.py public/art    # the comic-book versions the base cards use
 ```
 
 **Which photos.** For each player in the competitions' squad lists: the English Wikipedia article for
