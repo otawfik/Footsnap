@@ -108,7 +108,7 @@ function Background({ card, w, h, look, animate, kit }: { card: PlayerCard; w: n
   const S = Math.hypot(w, h) * 1.25;
   // a studio backdrop: the club colour, lit from above and falling off to near-black
   // (behind a shirt in the club colour, a deep shade of it, so the shirt stands out)
-  const base = legend ? '#2B2412' : look.premium ? secondary : kit ? backdropFor(primary, secondary, C.night) : primary;
+  const base = legend ? '#2B2412' : kit ? backdropFor(primary, secondary, C.night) : look.premium ? mix(primary, C.night, 0.55) : primary;
   const light = legend ? '#F6DC8A' : look.premium ? mix(secondary, '#FFFFFF', 0.5) : mix(accent, '#FFFFFF', 0.35);
 
   return (
@@ -503,11 +503,13 @@ function Front({
   // the art fades into a deep shade of the club colour behind the name
   const fade = mix(look.tier === 6 ? '#2B2412' : card.team.colors.primary, C.night, 0.82);
   const cutout = { position: 'absolute' as const, left: imgLeft, top: imgTop, width: imgW, height: imgH };
+  // Premium cards show the poster version of the art, where there is one
+  const src = look.premium && art?.premium ? art.premium : art?.src ?? '';
   const outlinePx = Math.max(1.5, 3.2 * k);
   // a soft shadow cast on the backdrop, so the player stands in the card rather than on it
   const shadow = art ? (
     <Image
-      source={{ uri: art.src }}
+      source={{ uri: src }}
       style={[cutout, { left: imgLeft + 5 * k, top: imgTop + 7 * k, opacity: 0.42 }]}
       tintColor={C.night}
       blurRadius={Math.max(2, 7 * k)}
@@ -519,7 +521,7 @@ function Front({
     // (white copies nudged in eight directions, so the outline is the same thickness all the way round)
     <>
       {OUTLINE.map(([dx, dy], i) => (
-        <Image key={i} source={{ uri: art.src }} style={[cutout, { left: imgLeft + dx * outlinePx, top: imgTop + dy * outlinePx }]} tintColor="#FFFFFF" resizeMode="cover" />
+        <Image key={i} source={{ uri: src }} style={[cutout, { left: imgLeft + dx * outlinePx, top: imgTop + dy * outlinePx }]} tintColor="#FFFFFF" resizeMode="cover" />
       ))}
     </>
   ) : null;
@@ -552,7 +554,7 @@ function Front({
             <>
               {shadow}
               {sticker}
-              <Image source={{ uri: art.src }} style={cutout} resizeMode="cover" accessibilityIgnoresInvertColors />
+              <Image source={{ uri: src }} style={cutout} resizeMode="cover" accessibilityIgnoresInvertColors />
             </>
           ) : (
             <View style={{ position: 'absolute', left: 0, top: kitDy, width: iw, height: ih }}>
@@ -579,7 +581,7 @@ function Front({
             {art ? (
               <>
                 {sticker}
-                <Image source={{ uri: art.src }} style={cutout} resizeMode="cover" />
+                <Image source={{ uri: src }} style={cutout} resizeMode="cover" />
               </>
             ) : (
               <View style={{ position: 'absolute', left: 0, top: kitDy, width: iw, height: ih }}>
@@ -899,7 +901,7 @@ export function PhotoCredit({ card }: { card: PlayerCard }) {
   return (
     <Pressable onPress={() => Linking.openURL(art.page)} accessibilityRole="link" hitSlop={8}>
       <Text style={styles.credit} numberOfLines={2}>
-        Photo: {art.artist} · {art.license} · Wikimedia Commons (background removed) ↗
+        Photo: {art.artist} · {art.license} · Wikimedia Commons (edited) ↗
       </Text>
     </Pressable>
   );

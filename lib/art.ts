@@ -5,12 +5,17 @@
  * (the cut-outs are edited versions of freely licensed photos, so every card
  * credits the photographer and links the original) and where the top of the
  * player's head sits, so the frame break can line up.
+ *
+ * Premium cards use /art/premium/<playerId>.webp: the same cut-out redrawn as a
+ * four-tone poster in the club's colours (scripts/art/premium.py).
  */
 import { useEffect, useState } from 'react';
 import { BASE } from '../services/api';
 
 export interface Art {
   src: string;
+  /** the poster version for Premium cards, when there is one */
+  premium: string | null;
   /** 0-1 from the top of the image to the top of the head */
   headTop: number;
   artist: string;
@@ -18,7 +23,7 @@ export interface Art {
   page: string;
 }
 
-type Index = Record<string, { headTop: number; artist: string; license: string; page: string }>;
+type Index = Record<string, { headTop: number; artist: string; license: string; page: string; premium?: boolean }>;
 
 let loaded: Promise<Index> | null = null;
 function loadIndex(): Promise<Index> {
@@ -59,5 +64,5 @@ export function useArt(playerId: number, enabled = true): Art | null {
     };
   }, [enabled]);
   const e = SHOW_PHOTOS ? index?.[String(playerId)] : undefined;
-  return e ? { src: `${BASE}/art/${playerId}.webp`, ...e } : null;
+  return e ? { ...e, src: `${BASE}/art/${playerId}.webp`, premium: e.premium ? `${BASE}/art/premium/${playerId}.webp` : null } : null;
 }
