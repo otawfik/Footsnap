@@ -3,7 +3,8 @@
  *
  * Yours: your strongest owned cards (by Duel Power), within a curve, so a
  * collection of stars still has something to play on the early turns: at most
- * 3 cards costing 5+, 5 costing 4+, 8 costing 3+ (so at least 4 cost 1-2).
+ * 3 cards costing 5+, 5 costing 4+, 8 costing 3+ (so at least 4 cost 1-2), and
+ * at least 2 costing 1 (defenders and keepers), so turn 1 usually has a play.
  * Slots your collection can't fill go to "loan" players: cheap commons from
  * the competition, marked as loans in the lobby.
  *
@@ -32,6 +33,8 @@ const shuffle = <T>(xs: T[], r: () => number) => {
 
 /** [minimum cost, most cards at or above it] */
 export const CURVE: [number, number][] = [[5, 3], [4, 5], [3, 8]];
+/** cost-1 cards every deck carries, when the competition has them */
+export const MIN_ONE_DROPS = 2;
 
 const fitsCurve = (deck: PlayerCard[], c: PlayerCard) => {
   const cost = cardStats(c).cost;
@@ -44,14 +47,36 @@ export function buildDeck(owned: PlayerCard[], pool: PlayerCard[], seed: number)
   for (const c of byPower) if (picked.length < DECK_SIZE && fitsCurve(picked, c)) picked.push(c);
 
   const loans = new Set<number>();
+  const r = rng(seed);
+  const has = (c: PlayerCard) => picked.some((p) => p.id === c.id);
   if (picked.length < DECK_SIZE) {
-    const r = rng(seed);
-    const cheapPool = shuffle(pool.filter((c) => c.rarity === 'common' && cardStats(c).cost <= 2 && !picked.some((p) => p.id === c.id)), r);
-    for (const c of cheapPool) {
+    // loans: one-drops first if the deck is short of them, then any cheap common
+    const cheap = shuffle(pool.filter((c) => c.rarity === 'common' && cardStats(c).cost <= 2 && !has(c)), r);
+    const ones = cheap.filter((c) => cardStats(c).cost === 1);
+    const need = Math.max(0, MIN_ONE_DROPS - picked.filter((c) => cardStats(c).cost === 1).length);
+    for (const c of [...ones.slice(0, need), ...cheap]) {
       if (picked.length >= DECK_SIZE) break;
+      if (has(c)) continue;
       picked.push(c);
       loans.add(c.id);
     }
+  }
+  // a full deck of stars and twos: swap the weakest 2-cost cards for one-drops (owned first, then loans)
+  const oneDrops = () => picked.filter((c) => cardStats(c).cost === 1).length;
+  const spare = [
+    ...owned.filter((c) => cardStats(c).cost === 1 && !has(c)).sort((a, b) => cardStats(b).power - cardStats(a).power || a.id - b.id),
+    ...shuffle(pool.filter((c) => c.rarity === 'common' && cardStats(c).cost === 1 && !has(c)), r),
+  ];
+  const ownedIds = new Set(owned.map((c) => c.id));
+  while (oneDrops() < MIN_ONE_DROPS && spare.length) {
+    const twos = picked.filter((c) => cardStats(c).cost === 2).sort((a, b) => cardStats(a).power - cardStats(b).power || b.id - a.id);
+    if (!twos.length) break;
+    const add = spare.shift()!;
+    if (has(add)) continue;
+    const out = twos[0];
+    picked.splice(picked.indexOf(out), 1, add);
+    loans.delete(out.id);
+    if (!ownedIds.has(add.id)) loans.add(add.id);
   }
   return { cards: picked, loans };
 }
@@ -83,3 +108,11 @@ export const setMatch = (m: typeof next) => {
   next = m;
 };
 export const getMatch = () => next;
+
+/** The Duel record as label/value pairs: W 7 · D 1 · L 4 · Best ×8 (Best only once something's been won). */
+export function recordLine(r: { played: number; won: number; drawn: number; best: number }): [string, string][] {
+  const lost = Math.max(0, r.played - r.won - r.drawn);
+  const out: [string, string][] = [['W', String(r.won)], ['D', String(r.drawn)], ['L', String(lost)]];
+  if (r.best > 0) out.push(['Best', `×${r.best}`]);
+  return out;
+}

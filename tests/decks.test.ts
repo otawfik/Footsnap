@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildDeck, CURVE, opponentDeck } from '../lib/decks';
+import { buildDeck, CURVE, MIN_ONE_DROPS, opponentDeck, recordLine } from '../lib/decks';
 import { cardStats } from '../lib/game';
 import type { PlayerCard, Rarity } from '../lib/cards';
 
@@ -56,5 +56,31 @@ describe('opponentDeck', () => {
     }
     const curve = (cs: PlayerCard[]) => cs.map((c) => cardStats(c).cost).sort().join();
     expect(curve(theirs)).toBe(curve(yours));
+  });
+});
+
+describe('recordLine', () => {
+  it('reads W · D · L, with the best prize once something has been won', () => {
+    expect(recordLine({ played: 12, won: 7, drawn: 1, best: 8 })).toEqual([['W', '7'], ['D', '1'], ['L', '4'], ['Best', '×8']]);
+    expect(recordLine({ played: 2, won: 0, drawn: 0, best: 0 })).toEqual([['W', '0'], ['D', '0'], ['L', '2']]);
+  });
+});
+
+describe('one-drops', () => {
+  const ones = (cs: PlayerCard[]) => cs.filter((c) => cardStats(c).cost === 1).length;
+  it('a collection of stars and forwards still carries two cost-1 cards, owned ones first', () => {
+    const fwOnly = pool.filter((c) => c.rarity !== 'common' || c.line === 'FW' || c.line === 'MF');
+    const d = buildDeck(fwOnly, pool, 3);
+    expect(d.cards).toHaveLength(12);
+    expect(ones(d.cards)).toBe(MIN_ONE_DROPS);
+    expect(new Set(d.cards.map((c) => c.id)).size).toBe(12);
+    // the swapped-in one-drops aren't owned, so they're loans
+    for (const c of d.cards.filter((c) => cardStats(c).cost === 1)) expect(d.loans.has(c.id)).toBe(true);
+    const withDefs = buildDeck([...fwOnly, pool.find((c) => c.rarity === 'common' && c.line === 'DF')!], pool, 3);
+    expect(ones(withDefs.cards)).toBe(MIN_ONE_DROPS);
+    expect(withDefs.loans.size).toBe(1);
+  });
+  it('a small collection gets one-drops among its loans', () => {
+    expect(ones(buildDeck(pool.slice(0, 3), pool, 5).cards)).toBeGreaterThanOrEqual(MIN_ONE_DROPS);
   });
 });

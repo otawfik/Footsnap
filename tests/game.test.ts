@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { PlayerCard, Rarity } from '../lib/cards';
 import type { Line } from '../lib/football';
 import {
-  aiPlays, cardPower, cardStats, ConditionId, endTurn, GameState, legalPlays, newGame, Placed, play,
-  result, retreat, Side, snap, unplay, Zone, zoneCondition, zonePower,
+  aiPlays, cardPower, cardStats, ConditionId, CONDITIONS, endTurn, GameState, legalPlays, newGame, Placed, play,
+  projectedPower, resolveTurn, result, retreat, Side, snap, unplay, Zone, zoneCondition, zonePower,
 } from '../lib/game';
 import { hash, rng } from '../lib/rng';
 
@@ -282,31 +282,31 @@ describe('turn flow', () => {
   });
 });
 
-describe('stakes', () => {
-  it('a snap doubles the stakes next turn, once per side; full time doubles again', () => {
+describe('prize', () => {
+  it('a snap doubles the prize next turn, once per side; full time doubles again', () => {
     let s = snap(newGame({ you: filler(1), opponent: filler(100), seed: 2 }), 'you');
-    expect(s.stakes).toBe(1);
+    expect(s.prize).toBe(1);
     expect(() => snap(s, 'you')).toThrow('Already pressed');
     s = endTurn(s, { ai: false });
-    expect(s.stakes).toBe(2);
+    expect(s.prize).toBe(2);
     s = snap(s, 'opponent');
     s = endTurn(s, { ai: false });
-    expect(s.stakes).toBe(4);
+    expect(s.prize).toBe(4);
     while (!s.over) s = endTurn(s, { ai: false });
-    expect(result(s).stakes).toBe(8);
+    expect(result(s).prize).toBe(8);
   });
 
   it('a snap on the final turn still counts before the final doubling', () => {
     let s = newGame({ you: filler(1), opponent: filler(100), seed: 2 });
     while (s.turn < 6) s = endTurn(s, { ai: false });
     s = endTurn(snap(snap(s, 'you'), 'opponent'), { ai: false });
-    expect(s.stakes).toBe(8);
+    expect(s.prize).toBe(8);
   });
 
-  it('retreating loses the current stakes, not ones still waiting to land', () => {
+  it('retreating ends at the current prize, not ones still waiting to land', () => {
     let s = endTurn(snap(newGame({ you: filler(1), opponent: filler(100), seed: 2 }), 'you'), { ai: false });
     s = retreat(snap(s, 'opponent'), 'you');
-    expect(result(s)).toMatchObject({ winner: 'opponent', stakes: 2, final: true, retreated: 'you' });
+    expect(result(s)).toMatchObject({ winner: 'opponent', prize: 2, final: true, retreated: 'you' });
     expect(() => play(s, 'you', s.hands.you[0].id, 0)).toThrow('over');
     expect(() => retreat(s, 'opponent')).toThrow('over');
     expect(endTurn(s)).toBe(s);
@@ -397,7 +397,7 @@ describe('full games', () => {
       const r = result(a);
       expect(r.final).toBe(true);
       expect(['you', 'opponent', 'draw']).toContain(r.winner);
-      expect([1, 2, 4, 8]).toContain(r.stakes);
+      expect([1, 2, 4, 8]).toContain(r.prize);
       expect(r.zonesWon.you + r.zonesWon.opponent).toBeLessThanOrEqual(3);
       expect(a.log.at(-1)).toMatch(/^(Full time|.* retreated)/);
     }
@@ -424,8 +424,8 @@ describe('full games', () => {
   });
 });
 
-describe('AI stakes', () => {
-  it('snaps on a comfortable late lead, retreats from a rout once stakes are up, and does neither early', () => {
+describe('AI prize', () => {
+  it('snaps on a comfortable late lead, retreats from a rout once the prize is up, and does neither early', () => {
     const s = setup([], [], { turn: 5 });
     put(s, 'opponent', 0, card(60, { rarity: 'icon', rank: 1 }));
     put(s, 'opponent', 1, card(61, { rarity: 'icon', rank: 1 }));
@@ -433,8 +433,8 @@ describe('AI stakes', () => {
     expect(aiPlays({ ...s, turn: 6 }, 1, 'opponent').snap).toBe(true); // 6 energy left for them: safe
     expect(aiPlays(s, 1, 'opponent').snap).toBe(false); // 11 energy left on turn 5: still catchable
     expect(aiPlays({ ...s, turn: 2 }, 1, 'opponent').snap).toBe(false);
-    expect(aiPlays(s, 1, 'you').retreat).toBe(false); // stakes still 1
-    const high = { ...s, stakes: 2 };
+    expect(aiPlays(s, 1, 'you').retreat).toBe(false); // prize still ×1
+    const high = { ...s, prize: 2 };
     expect(aiPlays(high, 1, 'you')).toMatchObject({ retreat: true, plays: [] });
     expect(aiPlays({ ...high, turn: 4 }, 1, 'you').retreat).toBe(false);
   });
@@ -447,5 +447,60 @@ describe('AI stakes', () => {
     const cost = move.plays.reduce((t, p) => t + cardStats(s.hands.opponent.find((c) => c.id === p.cardId)!).cost, 0);
     expect(cost).toBe(5);
     expect(move.plays.every((p) => p.zone !== 0)).toBe(true);
+  });
+});
+
+describe('turn steps', () => {
+  it('resolveTurn shows the queue, then one landing per card in reveal order, and ends where endTurn does', () => {
+    let s = setup([fw(1), fw(2, 'Wonderkid')], [fw(50)], { turn: 6 });
+    s = play(play(play(s, 'you', 1, 0), 'you', 2, 1), 'opponent', 50, 2);
+    const r = resolveTurn(s, { ai: false });
+    expect(r.final).toEqual(endTurn(s, { ai: false }));
+    expect(r.steps.map((x) => x.kind)).toEqual(['queued', 'reveal', 'reveal', 'reveal', 'grow']);
+    expect(r.steps.filter((x) => x.card).map((x) => [x.card!.side, x.card!.id])).toEqual([['you', 1], ['you', 2], ['opponent', 50]]);
+    // each landing is on the board in its own step and still queued in the one before
+    const second = r.steps[2];
+    expect(second.state.zones[1].you.map((c) => c.card.id)).toEqual([2]);
+    expect(r.steps[1].state.pending.you.map((p) => p.card.id)).toEqual([2]);
+    expect(zonePower(r.steps[3].state, 2, 'opponent')).toBe(3);
+  });
+
+  it("the queued step carries the AI's plays, and an AI retreat has no steps", () => {
+    const s = newGame({ you: filler(900), opponent: filler(950), seed: 4, shuffle: false, conditions: NEUTRAL });
+    const r = resolveTurn(s);
+    expect(r.steps[0].kind).toBe('queued');
+    expect(r.steps[0].state.pending.opponent.length).toBeGreaterThan(0);
+    const rout = setup([], [], { turn: 5 });
+    put(rout, 'you', 0, card(60, { rarity: 'icon', rank: 1 }));
+    put(rout, 'you', 1, card(61, { rarity: 'icon', rank: 1 }));
+    const gone = resolveTurn({ ...rout, prize: 2 });
+    expect(gone.steps).toEqual([]);
+    expect(gone.final.retreated).toBe('opponent');
+  });
+
+  it('projectedPower adds queued cards with their conditions and effects, without touching the state', () => {
+    let s = setup([fw(1), fw(2, 'Playmaker')], [], { conditions: ['floodlights', 'neutral', 'neutral'] });
+    put(s, 'you', 0, fw(3));
+    expect(projectedPower(s, 0, 'you')).toBe(4);
+    s = play(play(s, 'you', 1, 0), 'you', 2, 0);
+    // 3 on the board (+1 lights), then P1 3+1, then the Playmaker 3+1 giving +1 to both others
+    expect(projectedPower(s, 0, 'you')).toBe(14);
+    expect(zonePower(s, 0, 'you')).toBe(4);
+    expect(s.pending.you).toHaveLength(2);
+  });
+
+  it('every condition has a plate-length summary', () => {
+    for (const c of Object.values(CONDITIONS)) expect(c.short.length).toBeLessThanOrEqual(30);
+  });
+});
+
+describe('copy', () => {
+  it('never uses betting words in the log', () => {
+    for (const seed of [1, 7, 99]) {
+      let s = newGame({ you: deck(seed, 1000), opponent: deck(hash(`${seed}:opp`), 2000), seed });
+      s = snap(s, 'you');
+      while (!s.over) s = endTurn(s);
+      expect(s.log.join(' ')).not.toMatch(/\b(odds|bet|wager|stakes?|payout)\b/i);
+    }
   });
 });

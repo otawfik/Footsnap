@@ -1,13 +1,21 @@
 /**
- * On-device state: the card collection, daily packs and picks. AsyncStorage
+ * On-device state: the card collection, daily packs, picks, favourite teams and UI hints. AsyncStorage
  * (localStorage on the web). Nothing leaves the device.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import type { UserPick } from './picks';
 import type { CardState } from './collection';
+import type { ClubColors } from './colors';
 
-const KEY = { collection: 'fs.collection.v3', packs: 'fs.packs.v1', picks: 'fs.picks.v1', profile: 'fs.profile.v1' };
+const KEY = {
+  collection: 'fs.collection.v3',
+  packs: 'fs.packs.v1',
+  picks: 'fs.picks.v1',
+  profile: 'fs.profile.v1',
+  favorites: 'fs.favorites.v1',
+  seen: 'fs.seen.v1',
+};
 
 async function read<T>(key: string, fallback: T): Promise<T> {
   try {
@@ -98,3 +106,24 @@ export const usePicks = makeStore<Record<string, UserPick>>(KEY.picks, {});
 
 export const today = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** A followed club. Stored whole so Home can draw it before any data loads. */
+export interface Favorite {
+  competitionId: number;
+  teamId: number;
+  name: string;
+  tla?: string;
+  colors: ClubColors;
+}
+
+/** Favourite teams, in the order they were followed. */
+export const useFavorites = makeStore<Favorite[]>(KEY.favorites, []);
+
+export const isFavorite = (favs: Favorite[], teamId: number) => favs.some((f) => f.teamId === teamId);
+
+/** Add the club if it isn't followed, remove it if it is. */
+export const toggleFavorite = (favs: Favorite[], f: Favorite): Favorite[] =>
+  isFavorite(favs, f.teamId) ? favs.filter((x) => x.teamId !== f.teamId) : [...favs, f];
+
+/** One-off UI hints already shown ("Drag to tilt · Tap to flip"…): hint id → true. */
+export const useSeen = makeStore<Record<string, boolean>>(KEY.seen, {});
