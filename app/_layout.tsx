@@ -5,6 +5,14 @@ import { View, StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
+import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
+import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
+import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
+import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
+import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold';
+import { InterTight_700Bold } from '@expo-google-fonts/inter-tight/700Bold';
+import { InterTight_800ExtraBold } from '@expo-google-fonts/inter-tight/800ExtraBold';
+// v1 fonts: kept registered until nothing imports constants/theme.ts (SPEC §11)
 import { Barlow_400Regular } from '@expo-google-fonts/barlow/400Regular';
 import { Barlow_500Medium } from '@expo-google-fonts/barlow/500Medium';
 import { Barlow_600SemiBold } from '@expo-google-fonts/barlow/600SemiBold';
@@ -13,7 +21,7 @@ import { BarlowCondensed_700Bold } from '@expo-google-fonts/barlow-condensed/700
 import { BarlowCondensed_800ExtraBold_Italic } from '@expo-google-fonts/barlow-condensed/800ExtraBold_Italic';
 import { BarlowCondensed_900Black_Italic } from '@expo-google-fonts/barlow-condensed/900Black_Italic';
 import { LeagueProvider } from '../context/league';
-import { C } from '../constants/theme';
+import { color } from '../constants/design';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -22,6 +30,13 @@ export default function RootLayout() {
   // pre-rendered HTML and the first client render match (no hydration mismatch)
   const [loaded, failed] = useFonts({
     ...Ionicons.font,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+    InterTight_700Bold,
+    InterTight_800ExtraBold,
     BigShouldersDisplay_900Black: require('@expo-google-fonts/big-shoulders-display/BigShouldersDisplay_900Black.ttf'),
     BigShouldersDisplay_700Bold: require('@expo-google-fonts/big-shoulders-display/BigShouldersDisplay_700Bold.ttf'),
     Barlow_400Regular,
@@ -41,8 +56,13 @@ export default function RootLayout() {
     <LeagueProvider>
       <View style={styles.root}>
         <StatusBar style="light" />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.night }, animation: 'fade' }}>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.bg }, animation: 'default' }}>
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="match/[id]" />
+          <Stack.Screen name="club/[id]" />
+          <Stack.Screen name="about" />
+          <Stack.Screen name="profile" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="teams" options={{ presentation: 'modal' }} />
           <Stack.Screen name="card/[id]" options={{ presentation: 'transparentModal', animation: 'fade' }} />
           <Stack.Screen name="pack" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
           <Stack.Screen name="guess" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
@@ -53,4 +73,4 @@ export default function RootLayout() {
   );
 }
 
-const styles = StyleSheet.create({ root: { flex: 1, backgroundColor: C.night } });
+const styles = StyleSheet.create({ root: { flex: 1, backgroundColor: color.bg } });

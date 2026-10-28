@@ -1,9 +1,9 @@
 /**
- * Picks: call home / draw / away before kick-off, and Snap one pick per matchday
- * to double the stakes, Marvel Snap style. Correct: +2 (Snapped +4). Wrong: 0
- * (Snapped −2). The model plays too: it picks its likeliest outcome, predicted
- * only from results before that match's day, and Snaps its most confident call
- * of the matchday.
+ * Picks: free points only. Call home / draw / away before kick-off, and Press one
+ * pick per matchday to double it, Marvel Snap style (stored as `snapped`).
+ * Right: +2 (Pressed +4). Wrong: 0 (Pressed −2). The model plays too: it picks its
+ * likeliest outcome, predicted only from results before that match's day, and
+ * Presses its most confident call of the matchday.
  */
 import type { Match } from './types';
 import { isFinished } from './football';
@@ -66,4 +66,32 @@ export function tally(picks: UserPick[], matches: Match[]): Tally {
     }
   }
   return t;
+}
+
+/** Set, change or clear (same outcome again) the pick for a match. A cleared pick drops its Press. */
+export function applyPick(all: Record<string, UserPick>, matchId: number, o: Outcome): Record<string, UserPick> {
+  const cur = all[String(matchId)];
+  if (cur?.outcome === o) {
+    const { [String(matchId)]: _, ...rest } = all;
+    return rest;
+  }
+  return { ...all, [String(matchId)]: { matchId, outcome: o, snapped: cur?.snapped ?? false } };
+}
+
+/** The match whose pick is Pressed in this group of fixtures (one matchday), if any. */
+export const pressedIn = (all: Record<string, UserPick>, fixtures: Match[]) => fixtures.find((m) => all[String(m.id)]?.snapped) ?? null;
+
+/**
+ * Press or un-press the pick on `m`. One Press per matchday: pressing moves it off any other
+ * open fixture of the same matchday, and a Press can't move off a match that's already locked.
+ */
+export function applyPress(all: Record<string, UserPick>, m: Match, matchday: Match[], now = Date.now()): Record<string, UserPick> {
+  const cur = all[String(m.id)];
+  if (!cur || locked(m, now)) return all;
+  if (cur.snapped) return { ...all, [String(m.id)]: { ...cur, snapped: false } };
+  const other = pressedIn(all, matchday.filter((x) => x.id !== m.id));
+  if (other && locked(other, now)) return all;
+  const next = { ...all, [String(m.id)]: { ...cur, snapped: true } };
+  if (other) next[String(other.id)] = { ...next[String(other.id)], snapped: false };
+  return next;
 }

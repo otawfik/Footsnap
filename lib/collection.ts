@@ -27,12 +27,12 @@ export interface TierInfo {
 /** Index = tier. Costs are to reach that tier from the one below. */
 export const TIERS: TierInfo[] = [
   { name: 'Base', effect: 'The standard card.', credits: 0, boosters: 0 },
-  { name: 'Breakout', effect: 'The player (or the shirt) breaks out over the top of the frame.', credits: 25, boosters: 5 },
-  { name: 'Depth', effect: '3D: the art floats inside the frame as you tilt.', credits: 100, boosters: 10 },
-  { name: 'Pulse', effect: 'An animated glow in the club colours.', credits: 200, boosters: 20 },
-  { name: 'Crest', effect: "The club's crest (or its name, where crests are off) embossed into the art.", credits: 300, boosters: 30 },
-  { name: 'Holo', effect: 'Holographic foil, whatever the rarity.', credits: 400, boosters: 40 },
-  { name: 'Legend', effect: 'The black-and-gold Legend frame and a random finish.', credits: 500, boosters: 50 },
+  { name: 'Breakout', effect: "The player's head breaks out over the top of the frame. Photos off: the medallion grows and crosses it.", credits: 25, boosters: 5 },
+  { name: 'Depth', effect: 'Parallax: the art moves against the tilt, and the type floats above it.', credits: 100, boosters: 10 },
+  { name: 'Pulse', effect: 'The halo behind the player breathes in the club colour.', credits: 200, boosters: 20 },
+  { name: 'Crest', effect: "The club's crest (or its code, where crests are off) engraved behind the art.", credits: 300, boosters: 30 },
+  { name: 'Holo', effect: 'Pearl holographic foil, whatever the rarity.', credits: 400, boosters: 40 },
+  { name: 'Legend', effect: 'The obsidian Legend frame and a finish: Gilded, Prismatic, Crackle or Starfield.', credits: 500, boosters: 50 },
 ];
 
 export const FINISH_NAME: Record<Finish, string> = { gold: 'Gilded', prism: 'Prismatic', krackle: 'Crackle', stellar: 'Starfield' };

@@ -1,35 +1,39 @@
 import { Tabs } from 'expo-router';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { C, F, S } from '../../constants/theme';
+import { color, font, size } from '../../constants/design';
 import { tap } from '../../components/ui';
 
 type Icon = React.ComponentProps<typeof Ionicons>['name'];
-const ICONS: Record<string, [Icon, Icon]> = {
-  index: ['radio-outline', 'radio'],
-  table: ['podium-outline', 'podium'],
-  cards: ['albums-outline', 'albums'],
-  duel: ['game-controller-outline', 'game-controller'],
-  picks: ['flash-outline', 'flash'],
-};
+/** The four tabs, in order (SPEC §3, §4). Any other file in (tabs) is never shown in the bar. */
+const TABS: { name: string; title: string; icon: [Icon, Icon] }[] = [
+  { name: 'index', title: 'Home', icon: ['home-outline', 'home'] },
+  { name: 'matches', title: 'Matches', icon: ['calendar-clear-outline', 'calendar-clear'] },
+  { name: 'cards', title: 'Cards', icon: ['albums-outline', 'albums'] },
+  { name: 'play', title: 'Play', icon: ['flash-outline', 'flash'] },
+];
 
-/** A scoreboard-style tab bar: condensed labels, a flare bar over the active tab. */
-function Bar({ state, descriptors, navigation }: BottomTabBarProps) {
+/** A blurred bar over `surface` at 92%, a hairline on top, no indicator. */
+function Bar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const current = state.routes[state.index]?.name;
   return (
-    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      {state.routes.map((route, i) => {
-        const on = state.index === i;
-        const { options } = descriptors[route.key];
-        const [off, onIcon] = ICONS[route.name] ?? ['ellipse-outline', 'ellipse'];
+    <View style={[styles.bar, { height: size.tabBar + Math.max(insets.bottom, 8), paddingBottom: Math.max(insets.bottom, 8) }]}>
+      {Platform.OS === 'ios' ? <BlurView tint="dark" intensity={40} style={StyleSheet.absoluteFill} /> : null}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: Platform.OS === 'ios' ? 'rgba(20,20,23,0.92)' : 'rgba(20,20,23,0.97)' }]} />
+      {TABS.map((t) => {
+        const route = state.routes.find((r) => r.name === t.name);
+        if (!route) return null;
+        const on = current === t.name;
         return (
           <Pressable
-            key={route.key}
+            key={t.name}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
-            accessibilityLabel={options.title}
+            accessibilityLabel={t.title}
             onPress={() => {
               const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
               if (!on && !e.defaultPrevented) {
@@ -39,9 +43,8 @@ function Bar({ state, descriptors, navigation }: BottomTabBarProps) {
             }}
             style={styles.item}
           >
-            <View style={[styles.indicator, on && styles.indicatorOn]} />
-            <Ionicons name={on ? onIcon : off} size={22} color={on ? C.chalk : C.muted} />
-            <Text style={[styles.label, on && { color: C.chalk }]}>{(options.title ?? '').toUpperCase()}</Text>
+            <Ionicons name={on ? t.icon[1] : t.icon[0]} size={24} color={on ? color.text : color.text3} />
+            <Text style={[styles.label, { color: on ? color.text : color.text3 }]}>{t.title}</Text>
           </Pressable>
         );
       })}
@@ -51,20 +54,27 @@ function Bar({ state, descriptors, navigation }: BottomTabBarProps) {
 
 export default function TabLayout() {
   return (
-    <Tabs tabBar={(p) => <Bar {...p} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: C.night } }}>
-      <Tabs.Screen name="index" options={{ title: 'Matchday' }} />
-      <Tabs.Screen name="table" options={{ title: 'Table' }} />
-      <Tabs.Screen name="cards" options={{ title: 'Cards' }} />
-      <Tabs.Screen name="duel" options={{ title: 'Duel' }} />
-      <Tabs.Screen name="picks" options={{ title: 'Picks' }} />
+    <Tabs tabBar={(p) => <Bar {...p} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: color.bg } }}>
+      {TABS.map((t) => (
+        <Tabs.Screen key={t.name} name={t.name} options={{ title: t.title }} />
+      ))}
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', backgroundColor: C.night, borderTopWidth: 1, borderTopColor: C.line, paddingTop: 2 },
-  item: { flex: 1, alignItems: 'center', gap: 3, paddingTop: S.sm },
-  indicator: { position: 'absolute', top: -3, width: 28, height: 3, borderRadius: 2, backgroundColor: 'transparent' },
-  indicatorOn: { backgroundColor: C.flare },
-  label: { fontFamily: F.label, fontSize: 10.5, letterSpacing: 1, color: C.muted },
+  bar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: color.hairline,
+    paddingTop: 7,
+    paddingHorizontal: 12,
+    overflow: 'hidden',
+  },
+  item: { flex: 1, alignItems: 'center', gap: 3 },
+  label: { fontFamily: font.medium, fontSize: 10.5, lineHeight: 13, letterSpacing: 0.1 },
 });

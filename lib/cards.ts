@@ -15,7 +15,8 @@ import { clubColors, ClubColors } from './colors';
 
 export type Rarity = 'icon' | 'elite' | 'rare' | 'common';
 export const RARITY_ORDER: Rarity[] = ['icon', 'elite', 'rare', 'common'];
-export const RARITY_NAME: Record<Rarity, string> = { icon: 'Icon', elite: 'Elite', rare: 'Rare', common: 'Common' };
+/** Rarities are shown as the card's metal (constants/design.ts METAL_NAME). */
+export const RARITY_NAME: Record<Rarity, string> = { icon: 'Icon', elite: 'Gold', rare: 'Silver', common: 'Bronze' };
 
 export interface Ability {
   /** stable id; game effects map from this, so rewording a title can't change a card's effect */
@@ -30,6 +31,9 @@ export interface CardTeam {
   id: number;
   name: string;
   shortName: string;
+  /** three-letter club code ("MCI"): football-data's tla, else the short name's first three letters.
+   * Always set by buildCards; optional so hand-built test cards stay valid (read it through teamCode). */
+  tla?: string;
   crest?: string;
   colors: ClubColors;
 }
@@ -74,6 +78,96 @@ export function bannerName(name: string, max = 13): string {
   if (parts.length < 2) return name;
   const rest = parts.slice(1).join(' ');
   return rest.length <= max ? rest : parts[parts.length - 1];
+}
+
+/** The club code a card prints: the data's tla, else the first three letters of the short name. */
+export function teamCode(t: { tla?: string | null; shortName?: string | null; name: string }): string {
+  if (t.tla && /^[A-Za-z0-9]{2,4}$/.test(t.tla)) return t.tla.toUpperCase();
+  const letters = (t.shortName ?? t.name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z]/g, '');
+  return letters.slice(0, 3).toUpperCase();
+}
+
+// name particles that belong to the surname ("van Dijk", "De Bruyne", "Mac Allister")
+const PARTICLES = new Set(['van', 'von', 'de', 'del', 'della', 'der', 'den', 'di', 'da', 'das', 'do', 'dos', 'du', 'le', 'la', 'mac', 'mc', 'el', 'al', 'ten', 'ter', 'st.', 'saint', 'ben', 'bin', 'ibn', 'abu']);
+const SUFFIXES = new Set(['junior', 'júnior', 'jr', 'jr.', 'filho', 'neto', 'sobrinho', 'ii', 'iii']);
+
+/**
+ * The name on the front of the card, the way FUT prints it: the surname ("Haaland", "Saka"), with its
+ * particles ("van Dijk") and with a suffix kept on the word before it ("Vinícius Júnior"). One-word names
+ * pass through. The full name is on the back and in the card view.
+ */
+export function faceName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2) return name.trim();
+  let i = parts.length - 1;
+  if (SUFFIXES.has(parts[i].toLowerCase()) && i > 0) i -= 1;
+  while (i > 1 && PARTICLES.has(parts[i - 1].toLowerCase())) i -= 1;
+  // a particle as the first word is a surname on its own ("De Ligt" stays "De Ligt")
+  if (i === 1 && PARTICLES.has(parts[0].toLowerCase())) i = 0;
+  return parts.slice(i).join(' ');
+}
+
+/** The first letter of the face name, as the photos-off medallion sets it (keeps Ø, Ö, É). */
+export function initialOf(name: string): string {
+  const surname = faceName(name).split(' ').filter((w) => !PARTICLES.has(w.toLowerCase()));
+  const word = surname[0] ?? name;
+  return [...word][0]?.toUpperCase() ?? '?';
+}
+
+/** "26/27": European seasons start in July or August, so before July it's the season that began last year. */
+export function seasonLabel(now = new Date()): string {
+  const y = now.getFullYear() - (now.getMonth() < 6 ? 1 : 0);
+  return `${String(y % 100).padStart(2, '0')}/${String((y + 1) % 100).padStart(2, '0')}`;
+}
+
+export interface StatSlot {
+  value: string;
+  label: string;
+}
+
+/**
+ * The stats row on the card face: goals, assists (or goals per game when the data has no assists),
+ * appearances, age. Only numbers the data actually holds: a missing one drops its slot rather than
+ * printing a 0. Null when the player isn't among the top scorers (the card shows a trait instead).
+ */
+export function faceStats(card: Pick<PlayerCard, 'stats' | 'age'>): StatSlot[] | null {
+  const s = card.stats;
+  if (!s) return null;
+  const out: StatSlot[] = [{ value: String(s.goals), label: 'GLS' }];
+  if (s.assists !== null) out.push({ value: String(s.assists), label: 'AST' });
+  else if (s.played) out.push({ value: (s.goals / s.played).toFixed(2), label: 'G/GM' });
+  if (s.played !== null) out.push({ value: String(s.played), label: 'APP' });
+  if (card.age !== null) out.push({ value: String(card.age), label: 'AGE' });
+  if (out.length < 4 && s.penalties !== null) out.splice(1, 0, { value: String(s.penalties), label: 'PEN' });
+  return out.slice(0, 4);
+}
+
+/**
+ * How a card's Duel numbers come out of the data, in two lines (the rules live in lib/game.ts:
+ * cost by rarity, then the cost's base Power plus 1 per 4 goals, capped).
+ */
+export function explainStats(card: Pick<PlayerCard, 'rarity' | 'rank' | 'line' | 'stats'>, cost: number, power: number, goalBonusCap = 3): [string, string] {
+  const why =
+    card.rarity === 'icon'
+      ? 'Icon rarity'
+      : card.rarity === 'elite'
+      ? card.rank !== null && card.rank <= 6
+        ? `Gold rarity, #${card.rank} of the top scorers`
+        : 'Gold rarity'
+      : card.rarity === 'rare'
+      ? 'Silver rarity'
+      : card.line === 'DF' || card.line === 'GK'
+      ? `Bronze ${card.line === 'GK' ? 'goalkeeper' : 'defender'}`
+      : 'Bronze rarity';
+  const goals = card.stats?.goals ?? 0;
+  const bonus = card.stats ? Math.min(goalBonusCap, Math.floor(goals / 4)) : 0;
+  const base = power - bonus;
+  const tail = bonus
+    ? ` + ${bonus} for ${plural(goals, 'goal')} (1 per 4${goals >= goalBonusCap * 4 ? `, max ${goalBonusCap}` : ''}).`
+    : card.stats
+    ? `. ${plural(goals, 'goal')}: the bonus starts at 4.`
+    : '. No league goals listed, so no goal bonus.';
+  return [`Cost ${cost}: ${why}.`, `Power ${power}: ${base} for cost ${cost}${tail}`];
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -240,13 +334,13 @@ export function buildCards(
       u21: ages.filter((x) => x <= 20).length,
       over33: ages.filter((x) => x >= 33).length,
     };
-    const t: CardTeam = { id: team.id, name: team.name, shortName: team.shortName ?? team.name, crest: team.crest, colors: clubColors(team.clubColors) };
+    const t: CardTeam = { id: team.id, name: team.name, shortName: team.shortName ?? team.name, tla: teamCode(team), crest: team.crest, colors: clubColors(team.clubColors) };
     for (const p of squad) add(p, t, facts);
   }
   // scorers missing from the published squad lists still get a card
   for (const s of scorers) {
     if (cards.has(s.player.id)) continue;
-    const t: CardTeam = { id: s.team.id, name: s.team.name, shortName: s.team.shortName ?? s.team.name, crest: s.team.crest, colors: clubColors(null) };
+    const t: CardTeam = { id: s.team.id, name: s.team.name, shortName: s.team.shortName ?? s.team.name, tla: teamCode(s.team), crest: s.team.crest, colors: clubColors(null) };
     add(s.player, t, { club: t.shortName, ages: [], keepers: 0, fromNation: 0, u21: 0, over33: 0 });
   }
   return cards;

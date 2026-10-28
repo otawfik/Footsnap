@@ -45,10 +45,15 @@
  *   wins (2 of 3, or 1 against 0 with two ties); level on zones → more total
  *   Power across all zones; still level → draw.
  *
- * STAKES: start at 1. Each side may snap once, during a turn: stakes double when
- *   that turn ends (so a turn-6 snap still counts). Stakes double again,
- *   automatically, after the final turn. Retreating ends the game at once and
- *   costs the CURRENT stakes, not doubles still waiting to land.
+ * PRIZE: a multiplier that starts at ×1. Each side may press (snap) once, during a
+ *   turn: the prize doubles when that turn ends (so a turn-6 press still counts).
+ *   It doubles again, automatically, after the final turn. Retreating ends the
+ *   game at once at the CURRENT prize, not doubles still waiting to land. The
+ *   lobby pays the winner 10 credits per ×1; nothing is ever taken away.
+ *
+ * REVEALS: resolveTurn() returns every intermediate state of a turn (the AI's
+ *   cards queued, then one state per card landing, then end-of-turn growth) so
+ *   the board can animate the engine's own order; endTurn() is its last state.
  */
 import type { PlayerCard } from './cards';
 import { hash, rng } from './rng';
@@ -62,6 +67,8 @@ export const TURNS = 6;
 export const DECK_SIZE = 12;
 export const START_HAND = 3;
 export const MAX_PER_ZONE = 4;
+/** credits a win pays per ×1 of prize (a ×4 win pays 40); a loss or a retreat costs nothing */
+export const CREDITS_PER_PRIZE = 10;
 /** the zone Home-grown cards count as home */
 export const HOME_ZONE: Zone = 1;
 
@@ -161,13 +168,14 @@ export function cardStats(card: PlayerCard): CardStats {
 
 export type ConditionId = 'floodlights' | 'wet' | 'derby' | 'empty' | 'counter' | 'neutral';
 
-export const CONDITIONS: Record<ConditionId, { name: string; text: string }> = {
-  floodlights: { name: 'Floodlights', text: 'Cards here have +1 Power.' },
-  wet: { name: 'Wet pitch', text: 'Cards here cost 1 more to play.' },
-  derby: { name: 'Derby', text: 'The first card each side plays here gets +2 Power.' },
-  empty: { name: 'Empty stands', text: 'No card effects work here.' },
-  counter: { name: 'Counter-attack', text: 'From turn 5, a side 4 or more behind here gets +3 Power.' },
-  neutral: { name: 'Neutral ground', text: 'Nothing special.' },
+/** `text` is the full rule; `short` fits the zone plate (two lines at 11 pt in a 110-wide column). */
+export const CONDITIONS: Record<ConditionId, { name: string; text: string; short: string }> = {
+  floodlights: { name: 'Floodlights', text: 'Cards here have +1 Power.', short: '+1 Power here' },
+  wet: { name: 'Wet pitch', text: 'Cards here cost 1 more to play.', short: 'Costs 1 more here' },
+  derby: { name: 'Derby', text: 'The first card each side plays here gets +2 Power.', short: 'First card +2' },
+  empty: { name: 'Empty stands', text: 'No card effects work here.', short: 'No effects here' },
+  counter: { name: 'Counter-attack', text: 'From turn 5, a side 4 or more behind here gets +3 Power.', short: 'Behind by 4+: +3 from turn 5' },
+  neutral: { name: 'Neutral ground', text: 'Nothing special.', short: 'Nothing special' },
 };
 const CONDITION_IDS = Object.keys(CONDITIONS) as ConditionId[];
 
@@ -203,9 +211,10 @@ export interface GameState {
   /** 1-6; stays 6 once the game is over */
   turn: number;
   over: boolean;
-  stakes: number;
+  /** the prize multiplier (×1, ×2, ×4 …) */
+  prize: number;
   snapped: Record<Side, boolean>;
-  /** snaps made this turn: they double the stakes when the turn ends */
+  /** snaps made this turn: they double the prize when the turn ends */
   snapsThisTurn: Side[];
   retreated: Side | null;
   /** all three drawn up front; read them through zoneCondition() so unrevealed ones stay hidden */
@@ -285,7 +294,7 @@ export function newGame(o: NewGameOptions): GameState {
     seed: o.seed,
     turn: 1,
     over: false,
-    stakes: 1,
+    prize: 1,
     snapped: { you: false, opponent: false },
     snapsThisTurn: [],
     retreated: null,
@@ -416,7 +425,7 @@ export function unplay(state: GameState, who: Side, cardId: number): GameState {
   return s;
 }
 
-// ---------------------------------------------------------------- stakes
+// ---------------------------------------------------------------- prize
 
 export const canSnap = (s: GameState, who: Side) => !s.over && !s.snapped[who];
 
@@ -425,19 +434,19 @@ export function snap(state: GameState, who: Side): GameState {
   const s = clone(state);
   s.snapped[who] = true;
   s.snapsThisTurn.push(who);
-  const next = s.stakes * 2 ** s.snapsThisTurn.length;
-  s.log.push(`${who === 'you' ? 'You' : 'Opponent'} pressed: stakes go to ${next} when this turn ends.`);
+  const next = s.prize * 2 ** s.snapsThisTurn.length;
+  s.log.push(`${who === 'you' ? 'You' : 'Opponent'} pressed: the prize goes to ×${next} when this turn ends.`);
   return s;
 }
 
-/** Concede now, losing the current stakes. */
+/** Concede now, at the current prize. */
 export function retreat(state: GameState, who: Side): GameState {
   if (state.over) throw new Error('The game is over.');
   const s = clone(state);
   s.over = true;
   s.retreated = who;
   s.snapsThisTurn = [];
-  s.log.push(`${who === 'you' ? 'You' : 'Opponent'} retreated, losing ${s.stakes}.`);
+  s.log.push(`${who === 'you' ? 'You' : 'Opponent'} retreated at prize ×${s.prize}.`);
   return s;
 }
 
@@ -483,47 +492,75 @@ export interface EndTurnOptions {
   ai?: boolean;
 }
 
-/** Resolve the turn: AI moves, both sides reveal, effects resolve, stakes update, next turn starts (or the game ends). */
-export function endTurn(state: GameState, opts: EndTurnOptions = {}): GameState {
-  if (state.over) return state;
+/** One moment of a resolving turn, for the board to animate. */
+export interface TurnStep {
+  /** 'queued': the AI has queued its plays (they sit face down); 'reveal': one card landed; 'grow': end-of-turn effects */
+  kind: 'queued' | 'reveal' | 'grow';
+  state: GameState;
+  /** the card that just landed (kind 'reveal') */
+  card?: { side: Side; zone: Zone; id: number };
+}
+
+export interface TurnResolution {
+  /** in order; empty when the AI retreats */
+  steps: TurnStep[];
+  /** the state after the turn: the next turn started, or the game over */
+  final: GameState;
+}
+
+/**
+ * Resolve the turn: AI moves, both sides reveal, effects resolve, the prize
+ * updates, next turn starts (or the game ends). Returns every step on the way.
+ */
+export function resolveTurn(state: GameState, opts: EndTurnOptions = {}): TurnResolution {
+  if (state.over) return { steps: [], final: state };
   let s = clone(state);
+  const steps: TurnStep[] = [];
 
   if (opts.ai !== false) {
     const move = aiPlays(s, hash(`${s.seed}:ai:${s.turn}`), 'opponent');
-    if (move.retreat) return retreat(s, 'opponent');
+    if (move.retreat) return { steps, final: retreat(s, 'opponent') };
     if (move.snap && canSnap(s, 'opponent')) s = snap(s, 'opponent');
     for (const p of move.plays) s = play(s, 'opponent', p.cardId, p.zone);
   }
+  steps.push({ kind: 'queued', state: clone(s) });
 
   // whoever is winning more zones reveals first; level → you first
   const won = (side: Side) => ZONES.filter((z) => zoneLeader(s, z) === side).length;
   const first: Side = won('opponent') > won('you') ? 'opponent' : 'you';
   for (const side of [first, other(first)]) {
-    while (s.pending[side].length) reveal(s, side, s.pending[side].shift()!);
+    while (s.pending[side].length) {
+      const p = s.pending[side].shift()!;
+      reveal(s, side, p);
+      steps.push({ kind: 'reveal', state: clone(s), card: { side, zone: p.zone, id: p.card.id } });
+    }
   }
 
   // end of turn: Wonderkids grow
+  let grew = false;
   for (const z of ZONES) {
     if (!effectsWork(s, z)) continue;
     for (const side of [first, other(first)]) {
       for (const c of s.zones[z][side]) {
         if (c.stats.effect?.kind !== 'wonderkid') continue;
         c.bonus += 1;
+        grew = true;
         s.log.push(`${label(side, c.card)} grew to ${cardPower(s, c)} Power.`);
       }
     }
   }
+  if (grew) steps.push({ kind: 'grow', state: clone(s) });
 
-  s.stakes *= 2 ** s.snapsThisTurn.length;
+  s.prize *= 2 ** s.snapsThisTurn.length;
   s.snapsThisTurn = [];
 
   if (s.turn >= TURNS) {
     s.over = true;
-    s.stakes *= 2;
+    s.prize *= 2;
     const r = result(s);
     const zones = ZONES.map((z) => `${ZONE_NAME[z]} ${zonePower(s, z, 'you')}-${zonePower(s, z, 'opponent')}`).join(', ');
-    s.log.push(`Full time. ${zones}. ${r.winner === 'draw' ? 'Draw' : r.winner === 'you' ? 'You win' : 'Opponent wins'} (stakes ${s.stakes}).`);
-    return s;
+    s.log.push(`Full time. ${zones}. ${r.winner === 'draw' ? 'Draw' : r.winner === 'you' ? 'You win' : 'Opponent wins'} (prize ×${s.prize}).`);
+    return { steps, final: s };
   }
 
   s.turn += 1;
@@ -531,15 +568,32 @@ export function endTurn(state: GameState, opts: EndTurnOptions = {}): GameState 
   logCondition(s);
   logDraw(s, 'you', draw(s, 'you'));
   logDraw(s, 'opponent', draw(s, 'opponent'));
-  return s;
+  return { steps, final: s };
+}
+
+/** Resolve the turn and return the state after it (see resolveTurn for the steps). */
+export function endTurn(state: GameState, opts: EndTurnOptions = {}): GameState {
+  return resolveTurn(state, opts).final;
+}
+
+/**
+ * A side's Power in a zone if its queued cards revealed now, in queue order,
+ * before the other side's (an estimate for the "+5" on the zone plate: the
+ * real order and the other side's plays can still change it).
+ */
+export function projectedPower(state: GameState, zone: Zone, who: Side): number {
+  if (!state.pending[who].some((p) => p.zone === zone)) return zonePower(state, zone, who);
+  const s = clone(state);
+  while (s.pending[who].length) reveal(s, who, s.pending[who].shift()!);
+  return zonePower(s, zone, who);
 }
 
 // ---------------------------------------------------------------- result
 
 export interface GameResult {
   winner: Side | 'draw';
-  /** final stakes if the game is over (current stakes on a retreat); current stakes otherwise */
-  stakes: number;
+  /** the final prize if the game is over (the current one on a retreat); the current prize otherwise */
+  prize: number;
   zonesWon: Record<Side, number>;
   /** who leads each zone */
   zones: (Side | 'tie')[];
@@ -559,7 +613,7 @@ export function result(s: GameState): GameResult {
   else if (zonesWon.you !== zonesWon.opponent) winner = zonesWon.you > zonesWon.opponent ? 'you' : 'opponent';
   else if (power.you !== power.opponent) winner = power.you > power.opponent ? 'you' : 'opponent';
   else winner = 'draw';
-  return { winner, stakes: s.stakes, zonesWon, zones, power, final: s.over, retreated: s.retreated };
+  return { winner, prize: s.prize, zonesWon, zones, power, final: s.over, retreated: s.retreated };
 }
 
 // ---------------------------------------------------------------- AI
@@ -645,7 +699,7 @@ const worth = (lead: number) => Math.tanh(lead / 5);
  * (strongest first) to the zone where it moves the lead most: level and narrowly
  * lost zones gain the most, zones already won or gone gain little. It reads only
  * the board and its own hand, never the other side's queued plays.
- * Stakes: it snaps on turn 4+ when turning two zones round would cost the other
+ * Prize: it presses on turn 4+ when turning two zones round would cost the other
  * side more Power than it can still add (about 1.5 per energy left in the game,
  * this turn included), and retreats on turn 5-6, once anyone has snapped, when
  * winning two zones would cost it more than it can still add plus a margin.
@@ -706,14 +760,14 @@ export function aiPlays(state: GameState, seed: number, who: Side = 'opponent'):
     if (!place(fits[0])) break;
   }
 
-  // stakes: compare what it would take to swing two zones with the Power the
+  // pressing: compare what it would take to swing two zones with the Power the
   // side could still add (about POWER_PER_ENERGY for each energy left in the game)
   const powerLeft = (from: number) => POWER_PER_ENERGY * Array.from({ length: Math.max(0, TURNS - from + 1) }, (_, i) => from + i).reduce((t, e) => t + e, 0);
   const twoCheapest = (costs: number[]) => costs.sort((a, b) => a - b)[0] + costs[1];
   const toFlipForThem = twoCheapest(lead.map((l) => Math.max(0, l + 1))); // they play this turn too
   const toFlipForMe = twoCheapest(lead.map((l) => Math.max(0, 1 - l))); // this turn's plays are already in `lead`
-  const stakesNow = state.stakes * 2 ** state.snapsThisTurn.length;
+  const prizeNow = state.prize * 2 ** state.snapsThisTurn.length;
   const doSnap = state.turn >= 4 && canSnap(state, who) && toFlipForThem > SNAP_SAFETY * powerLeft(state.turn);
-  const doRetreat = !doSnap && state.turn >= 5 && stakesNow >= 2 && toFlipForMe > powerLeft(state.turn + 1) + RETREAT_SLACK;
+  const doRetreat = !doSnap && state.turn >= 5 && prizeNow >= 2 && toFlipForMe > powerLeft(state.turn + 1) + RETREAT_SLACK;
   return { plays: doRetreat ? [] : plays, snap: doSnap, retreat: doRetreat };
 }
