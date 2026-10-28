@@ -15,9 +15,9 @@ python scripts/art/merge.py public/art         # merge the workers' credit files
 python scripts/art/verify.py art.json public/art  # drop namesakes: Wikidata birth date must match
 python scripts/art/clean.py public/art art-clean  # tidy every cut-out (below) into a new folder
 python scripts/art/gate.py art-clean              # drop the ones that would make a card look bad
-npx tsx scripts/art/colors.mts > art-colors.json   # club colours for every squad player
-python scripts/art/premium.py public/art art-colors.json  # the Premium poster versions
-python scripts/art/comic.py public/art public/art/comic --jobs 8   # the comic-book versions the base cards use
+# re-frame every cut-out from its original so all cards share one framing (3 workers, then merge)
+for i in 0 1 2; do SHARD=$i/3 python scripts/art/reframe.py public/art art/models & done; wait
+python scripts/art/merge.py public/art
 ```
 
 **Which photos.** For each player in the competitions' squad lists: the English Wikipedia article for
@@ -41,9 +41,13 @@ drops three kinds of photo: blurry ones (the player was small in the original, s
 ones where something touches the top edge (a head cut off flat, or someone standing behind), and ones with a
 second face. A card with a bad photo looks worse than a card with a clean shirt, so when in doubt it goes.
 
-**Premium art.** `premium.py` redraws each cut-out as a four-tone poster in the player's club colours (deep shade,
-shadow, the club colour, cream) with an ink line round the silhouette. Brightness is evened out locally first
-(CLAHE), so every face keeps its features whatever the skin tone or the photo's lighting.
+**One framing for every card.** `reframe.py` goes back to each original photo, finds the face with YuNet
+(`art/models/yunet.onnx`, from opencv_zoo), levels the eyes, and scales it so every face is the same height
+(31% of the image) with the eyes on the same line (33% down). Where that framing reaches past the photo's
+edge the canvas stays transparent and the body fades out over 70 px, instead of the crop being squeezed to
+fit (which is what cut foreheads off tight photos and shrank heads in wide ones). Faces that would need
+enlarging more than 1.5x are dropped as too soft. The photo itself is left as it is, no filter: a card has
+to look like the player.
 
 **Licences.** Only Wikimedia Commons files are used (no fair-use images). Each image's author and licence
 come from the Commons API and are shown on the card and in the card view, with a link to the original and a

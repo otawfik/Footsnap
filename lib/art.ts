@@ -6,17 +6,14 @@
  * credits the photographer and links the original) and where the top of the
  * player's head sits, so the frame break can line up.
  *
- * Base cards use /art/comic/<playerId>.webp, the cut-out redrawn comic-book style
- * (scripts/art/comic.py). Premium cards use /art/premium/<playerId>.webp: the same cut-out redrawn as a
- * four-tone poster in the club's colours (scripts/art/premium.py).
+ * The photo is shown as it is (no filter), so the player looks like himself; every cut-out shares one framing
+ * (scripts/art/reframe.py), so cards line up.
  */
 import { useEffect, useState } from 'react';
 import { BASE } from '../services/api';
 
 export interface Art {
   src: string;
-  /** the poster version for Premium cards, when there is one */
-  premium: string | null;
   /** 0-1 from the top of the image to the top of the head */
   headTop: number;
   artist: string;
@@ -24,7 +21,7 @@ export interface Art {
   page: string;
 }
 
-type Index = Record<string, { headTop: number; artist: string; license: string; page: string; premium?: boolean; comic?: boolean }>;
+type Index = Record<string, { headTop: number; artist: string; license: string; page: string }>;
 
 let loaded: Promise<Index> | null = null;
 function loadIndex(): Promise<Index> {
@@ -65,8 +62,5 @@ export function useArt(playerId: number, enabled = true): Art | null {
     };
   }, [enabled]);
   const e = SHOW_PHOTOS ? index?.[String(playerId)] : undefined;
-  // base cards use the comic-book version of the cut-out (scripts/art/comic.py) when there is one
-  return e
-    ? { ...e, src: `${BASE}/art/${e.comic ? 'comic/' : ''}${playerId}.webp`, premium: e.premium ? `${BASE}/art/premium/${playerId}.webp` : null }
-    : null;
+  return e ? { headTop: e.headTop, artist: e.artist, license: e.license, page: e.page, src: `${BASE}/art/${playerId}.webp` } : null;
 }
