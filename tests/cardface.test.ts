@@ -10,6 +10,8 @@ describe('face name', () => {
     expect(faceName('Harry Kane')).toBe('Kane');
     expect(faceName('Martin Ødegaard')).toBe('Ødegaard');
     expect(faceName('Rodri')).toBe('Rodri');
+    expect(faceName('João Pedro', 'Brazil')).toBe('João Pedro');
+    expect(faceName('Bruno Fernandes', 'Portugal')).toBe('Fernandes');
   });
   it('keeps particles and suffixes with the surname', () => {
     expect(faceName('Virgil van Dijk')).toBe('van Dijk');

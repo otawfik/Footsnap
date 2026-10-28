@@ -174,7 +174,7 @@ export const CONDITIONS: Record<ConditionId, { name: string; text: string; short
   wet: { name: 'Wet pitch', text: 'Cards here cost 1 more to play.', short: 'Costs 1 more here' },
   derby: { name: 'Derby', text: 'The first card each side plays here gets +2 Power.', short: 'First card +2' },
   empty: { name: 'Empty stands', text: 'No card effects work here.', short: 'No effects here' },
-  counter: { name: 'Counter-attack', text: 'From turn 5, a side 4 or more behind here gets +3 Power.', short: 'Behind by 4+: +3 from turn 5' },
+  counter: { name: 'Counter-attack', text: 'From turn 5, a side 4 or more behind here gets +3 Power.', short: '4+ behind: +3 (turn 5+)' },
   neutral: { name: 'Neutral ground', text: 'Nothing special.', short: 'Nothing special' },
 };
 const CONDITION_IDS = Object.keys(CONDITIONS) as ConditionId[];
