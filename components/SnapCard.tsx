@@ -591,19 +591,20 @@ function Front({
   const breakPx = brk ? Math.round(h * 0.075) : 0;
   const depth = look.tier >= 2;
 
-  // place the cut-out so the top of the head sits above the frame (break) or just inside it,
-  // big enough that the photo's bottom edge is always below the window, never a visible line
-  const headY = brk ? -breakPx * 0.85 : ih * 0.06;
-  const headTop = art?.headTop ?? 0.06;
-  const imgH = Math.max(iw * 1.06 * (4 / 3), (ih + 2 - headY) / (1 - headTop));
-  const imgW = (imgH * 3) / 4;
+  // every cut-out is framed the same way (scripts/art/reframe.py: same head size, eyes on the same line), so
+  // one fixed scale keeps every player the same size; the top of the head sits above the frame (break) or just
+  // inside it. Where a photo stopped short the body already fades out, so no edge shows.
+  const headY = brk ? -breakPx * 0.85 : ih * 0.05;
+  const headTop = art?.headTop ?? 0.1;
+  const imgW = iw * 1.08;
+  const imgH = (imgW * 4) / 3;
   const imgTop = headY - headTop * imgH;
   const imgLeft = (iw - imgW) / 2;
   // a shirt card that breaks the frame: lift the shirt so its collar crosses the top edge
   const kitDy = brk ? -(ih * 0.2) - breakPx * 0.8 : 0;
   // the face, in window coordinates: the background's halo and burst centre on it
   const fx = iw / 2;
-  const fy = art ? headY + imgH * 0.17 : ih * 0.3;
+  const fy = art ? imgTop + imgH * 0.36 : ih * 0.3;
 
   // 3D: the player moves against the tilt more than the background does
   const playerMove = useAnimatedStyle(() =>
@@ -615,8 +616,7 @@ function Front({
 
   const frame = look.tier >= 1 ? TIER_FRAME[look.tier] : RARITY_FRAME[card.rarity];
   const cutout = { position: 'absolute' as const, left: imgLeft, top: imgTop, width: imgW, height: imgH };
-  // Premium cards show the poster version of the art, where there is one
-  const src = look.premium && art?.premium ? art.premium : art?.src ?? '';
+  const src = art?.src ?? '';
   const outlinePx = Math.max(1.5, 3.2 * k);
   // a soft shadow cast on the backdrop, so the player stands in the card rather than on it
   const shadow = art ? (
