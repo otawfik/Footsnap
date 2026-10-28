@@ -96,9 +96,11 @@ const SUFFIXES = new Set(['junior', 'júnior', 'jr', 'jr.', 'filho', 'neto', 'so
  * particles ("van Dijk") and with a suffix kept on the word before it ("Vinícius Júnior"). One-word names
  * pass through. The full name is on the back and in the card view.
  */
-export function faceName(name: string): string {
+export function faceName(name: string, nationality?: string | null): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length < 2) return name.trim();
+  // Brazilian and Portuguese players go by short two-part names ("João Pedro", "Rúben Dias")
+  if (parts.length === 2 && name.length <= 11 && (nationality === 'Brazil' || nationality === 'Portugal')) return name.trim();
   let i = parts.length - 1;
   if (SUFFIXES.has(parts[i].toLowerCase()) && i > 0) i -= 1;
   while (i > 1 && PARTICLES.has(parts[i - 1].toLowerCase())) i -= 1;

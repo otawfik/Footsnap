@@ -196,7 +196,7 @@ function SealedPack({ width, leagueName, onTear }: { width: number; leagueName: 
     if (!reduced) sheen.value = withRepeat(withSequence(withTiming(1, { duration: 2600, easing: Easing.inOut(Easing.quad) }), withTiming(1, { duration: 1400 }), withTiming(0, { duration: 0 })), -1);
   }, [sheen, reduced]);
   const st = useAnimatedStyle(() => ({ transform: [{ rotate: `${shake.value * 3}deg` }] }));
-  const h = cardHeight(width) * 1.1;
+  const h = cardHeight(width);
   const crimp = Math.round(h * 0.065);
   const sheenStyle = useAnimatedStyle(() => ({ transform: [{ translateX: interpolate(sheen.value, [0, 1], [-width * 0.8, width * 1.3]) }, { rotate: '18deg' }] }));
   const emblem = width * 0.46;
@@ -210,49 +210,10 @@ function SealedPack({ width, leagueName, onTear }: { width: number; leagueName: 
       accessibilityLabel="Tear open the pack"
     >
       <Animated.View style={[{ width, height: h }, st]}>
-        {/* the foil body */}
-        <View style={[styles.packBody, { top: crimp - 2, bottom: crimp - 2 }]}>
-          <LinearGradient colors={['#21402F', '#0B1610', '#1D3A2A', '#09130D', '#1A3426']} locations={[0, 0.3, 0.55, 0.8, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-          <Svg width={width} height={h} style={StyleSheet.absoluteFill}>
-            <Defs>
-              <RadialGradient id="packGlow" cx="50%" cy="46%" r="55%">
-                <Stop offset="0" stopColor="#F5C451" stopOpacity="0.22" />
-                <Stop offset="1" stopColor="#F5C451" stopOpacity="0" />
-              </RadialGradient>
-            </Defs>
-            <Rect width={width} height={h} fill="url(#packGlow)" />
-            {/* the emblem: centre circle and halfway line, in gold */}
-            <Circle cx={width / 2} cy={h * 0.4} r={emblem / 2} stroke="rgba(245,196,81,0.55)" strokeWidth={2} fill="none" />
-            <Line x1={width * 0.08} y1={h * 0.4} x2={width * 0.92} y2={h * 0.4} stroke="rgba(245,196,81,0.3)" strokeWidth={1.5} />
-            <Circle cx={width / 2} cy={h * 0.4} r={4} fill="#F5C451" />
-          </Svg>
-          <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: -h * 0.2, left: 0, width: width * 0.35, height: h * 1.4 }, sheenStyle]}>
-            <LinearGradient colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.13)', 'rgba(255,255,255,0)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFill} />
-          </Animated.View>
-          {/* tear notch and line, just under the top seal */}
-          <View style={styles.tearRow}>
-            <View style={styles.notch} />
-            <View style={styles.tearLine} />
-          </View>
-          <Text style={styles.packBrand}>FOOTSNAP</Text>
-          <View style={[styles.packCenter, { top: h * 0.4 - crimp - 34 }]}>
-            <Text style={styles.packKicker}>DAILY PACK</Text>
-            <Text style={styles.packTitle} numberOfLines={1} adjustsFontSizeToFit>{leagueName.toUpperCase()}</Text>
-          </View>
-          <View style={styles.packChip}>
-            <Text style={styles.packCount}>{PACK_SIZE} CARDS</Text>
-          </View>
-          <View style={styles.packFoot}>
-            <Ionicons name="hand-left-outline" size={16} color={C.chalk2} />
-            <Text style={styles.packHint}>TAP TO TEAR</Text>
-          </View>
-        </View>
-        <View style={{ position: 'absolute', top: 0 }}>
-          <Crimp width={width} height={crimp} />
-        </View>
-        <View style={{ position: 'absolute', bottom: 0 }}>
-          <Crimp width={width} height={crimp} flip />
-        </View>
+        <CardBack width={width} rim="gold" title={leagueName} subtitle={`${PACK_SIZE} cards`} />
+        <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: -h * 0.2, left: 0, width: width * 0.35, height: h * 1.4, opacity: 0.6 }, sheenStyle]}>
+          <LinearGradient colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.13)', 'rgba(255,255,255,0)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFill} />
+        </Animated.View>
       </Animated.View>
     </Pressable>
   );
@@ -328,7 +289,11 @@ export default function Pack() {
       {loading || !pack.length ? (
         <Text style={T.body}>Shuffling…</Text>
       ) : stage === 'sealed' ? (
-        <SealedPack width={cardW} leagueName={`${bonus ? 'Bonus · ' : ''}${league.nation ?? 'Europe'}`} onTear={tear} />
+        <View style={{ alignItems: 'center', gap: 20 }}>
+        <SealedPack width={Math.min(240, cardW)} leagueName={`${bonus ? 'Bonus · ' : ''}${league.name}`} onTear={tear} />
+          <Text style={[T.small, { textAlign: 'center' }]}>Tap the pack to open · Icon 4% · Gold 12% · Silver 24% · Bronze 60%</Text>
+          <Button label="Open" onPress={tear} />
+        </View>
       ) : stage === 'reveal' && card ? (
         <>
           <Reveal key={card.id} card={card} width={cardW} isNew={isNew(card)} onRevealed={() => setRevealed(true)} competition={league.name} />
@@ -363,7 +328,7 @@ export default function Pack() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center' },
+  wrap: { flex: 1, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   top: { position: 'absolute', top: 54, left: S.lg, right: S.lg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 5 },
   bottom: { position: 'absolute', bottom: 40, left: S.xl, right: S.xl },
   burst: { position: 'absolute', alignSelf: 'center' },

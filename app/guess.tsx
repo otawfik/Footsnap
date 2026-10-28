@@ -167,7 +167,7 @@ export default function Guess() {
             <Animated.View style={[{ width: cardW, height: cardHeight(cardW), marginTop: S.md }, shakeStyle]}>
               <Animated.View style={[styles.burst, { width: cardW * 2, height: cardW * 2, borderRadius: cardW, left: -cardW / 2, top: cardHeight(cardW) / 2 - cardW }, burstStyle]} pointerEvents="none" />
               <Animated.View style={[StyleSheet.absoluteFill, front, { backfaceVisibility: 'hidden' }]}>
-                <Mystery card={p.answer} width={cardW} />
+                <SnapCard card={p.answer} size="full" width={cardW} mystery competition={league.name} />
               </Animated.View>
               <Animated.View style={[StyleSheet.absoluteFill, back, { backfaceVisibility: 'hidden' }]}>
                 <SnapCard card={p.answer} width={cardW} idleShimmer competition={league.name} look={answered?.right ? lookOf({ ...unlockPremium(undefined) }) : lookOf(collection[key]?.[String(p.answer.id)])} />
