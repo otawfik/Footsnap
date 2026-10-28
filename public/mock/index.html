@@ -1,0 +1,1077 @@
+<!doctype html>
+<!--
+  FootSnap redesign mock (static). Spec: docs/redesign/SPEC.md.
+  SAMPLE DATA: player stats, table positions, fixtures and model percentages were pulled from
+  football-data.org through the FootSnap proxy on 28 Oct 2026 and run through the app's own lib/
+  (cards.ts, game.ts, model.ts). Picks, credits, collection level and the duel state are invented
+  sample UI state, not real records. Photos: Wikimedia Commons cut-outs from public/art (credited in-app).
+-->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FootSnap Redesign Mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>:root{
+  --bg:#0A0A0C; --surface:#141417; --raised:#1D1D21; --hair:#26262B; --hair2:#3A3A41;
+  --text:#F4F4F6; --text2:#A6A6AF; --text3:#8A8A94;
+  --accent:#2C64E8; --accentText:#6F9DFF; --accentSoft:rgba(44,100,232,.16);
+  --win:#3DD68C; --loss:#FF6B6B; --live:#FF5247; --gold:#E9C46A;
+  color-scheme: dark;
+}
+@property --mx{syntax:'<number>';inherits:true;initial-value:50}
+@property --my{syntax:'<number>';inherits:true;initial-value:50}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:#050506}
+body{background:#050506;color:var(--text);font:400 15px/1.4 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;font-feature-settings:'cv11','ss01'}
+b{font-weight:600} i{font-style:normal}
+main{max-width:1640px;margin:0 auto;padding:56px 32px 96px}
+.pagehead{max-width:640px;margin-bottom:56px}
+.brand{display:flex;align-items:center;gap:10px;font:700 15px Inter;letter-spacing:-.01em;color:var(--text2)}
+.logo{width:22px;height:30px;background:linear-gradient(135deg,#FFF3C4,#B08A3E 30%,#FBE39A 55%,#8F6A26 80%);-webkit-mask:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20300%20420'%20preserveAspectRatio%3D'none'%3E%3Cpath%20d%3D'M%2015.76%204.24%20Q%2020%200%2026%200%20L%20274%200%20Q%20280%200%20284.24%204.24%20L%20295.76%2015.76%20Q%20300%2020%20300%2026%20L%20300%20382%20Q%20300%20388%20294.13%20389.25%20L%20155.87%20418.75%20Q%20150%20420%20144.13%20418.75%20L%205.87%20389.25%20Q%200%20388%200%20382%20L%200%2026%20Q%200%2020%204.24%2015.76%20Z'%2F%3E%3C%2Fsvg%3E") 0 0/100% 100% no-repeat;mask:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20300%20420'%20preserveAspectRatio%3D'none'%3E%3Cpath%20d%3D'M%2015.76%204.24%20Q%2020%200%2026%200%20L%20274%200%20Q%20280%200%20284.24%204.24%20L%20295.76%2015.76%20Q%20300%2020%20300%2026%20L%20300%20382%20Q%20300%20388%20294.13%20389.25%20L%20155.87%20418.75%20Q%20150%20420%20144.13%20418.75%20L%205.87%20389.25%20Q%200%20388%200%20382%20L%200%2026%20Q%200%2020%204.24%2015.76%20Z'%2F%3E%3C%2Fsvg%3E") 0 0/100% 100% no-repeat}
+.pagehead h1{font:800 44px/1.05 Inter;letter-spacing:-.035em;margin:14px 0 12px}
+.pagehead p,.sub{color:var(--text2);font-size:16px;line-height:1.5}
+.showcase{margin-bottom:88px}
+.showcase>h2{font:700 24px Inter;letter-spacing:-.02em;margin-bottom:6px}
+.sub{margin-bottom:28px}
+.lineup{display:flex;flex-wrap:wrap;gap:40px 36px;margin:0 0 48px;padding-top:24px}
+.lineup figure{display:flex;flex-direction:column;align-items:center;gap:18px}
+.lineup figcaption,.device figcaption{font:500 13px Inter;color:var(--text3)}
+.sizes{justify-content:flex-end}
+.sizerow{display:flex;align-items:flex-end;gap:18px;margin-bottom:18px}
+.devices{display:flex;flex-wrap:wrap;gap:56px 40px}
+.device{display:flex;flex-direction:column;align-items:center;gap:16px}
+
+/* ================================================================ the card */
+.fc{--w:300px;width:var(--w);aspect-ratio:300/420;position:relative;container-type:inline-size;flex:none;user-select:none;-webkit-user-select:none;touch-action:none}
+.fc .tilt{position:absolute;inset:0}
+.fc.tiltable .tilt{transform:perspective(1100px) rotateY(calc((var(--mx) - 50) * .2deg)) rotateX(calc((50 - var(--my)) * .2deg));transition:transform .6s cubic-bezier(.2,.8,.2,1)}
+.fc.tiltable{animation:idle 7s ease-in-out infinite}
+.fc.tiltable.live{animation:none}
+.fc.tiltable.live .tilt{transition:transform .06s linear}
+@keyframes idle{0%{--mx:24;--my:38}50%{--mx:76;--my:62}100%{--mx:24;--my:38}}
+.fc svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.fc svg.frame{filter:drop-shadow(0 2.4cqw 4.5cqw rgba(0,0,0,.6))}
+.s-board svg.frame,.s-hand svg.frame{filter:drop-shadow(0 1cqw 2cqw rgba(0,0,0,.6))}
+.fc .edge{stroke:rgba(0,0,0,.6);stroke-width:1;vector-effect:non-scaling-stroke}
+.fc .facefill{fill:var(--faceMid)}
+.fc .inedge{stroke:rgba(0,0,0,.7);stroke-width:1;vector-effect:non-scaling-stroke}
+.fc svg.hair path:first-child{stroke-width:.8;vector-effect:non-scaling-stroke;opacity:.55}
+.s-board svg.hair path:first-child,.s-hand svg.hair path:first-child{opacity:0}
+.fc .face{position:absolute;inset:0;-webkit-mask:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20300%20420'%20preserveAspectRatio%3D'none'%3E%3Cpath%20d%3D'M%2020.07%209.83%20Q%2022.9%207%2026.9%207%20L%20273.1%207%20Q%20277.1%207%20279.93%209.83%20L%20290.17%2020.07%20Q%20293%2022.9%20293%2026.9%20L%20293%20378.34%20Q%20293%20382.34%20289.09%20383.17%20L%20153.91%20412.01%20Q%20150%20412.84%20146.09%20412.01%20L%2010.91%20383.17%20Q%207%20382.34%207%20378.34%20L%207%2026.9%20Q%207%2022.9%209.83%2020.07%20Z'%2F%3E%3C%2Fsvg%3E") 0 0/100% 100% no-repeat;mask:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20300%20420'%20preserveAspectRatio%3D'none'%3E%3Cpath%20d%3D'M%2020.07%209.83%20Q%2022.9%207%2026.9%207%20L%20273.1%207%20Q%20277.1%207%20279.93%209.83%20L%20290.17%2020.07%20Q%20293%2022.9%20293%2026.9%20L%20293%20378.34%20Q%20293%20382.34%20289.09%20383.17%20L%20153.91%20412.01%20Q%20150%20412.84%20146.09%20412.01%20L%2010.91%20383.17%20Q%207%20382.34%207%20378.34%20L%207%2026.9%20Q%207%2022.9%209.83%2020.07%20Z'%2F%3E%3C%2Fsvg%3E") 0 0/100% 100% no-repeat;overflow:hidden}
+.fc .bg{position:absolute;inset:0;background:
+  radial-gradient(34cqw 32cqw at 58% 27%, rgba(var(--glow),var(--ga)), rgba(var(--glow),calc(var(--ga) * .35)) 45%, rgba(var(--glow),0) 100%),
+  radial-gradient(110cqw 30cqw at 50% -4%, rgba(var(--glow),calc(var(--ga) * .4)), transparent 70%),
+  radial-gradient(70cqw 34cqw at 0% 100%, color-mix(in srgb, var(--c1) 16%, transparent), transparent 70%),
+  linear-gradient(180deg, var(--faceTop) 0%, var(--faceMid) 52%, var(--faceBot) 100%)}
+.fc .bg::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(118deg, rgba(255,255,255,.03) 0 .22cqw, transparent .22cqw 1.25cqw);-webkit-mask-image:radial-gradient(70cqw 60cqw at 58% 30%, #000, transparent 75%);mask-image:radial-gradient(70cqw 60cqw at 58% 30%, #000, transparent 75%)}
+.fc .vig{position:absolute;inset:0;background:linear-gradient(180deg, transparent 58%, rgba(0,0,0,.42) 72%, rgba(0,0,0,.62) 100%), radial-gradient(130% 90% at 50% 34%, transparent 60%, rgba(0,0,0,.4))}
+
+/* metals */
+.m-common{--faceTop:#2E1C11;--faceMid:#150E0A;--faceBot:#0B0705;--glow:222,150,96;--ga:.26;--ink:#EDC29C;--ink2:rgba(237,194,156,.8);--nameC:#FBE7D6;--statC:#FFF3E8;--lineC:rgba(215,155,105,.6);
+  --metalCss:linear-gradient(135deg,#F3C9A0,#9A5E37 22%,#E7AF80 42%,#7A4527 58%,#D59A6A 78%,#6B3B21);--numeral:linear-gradient(180deg,#FFE2C6 0%,#E3A877 46%,#B5703F 54%,#F5C79F 100%)}
+.m-rare{--faceTop:#20252B;--faceMid:#0F1114;--faceBot:#08090B;--glow:205,215,228;--ga:.2;--ink:#D3D9E0;--ink2:rgba(211,217,224,.8);--nameC:#FFFFFF;--statC:#FFFFFF;--lineC:rgba(200,208,218,.55);
+  --metalCss:linear-gradient(135deg,#FFFFFF,#8E959D 22%,#EEF1F4 42%,#6F767E 58%,#D9DDE2 78%,#5D636B);--numeral:linear-gradient(180deg,#FFFFFF 0%,#DDE2E7 46%,#9AA2AB 54%,#F1F4F7 100%)}
+.m-elite{--faceTop:#2C2010;--faceMid:#120E08;--faceBot:#0A0805;--glow:240,196,100;--ga:.28;--ink:#EFD48B;--ink2:rgba(239,212,139,.8);--nameC:#FBEBC0;--statC:#FFF8E6;--lineC:rgba(230,195,110,.6);
+  --metalCss:linear-gradient(135deg,#FFF3C4,#B08A3E 22%,#FBE39A 42%,#8F6A26 58%,#EBCB78 78%,#7C5A1E);--numeral:linear-gradient(180deg,#FFF4CF 0%,#F1D27E 46%,#B98A2E 54%,#FBE6A6 100%)}
+.m-icon{--faceTop:#1F1E36;--faceMid:#0E0E16;--faceBot:#08080D;--glow:200,210,255;--ga:.24;--ink:#DCDAF2;--ink2:rgba(220,218,242,.8);--nameC:#FFFFFF;--statC:#FFFFFF;--lineC:rgba(214,210,240,.55);
+  --metalCss:linear-gradient(135deg,#FFFFFF,#B9B4CC 20%,#F7F4FF 38%,#A6B9C8 54%,#FFF6E2 70%,#9C98B4 86%,#EDEAF7);--numeral:linear-gradient(180deg,#FFFFFF 0%,#EEEBFF 46%,#B7B3D2 54%,#FFFFFF 100%)}
+.m-legend{--faceTop:#17130B;--faceMid:#08080A;--faceBot:#050506;--glow:236,196,110;--ga:.2;--ink:#EFD48B;--ink2:rgba(239,212,139,.85);--nameC:#FBEBC0;--statC:#FFF8E6;--lineC:rgba(230,195,110,.7);
+  --metalCss:linear-gradient(135deg,#3A3A3E,#0B0B0C 22%,#2B2B2F 42%,#050505 58%,#26262A 78%,#0A0A0B);--numeral:linear-gradient(180deg,#FFF4CF 0%,#F1D27E 46%,#B98A2E 54%,#FBE6A6 100%)}
+.m-legend svg.hair path:first-child{stroke:#E9C46A;opacity:.9}
+.m-legend .inedge{stroke:#B98A2E;stroke-width:1.2}
+
+/* photo */
+.fc .photo img{position:absolute;display:block;height:auto;pointer-events:none;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 9%,#000 100%),linear-gradient(180deg,#000 57%,transparent 80%);-webkit-mask-composite:source-in;
+  mask-image:linear-gradient(90deg,transparent 0,#000 9%,#000 100%),linear-gradient(180deg,#000 57%,transparent 80%);mask-composite:intersect}
+.s-full .photo img{width:86cqw;left:15cqw;top:3.2cqw}
+.s-full.bo .photo img{width:100cqw;left:8cqw;top:calc(-3cqw - var(--ht) * 133.33cqw)}
+.fc .breakout{position:absolute;inset:0;clip-path:inset(-40cqw -10cqw 135.6cqw -10cqw)}
+.fc .breakout img{-webkit-mask-image:none;mask-image:none}
+.s-grid .photo img,.s-hand .photo img{width:112cqw;left:-1cqw;top:-11cqw}
+.s-board .photo img{width:150cqw;left:-25cqw;top:-24cqw}
+
+/* no photo: kit sash + engraved medallion */
+.fc .mono{position:absolute;inset:0}
+.fc .sash{position:absolute;left:-40cqw;width:180cqw;top:31cqw;height:30cqw;transform:rotate(-28deg);
+  background:linear-gradient(180deg,var(--c2) 0 1.6%,transparent 1.6% 5.5%,var(--c1) 5.5% 94.5%,transparent 94.5% 98.4%,var(--c2) 98.4%);opacity:.5;
+  -webkit-mask-image:linear-gradient(90deg,transparent 8%,#000 34%,#000 66%,transparent 92%);mask-image:linear-gradient(90deg,transparent 8%,#000 34%,#000 66%,transparent 92%)}
+.fc .rings{position:absolute;left:calc(56cqw - 25cqw);top:calc(44cqw - 25cqw);width:50cqw;height:50cqw;border-radius:50%;
+  background:repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,.07) 0 .2cqw, transparent .2cqw 1.05cqw), radial-gradient(circle at 50% 40%, var(--faceTop), var(--faceBot));
+  box-shadow:inset 0 0 0 .55cqw rgba(0,0,0,.55), 0 0 0 .7cqw rgba(0,0,0,.35), 0 2cqw 5cqw rgba(0,0,0,.55)}
+.fc .rings::before{content:'';position:absolute;inset:-1.4cqw;border-radius:50%;padding:.9cqw;background:var(--metalCss);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+.fc .letter{position:absolute;left:calc(56cqw - 25cqw);top:calc(44cqw - 25cqw);width:50cqw;height:50cqw;display:grid;place-items:center}
+.fc .letter span{font:800 29cqw/1 'Inter Tight';letter-spacing:-.04em;background:var(--numeral);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 .5cqw .5cqw rgba(0,0,0,.7)) drop-shadow(0 -.2cqw 0 rgba(255,255,255,.12));transform:translateY(-1cqw)}
+.s-grid .rings,.s-grid .letter,.s-hand .rings,.s-hand .letter{left:calc(55cqw - 31cqw);top:calc(50cqw - 31cqw);width:62cqw;height:62cqw}
+.s-grid .letter span,.s-hand .letter span{font-size:36cqw}
+.s-grid .sash,.s-hand .sash{top:40cqw}
+.s-board .rings{display:none}
+.s-board .letter{left:0;top:4cqw;width:100cqw;height:80cqw}
+.s-board .letter span{font-size:58cqw}
+.s-board .sash{top:34cqw;height:36cqw}
+
+/* type: full */
+.fc .type{position:absolute;inset:0;pointer-events:none}
+.fc .pwr{font:800 16cqw/.86 'Inter Tight';letter-spacing:-.05em;font-variant-numeric:tabular-nums lining-nums;background:var(--numeral);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 .35cqw .45cqw rgba(0,0,0,.6))}
+.s-full .col{position:absolute;left:5.5cqw;top:8.5cqw;width:21cqw;display:flex;flex-direction:column;align-items:center}
+.s-full .pos{margin-top:1.6cqw;font:800 4.4cqw/1 'Inter Tight';letter-spacing:.1em;color:var(--ink)}
+.s-full .rule{width:8cqw;height:.32cqw;background:var(--lineC);margin:2.6cqw 0 2.4cqw}
+.s-full .nat{font:600 3.6cqw/1 Inter;letter-spacing:.14em;color:var(--ink2)}
+.s-full .kitdot{width:6.4cqw;aspect-ratio:1;border-radius:50%;margin-top:3cqw;background:linear-gradient(135deg,var(--c1) 50%,var(--c2) 50%);box-shadow:0 0 0 .5cqw rgba(0,0,0,.45),0 0 0 .9cqw var(--lineC)}
+.s-full .tla{margin-top:1.8cqw;font:700 3.3cqw/1 Inter;letter-spacing:.14em;color:var(--ink2)}
+.fc .cost{position:absolute;border-radius:50%;background:var(--metalCss);padding:.95cqw;box-shadow:0 1cqw 2.4cqw rgba(0,0,0,.5)}
+.fc .cost span{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;
+  background:radial-gradient(circle at 34% 28%,#8DB3FF 0,#2C64E8 40%,#2350C8 74%,#17337F 100%);
+  box-shadow:inset 0 .45cqw .6cqw rgba(255,255,255,.4),inset 0 -.7cqw 1.2cqw rgba(0,0,0,.35);
+  color:#fff;font:800 7.2cqw/1 'Inter Tight';font-variant-numeric:tabular-nums;text-shadow:0 .3cqw .6cqw rgba(0,10,60,.55)}
+.s-full .cost{right:6cqw;top:7.5cqw;width:13cqw;height:13cqw}
+.s-full .name{position:absolute;left:4cqw;right:4cqw;top:95.5cqw;text-align:center;font:800 8.6cqw/1 'Inter Tight';letter-spacing:.01em;text-transform:uppercase;color:var(--nameC);text-shadow:0 .4cqw 1.4cqw rgba(0,0,0,.7);white-space:nowrap}
+.s-full .nrule{position:absolute;left:14cqw;right:14cqw;top:106.6cqw;height:.3cqw;background:linear-gradient(90deg,transparent,var(--lineC) 20%,var(--lineC) 80%,transparent)}
+.s-full .stats{position:absolute;left:9cqw;right:9cqw;top:110.2cqw;display:grid;grid-template-columns:repeat(4,1fr)}
+.s-full .stats div{display:flex;flex-direction:column;align-items:center;gap:1.1cqw;position:relative}
+.s-full .stats div+div::before{content:'';position:absolute;left:0;top:8%;bottom:8%;width:.25cqw;background:var(--lineC);opacity:.45}
+.s-full .stats b{font:700 6.4cqw/1 'Inter Tight';color:var(--statC);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.s-full .stats i{font:600 2.55cqw/1 Inter;letter-spacing:.16em;color:var(--ink2)}
+.s-full .trait{position:absolute;left:12cqw;right:12cqw;top:110cqw;text-align:center;display:flex;flex-direction:column;gap:1.4cqw}
+.s-full .trait i{font:600 2.55cqw/1 Inter;letter-spacing:.16em;text-transform:uppercase;color:var(--ink2)}
+.s-full .trait span{font:500 3.7cqw/1.3 Inter;color:var(--statC)}
+.s-full .foot{position:absolute;left:0;right:0;top:127.4cqw;text-align:center;font:600 2.2cqw/1 Inter;letter-spacing:.24em;text-transform:uppercase;color:var(--ink2);opacity:.7}
+
+/* type: grid / hand / board */
+.s-grid .pwr,.s-hand .pwr{position:absolute;left:7cqw;top:7cqw;font-size:22cqw}
+.s-grid .cost,.s-hand .cost{right:6cqw;top:6.5cqw;width:21cqw;height:21cqw;padding:1.3cqw}
+.s-grid .cost span,.s-hand .cost span{font-size:12cqw}
+.s-grid .name{position:absolute;left:5cqw;right:5cqw;top:107cqw;text-align:center;font:800 11.2cqw/1 'Inter Tight';text-transform:uppercase;letter-spacing:.01em;color:var(--nameC);white-space:nowrap;overflow:hidden;text-overflow:clip;text-shadow:0 .6cqw 2cqw rgba(0,0,0,.7)}
+.s-grid .name::after{content:'';display:block;margin:4.2cqw auto 0;width:22cqw;height:.9cqw;border-radius:1cqw;background:var(--metalCss);opacity:.85}
+.s-board .bpwr{position:absolute;left:0;right:0;bottom:12cqw;text-align:center;font:800 40cqw/1 'Inter Tight';color:#fff;font-variant-numeric:tabular-nums;letter-spacing:-.04em;text-shadow:0 1cqw 4cqw rgba(0,0,0,.9)}
+.s-board.np .bpwr{bottom:10cqw}
+.s-board.np .letter span{opacity:.55}
+
+/* finishes */
+.fc .sheen,.fc .holo,.fc .glare,.fc .dimmer{position:absolute;inset:0;pointer-events:none;-webkit-mask:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20300%20420'%20preserveAspectRatio%3D'none'%3E%3Cpath%20d%3D'M%2015.76%204.24%20Q%2020%200%2026%200%20L%20274%200%20Q%20280%200%20284.24%204.24%20L%20295.76%2015.76%20Q%20300%2020%20300%2026%20L%20300%20382%20Q%20300%20388%20294.13%20389.25%20L%20155.87%20418.75%20Q%20150%20420%20144.13%20418.75%20L%205.87%20389.25%20Q%200%20388%200%20382%20L%200%2026%20Q%200%2020%204.24%2015.76%20Z'%2F%3E%3C%2Fsvg%3E") 0 0/100% 100% no-repeat;mask:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20300%20420'%20preserveAspectRatio%3D'none'%3E%3Cpath%20d%3D'M%2015.76%204.24%20Q%2020%200%2026%200%20L%20274%200%20Q%20280%200%20284.24%204.24%20L%20295.76%2015.76%20Q%20300%2020%20300%2026%20L%20300%20382%20Q%20300%20388%20294.13%20389.25%20L%20155.87%20418.75%20Q%20150%20420%20144.13%20418.75%20L%205.87%20389.25%20Q%200%20388%200%20382%20L%200%2026%20Q%200%2020%204.24%2015.76%20Z'%2F%3E%3C%2Fsvg%3E") 0 0/100% 100% no-repeat}
+.fc .sheen{background:linear-gradient(112deg,transparent calc(var(--mx) * 1% - 34%),rgba(255,255,255,.26) calc(var(--mx) * 1% - 8%),rgba(255,255,255,.08) calc(var(--mx) * 1% + 2%),transparent calc(var(--mx) * 1% + 18%));mix-blend-mode:soft-light}
+.fc .holo{opacity:.2;mix-blend-mode:color-dodge;background:linear-gradient(115deg,rgba(255,0,128,0) 0%,rgba(255,90,170,.9) 18%,rgba(255,214,100,.9) 32%,rgba(110,255,210,.9) 47%,rgba(90,160,255,.9) 62%,rgba(200,110,255,.9) 78%,rgba(255,0,128,0) 100%);background-size:260% 260%;background-position:calc(var(--mx) * 1%) calc(var(--my) * 1%)}
+.m-elite .holo,.m-legend .holo{opacity:.32;mix-blend-mode:overlay;background:linear-gradient(115deg,transparent 0 30%,rgba(255,236,170,.9) 42%,rgba(255,255,255,.7) 46%,rgba(255,236,170,.9) 50%,transparent 62%),repeating-linear-gradient(60deg,rgba(255,230,160,.0) 0 2cqw,rgba(255,230,160,.25) 2cqw 2.3cqw);background-size:260% 260%,100% 100%;background-position:calc(var(--mx) * 1%) 50%,0 0}
+.m-icon .holo{opacity:.16;mix-blend-mode:overlay;background:linear-gradient(115deg,rgba(255,255,255,0) 0%,rgba(255,200,230,.9) 22%,rgba(255,240,200,.9) 36%,rgba(200,255,240,.9) 50%,rgba(200,215,255,.9) 64%,rgba(235,205,255,.9) 78%,rgba(255,255,255,0) 100%);background-size:240% 240%;background-position:calc(var(--mx) * 1%) calc(var(--my) * 1%)}
+.f-prism .holo{opacity:.26}
+.fc .glare{background:radial-gradient(70cqw 70cqw at calc(var(--mx) * 1%) calc(var(--my) * 1%),rgba(255,255,255,.18),transparent 62%);mix-blend-mode:overlay;opacity:0}
+.fc.tiltable .glare{opacity:1}
+.fc .dimmer{background:rgba(10,10,12,.62)}
+.fc.dim .photo img,.fc.dim .mono{filter:grayscale(1)}
+.fc.pending .tilt{opacity:.75;filter:drop-shadow(0 0 3px var(--accentText))}
+.fc.cant .cost span{background:radial-gradient(circle at 34% 28%,#6a6f7a,#3d414a 60%,#25282e);color:rgba(255,255,255,.7)}
+
+/* ================================================================ the phone */
+.phone{width:min(393px,calc(100vw - 24px));height:852px;border-radius:55px;background:var(--bg);position:relative;overflow:hidden;
+  box-shadow:0 0 0 1px #2C2C31,0 0 0 8px #0F0F11,0 0 0 9.5px #2C2C31,0 40px 90px rgba(0,0,0,.7)}
+.status{height:54px;display:flex;align-items:center;justify-content:space-between;padding:6px 30px 0 46px;font:600 16px Inter;position:relative;z-index:5}
+.island{position:absolute;left:50%;top:11px;width:124px;height:36px;margin-left:-62px;border-radius:20px;background:#000}
+.sicons{display:flex;gap:7px;align-items:center}
+.scroll{height:calc(852px - 54px - 83px);overflow:hidden;padding:0 20px}
+.ic{flex:none;display:block}
+
+.large{display:flex;justify-content:space-between;align-items:flex-end;padding:10px 0 20px}
+.large h1{font:800 32px/1.15 Inter;letter-spacing:-.025em}
+.date{font:500 13px Inter;color:var(--text3);margin-bottom:2px}
+.hright{display:flex;align-items:center;gap:10px;padding-bottom:4px}
+.credits{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px 0 8px;border-radius:999px;background:var(--raised);font:600 14px Inter;font-variant-numeric:tabular-nums}
+.coin{width:15px;height:15px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#FFF0B8,#E9C46A 45%,#A9822F);box-shadow:inset 0 0 0 1.5px rgba(120,80,20,.5)}
+.avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#2A2A30;font:600 13px Inter;color:var(--text)}
+.avatar.sm{width:22px;height:22px;font-size:9.5px;margin-right:8px}
+.league{display:inline-flex;align-items:center;gap:4px;background:none;border:0;color:var(--text2);font:500 13px Inter;margin-bottom:2px}
+.muted{color:var(--text3)}
+
+.sec{padding:8px 0 20px}
+.sec.tight{padding:4px 0 22px}
+.sechead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.sechead h2{font:700 20px Inter;letter-spacing:-.02em}
+.sechead a{display:inline-flex;align-items:center;gap:2px;color:var(--accentText);font:500 14px Inter}
+.overline{display:flex;justify-content:space-between;font:600 12px Inter;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:12px}
+.free{letter-spacing:.02em;text-transform:none;font-weight:500}
+
+.kit{--s:20px;width:var(--s);height:var(--s);border-radius:50%;flex:none;display:inline-block;background:linear-gradient(135deg,var(--c1) 50%,var(--c2) 50%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 0 0 1px rgba(0,0,0,.4)}
+.kit.draw{background:transparent;box-shadow:inset 0 0 0 1.5px var(--hair2)}
+
+.mblock{padding:12px 0 14px;border-bottom:1px solid var(--hair)}
+.mmeta{display:flex;justify-content:space-between;font:500 13px Inter;color:var(--text3);margin-bottom:6px}
+.out{display:grid;grid-template-columns:20px 1fr 64px;grid-template-rows:auto 3px;column-gap:12px;align-items:center;padding:7px 0}
+.out .kit{grid-row:1/3}
+.oname{font:500 16px Inter;letter-spacing:-.01em}
+.obar{grid-column:2;grid-row:2;height:3px;border-radius:2px;background:var(--raised);overflow:hidden;margin-top:6px}
+.obar i{display:block;height:100%;background:var(--hair2);border-radius:2px}
+.out.lead .obar i{background:var(--text2)}
+.out.picked .obar i{background:var(--accentText)}
+.opill{grid-column:3;grid-row:1/3;justify-self:end;display:inline-flex;align-items:center;justify-content:center;gap:3px;min-width:64px;height:36px;border-radius:10px;background:var(--raised);font:600 15px Inter;font-variant-numeric:tabular-nums;color:var(--text)}
+.out.picked .opill{background:var(--accent);color:#fff}
+.mfoot{display:flex;justify-content:space-between;font:500 13px Inter;color:var(--text3);margin-top:6px}
+.mfoot .mine{color:var(--accentText)}
+
+.packrow{display:flex;align-items:center;gap:14px;padding:14px 14px;margin:6px 0 20px;border-radius:16px;background:var(--surface)}
+.minipack{width:34px;height:46px;flex:none;border-radius:5px;position:relative;overflow:hidden;background:linear-gradient(135deg,#FFF3C4,#B08A3E 25%,#FBE39A 48%,#8F6A26 72%,#EBCB78);box-shadow:0 4px 10px rgba(0,0,0,.4)}
+.minipack i{position:absolute;inset:4px 4px;border-radius:2px;background:linear-gradient(180deg,#1A1710,#0C0B08);box-shadow:inset 0 0 0 .5px rgba(255,230,160,.5)}
+.minipack i::after{content:'';position:absolute;left:50%;top:50%;width:9px;height:12px;margin:-6px 0 0 -4.5px;background:linear-gradient(135deg,#FFF3C4,#B08A3E 50%,#FBE39A);-webkit-mask:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20300%20420'%20preserveAspectRatio%3D'none'%3E%3Cpath%20d%3D'M%2015.76%204.24%20Q%2020%200%2026%200%20L%20274%200%20Q%20280%200%20284.24%204.24%20L%20295.76%2015.76%20Q%20300%2020%20300%2026%20L%20300%20382%20Q%20300%20388%20294.13%20389.25%20L%20155.87%20418.75%20Q%20150%20420%20144.13%20418.75%20L%205.87%20389.25%20Q%200%20388%200%20382%20L%200%2026%20Q%200%2020%204.24%2015.76%20Z'%2F%3E%3C%2Fsvg%3E") 0 0/100% 100%;mask:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20300%20420'%20preserveAspectRatio%3D'none'%3E%3Cpath%20d%3D'M%2015.76%204.24%20Q%2020%200%2026%200%20L%20274%200%20Q%20280%200%20284.24%204.24%20L%20295.76%2015.76%20Q%20300%2020%20300%2026%20L%20300%20382%20Q%20300%20388%20294.13%20389.25%20L%20155.87%20418.75%20Q%20150%20420%20144.13%20418.75%20L%205.87%20389.25%20Q%200%20388%200%20382%20L%200%2026%20Q%200%2020%204.24%2015.76%20Z'%2F%3E%3C%2Fsvg%3E") 0 0/100% 100%}
+.pr-text{flex:1;display:flex;flex-direction:column;gap:2px}
+.pr-text b{font:600 16px Inter}
+.pr-text span{font:400 13px Inter;color:var(--text3)}
+.btn{display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 20px;border-radius:12px;background:var(--accent);color:#fff;font:600 15px Inter;white-space:nowrap}
+.btn.sm{height:34px;padding:0 16px;border-radius:999px;font-size:14px}
+.btn.ghost{background:var(--raised);color:var(--text)}
+.btn.wide{flex:1}
+
+.score3{display:grid;grid-template-columns:repeat(3,1fr);padding:8px 0 14px;border-bottom:1px solid var(--hair)}
+.score3 div{display:flex;flex-direction:column;gap:2px}
+.score3 b{font:700 28px/1.1 Inter;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.score3 em{font-style:normal;color:var(--text3);font-size:17px;font-weight:600}
+.score3 i{font:500 13px Inter;color:var(--text3)}
+.crow{display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--hair)}
+.cteams{display:flex;flex-direction:column;gap:7px;font:500 15px Inter}
+.cteams div{display:flex;align-items:center;gap:10px}
+.ctime{font:500 13px Inter;color:var(--text3);font-variant-numeric:tabular-nums}
+.cprobs{display:flex;gap:6px}
+.cp{display:flex;flex-direction:column;align-items:center;justify-content:center;width:44px;height:46px;border-radius:10px;background:var(--surface)}
+.cp b{font:600 15px Inter;font-variant-numeric:tabular-nums;color:var(--text2)}
+.cp i{font:600 10.5px Inter;color:var(--text3);margin-top:1px}
+.cp.top{background:var(--raised)}
+.cp.top b{color:var(--text)}
+
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:83px;display:flex;padding:7px 12px 0;background:rgba(14,14,16,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--hair)}
+.tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--text3);font:500 10.5px Inter}
+.tabbar a.on{color:var(--text)}
+.homebar{position:absolute;left:50%;bottom:8px;width:134px;height:5px;margin-left:-67px;border-radius:3px;background:#F4F4F6}
+
+/* match */
+.phone .scroll:has(.navbar){height:calc(852px - 54px);}
+.navbar{display:flex;align-items:center;justify-content:space-between;height:44px;color:var(--text)}
+.navtitle{font:600 15px Inter;color:var(--text2)}
+.mhero{display:grid;grid-template-columns:1fr auto 1fr;align-items:start;padding:18px 0 26px;text-align:center}
+.team{display:flex;flex-direction:column;align-items:center;gap:6px}
+.team .kit{margin-bottom:6px}
+.team b{font:700 17px Inter;letter-spacing:-.01em}
+.team i,.ko i{font:500 13px Inter;color:var(--text3)}
+.ko{display:flex;flex-direction:column;gap:2px;padding-top:6px}
+.ko b{font:700 26px Inter;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.bigprobs{display:grid;grid-template-columns:repeat(3,1fr)}
+.bigprobs div{display:flex;flex-direction:column;gap:2px}
+.bigprobs div:nth-child(2){align-items:center}.bigprobs div:nth-child(3){align-items:flex-end}
+.bigprobs b{font:700 40px/1.05 Inter;letter-spacing:-.045em;font-variant-numeric:tabular-nums;color:var(--text2)}
+.bigprobs em{font-style:normal;font-size:22px;letter-spacing:-.02em;margin-left:1px}
+.bigprobs .lead b{color:var(--text)}
+.bigprobs i{font:500 13px Inter;color:var(--text3)}
+.probbar{display:flex;gap:3px;height:6px;margin:14px 0 14px}
+.probbar i{border-radius:3px;background:var(--hair2)}
+.probbar i.lead{background:var(--accent)}
+.xg{display:flex;justify-content:space-between;font:500 14px Inter;color:var(--text3);padding-top:12px;border-top:1px solid var(--hair)}
+.xg b{color:var(--text);font-variant-numeric:tabular-nums}
+.seg3{display:grid;grid-template-columns:repeat(3,1fr);padding:3px;border-radius:12px;background:var(--raised);gap:3px}
+.seg3 span{height:40px;display:grid;place-items:center;border-radius:9px;font:600 15px Inter;color:var(--text2)}
+.seg3 .on{background:var(--accent);color:#fff}
+.press{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 0 0}
+.press div{display:flex;flex-direction:column;gap:2px}
+.press b{font:600 15px Inter}
+.press span{font:400 13px Inter;color:var(--text3)}
+.switch{width:51px;height:31px;border-radius:16px;background:var(--hair2);position:relative;flex:none}
+.switch i{position:absolute;left:2px;top:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.3)}
+.scores{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.scores div{display:flex;flex-direction:column;align-items:center;gap:6px}
+.scores b{font:600 15px Inter;font-variant-numeric:tabular-nums}
+.sbar{width:100%;height:44px;border-radius:8px;background:var(--surface);display:flex;align-items:flex-end;overflow:hidden}
+.sbar i{display:block;width:100%;background:var(--hair2)}
+.scores .top .sbar i{background:var(--accent)}
+.scores div>i{font:500 13px Inter;color:var(--text3);font-variant-numeric:tabular-nums}
+.formrow{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font:500 15px Inter}
+.formrow>span:first-child{display:flex;align-items:center;gap:10px}
+.form{display:flex;gap:4px}
+.form i{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;font:700 11px Inter;background:var(--raised);color:var(--text2)}
+.form i.W{background:rgba(61,214,140,.14);color:var(--win)}
+.form i.L{background:rgba(255,107,107,.14);color:var(--loss)}
+.fine{font:400 13px/1.45 Inter;color:var(--text3);padding:4px 0 24px}
+
+/* cards tab */
+.level{padding:2px 0 18px}
+.lv-top,.lv-bot{display:flex;justify-content:space-between;font:500 14px Inter}
+.lv-top b{font-weight:700}
+.lv-bot{font-size:13px;color:var(--text3)}
+.lvbar{height:4px;border-radius:2px;background:var(--raised);margin:10px 0 8px;overflow:hidden}
+.lvbar i{display:block;height:100%;background:var(--accent);border-radius:2px}
+.actions2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+.actions2 a{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;background:var(--surface)}
+.actions2 a span:last-child{display:flex;flex-direction:column;gap:1px}
+.actions2 b{font:600 15px Inter}
+.actions2 i{font:500 12.5px Inter;color:var(--text3)}
+.actions2 .minipack{width:28px;height:38px}
+.qmark{width:28px;height:38px;flex:none;border-radius:5px;display:grid;place-items:center;background:var(--raised);font:800 18px 'Inter Tight';color:var(--text2);box-shadow:inset 0 0 0 1px var(--hair2)}
+.filters{display:flex;gap:6px;margin-bottom:16px;overflow:hidden}
+.filters span{height:32px;padding:0 14px;display:grid;place-items:center;border-radius:999px;background:var(--surface);font:500 14px Inter;color:var(--text2);white-space:nowrap}
+.filters .on{background:var(--text);color:var(--bg);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 10px}
+.grid .fc{--w:100%}
+
+/* card view */
+.stage{position:absolute;inset:0;background:radial-gradient(420px 380px at 50% 34%,var(--tint),transparent 70%),var(--bg)}
+.stage .navbar{padding:54px 20px 0;height:auto}
+.navbar.over{position:relative;z-index:3}
+.cardwrap{display:flex;justify-content:center;padding-top:26px}
+.hint{display:flex;align-items:center;justify-content:center;gap:6px;font:500 12px Inter;color:var(--text3);margin:16px 0 8px}
+.cv{padding:0 20px}
+.cvname{padding:4px 0 6px}
+.cvname h2{font:700 22px Inter;letter-spacing:-.02em}
+.cvname span{font:400 14px Inter;color:var(--text3)}
+.ab{display:grid;grid-template-columns:60px 1fr;gap:10px;padding:9px 0;border-bottom:1px solid var(--hair)}
+.ab>i{font:600 11px/20px Inter;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)}
+.ab>i.duel{color:var(--accentText)}
+.ab div{display:flex;flex-direction:column;gap:1px}
+.ab b{font:600 14px Inter}
+.ab span{font:400 13.5px/1.35 Inter;color:var(--text2)}
+.upg{display:flex;align-items:center;gap:16px;padding:12px 0 6px}
+.upg>div{flex:1;display:flex;flex-direction:column;gap:3px}
+.upg b{font:600 15px Inter}
+.upg span{font:400 13px Inter;color:var(--text3)}
+.ubar{height:4px;border-radius:2px;background:var(--raised);overflow:hidden;margin-top:6px}
+.ubar i{display:block;height:100%;background:var(--accent)}
+.credit{font:400 11.5px Inter;color:var(--text3);text-decoration:underline;text-underline-offset:2px;text-align:center;padding-top:6px}
+
+/* duel */
+.arena{position:absolute;inset:54px 0 0;padding:0 16px;display:flex;flex-direction:column;
+  background:radial-gradient(260px 160px at 50% 50%,rgba(255,255,255,.035),transparent 70%),var(--bg)}
+.arena::before{content:'';position:absolute;left:50%;top:44%;width:120px;height:120px;margin-left:-60px;border-radius:50%;border:1px solid rgba(255,255,255,.04)}
+.arena::after{content:'';position:absolute;left:0;right:0;top:calc(44% + 60px);height:1px;background:rgba(255,255,255,.04)}
+.atop{display:flex;align-items:center;justify-content:space-between;height:48px;position:relative;z-index:1}
+.iconbtn{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--raised);color:var(--text2)}
+.turn{display:flex;flex-direction:column;align-items:center;gap:6px}
+.turn b{font:700 15px Inter}
+.ticks{display:flex;gap:4px}
+.ticks i{width:16px;height:3px;border-radius:2px;background:var(--hair2)}
+.ticks i.done{background:var(--text2)}
+.ticks i.now{background:var(--accentText)}
+.stakes{display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;background:var(--raised)}
+.stakes i{font:500 12px Inter;color:var(--text3)}
+.stakes b{font:700 15px Inter;font-variant-numeric:tabular-nums}
+.opp{display:flex;align-items:center;font:600 13px Inter;padding:8px 0 10px;position:relative;z-index:1}
+.opp .muted{font-weight:500;margin-left:4px}
+.zones{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;position:relative;z-index:1}
+.zone{display:flex;flex-direction:column;gap:8px}
+.pieces{display:grid;grid-template-columns:repeat(2,54px);grid-auto-rows:76px;gap:6px;justify-content:center;align-content:center;height:158px}
+.zone .pieces:first-child{align-content:end}
+.zone .pieces:last-child{align-content:start}
+.pieces .fc{--w:54px}
+.zplate{display:grid;grid-template-rows:auto 1fr auto;justify-items:center;gap:4px;padding:8px 6px;border-radius:14px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--hair);text-align:center;height:112px}
+.zn{font:700 18px/1 Inter;font-variant-numeric:tabular-nums;color:var(--text3)}
+.zn em{font-style:normal;font-size:12px;color:var(--accentText);margin-left:3px;font-weight:600}
+.zplate.you .zn.you{color:var(--text)}
+.zplate.them .zn.them{color:var(--loss)}
+.zplate.tie .zn{color:var(--text2)}
+.zc{display:flex;flex-direction:column;justify-content:center;gap:1px}
+.zc i{font:600 10px Inter;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)}
+.zc b{font:600 13px Inter}
+.zc span{font:400 11px/1.25 Inter;color:var(--text2)}
+.hand{display:flex;justify-content:center;gap:10px;margin-top:auto;padding-top:14px;position:relative;z-index:1}
+.hand .fc{--w:74px}
+.abar{display:flex;align-items:center;gap:10px;padding:16px 0 42px;position:relative;z-index:1}
+.energy{display:flex;align-items:center;gap:10px;margin-right:4px}
+.gem{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font:800 19px 'Inter Tight';color:#fff;background:radial-gradient(circle at 34% 28%,#8DB3FF 0,#2C64E8 40%,#2350C8 74%,#17337F 100%);box-shadow:inset 0 1px 2px rgba(255,255,255,.4),0 0 0 2px #0A0A0C,0 0 0 3px #3A3A41}
+.energy span:last-child{display:flex;flex-direction:column}
+.energy b{font:600 13px Inter}
+.energy i{font:500 12px Inter;color:var(--text3);font-variant-numeric:tabular-nums}
+.dark-arena .homebar{position:absolute;left:50%;bottom:8px;width:134px;height:5px;margin-left:-67px;border-radius:3px;background:#F4F4F6}
+
+@media (max-width:520px){
+  main{padding:32px 12px 64px}
+  .pagehead h1{font-size:34px}
+  .lineup{gap:36px 0;justify-content:center}
+  .lineup .s-full{--w:min(300px,calc(100vw - 48px))}
+  .devices{justify-content:center}
+}
+@media (prefers-reduced-motion:reduce){
+  .fc.tiltable{animation:none}
+  .fc.tiltable .tilt{transform:none;transition:none}
+}
+
+/* v5 fixes */
+.zone{position:relative}
+.zone::before{content:'';position:absolute;inset:0 -1px;border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.03) 50%,rgba(255,255,255,.018));pointer-events:none}
+.zones{flex:1;align-content:center}
+.pieces{height:166px;padding:4px 0}
+.zone .pieces:first-child{align-content:end}
+.slot{width:54px;height:76px;background:rgba(255,255,255,.035);-webkit-mask:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20300%20420'%20preserveAspectRatio%3D'none'%3E%3Cpath%20d%3D'M%2015.76%204.24%20Q%2020%200%2026%200%20L%20274%200%20Q%20280%200%20284.24%204.24%20L%20295.76%2015.76%20Q%20300%2020%20300%2026%20L%20300%20382%20Q%20300%20388%20294.13%20389.25%20L%20155.87%20418.75%20Q%20150%20420%20144.13%20418.75%20L%205.87%20389.25%20Q%200%20388%200%20382%20L%200%2026%20Q%200%2020%204.24%2015.76%20Z'%2F%3E%3C%2Fsvg%3E") 0 0/100% 100% no-repeat;mask:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20300%20420'%20preserveAspectRatio%3D'none'%3E%3Cpath%20d%3D'M%2015.76%204.24%20Q%2020%200%2026%200%20L%20274%200%20Q%20280%200%20284.24%204.24%20L%20295.76%2015.76%20Q%20300%2020%20300%2026%20L%20300%20382%20Q%20300%20388%20294.13%20389.25%20L%20155.87%20418.75%20Q%20150%20420%20144.13%20418.75%20L%205.87%20389.25%20Q%200%20388%200%20382%20L%200%2026%20Q%200%2020%204.24%2015.76%20Z'%2F%3E%3C%2Fsvg%3E") 0 0/100% 100% no-repeat}
+.hand{margin-top:0;padding-top:12px}
+.s-grid .name{line-height:1.2;top:105.5cqw}
+.sbar{height:34px;background:transparent;border-bottom:1px solid var(--hair2);border-radius:0}
+.sbar i{border-radius:5px 5px 0 0}
+.cardwrap{padding-top:10px}
+.hint{margin:12px 0 4px}
+.ab{padding:7px 0}
+.out{padding:5px 0}
+.mblock{padding:10px 0 12px}
+.upg .btn{color:#fff;font-size:15px}
+.slot{background:rgba(255,255,255,.026)}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="metal-common" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F3C9A0"/><stop offset=".18" stop-color="#9A5E37"/><stop offset=".38" stop-color="#E7AF80"/><stop offset=".52" stop-color="#7A4527"/><stop offset=".7" stop-color="#D59A6A"/><stop offset=".86" stop-color="#6B3B21"/><stop offset="1" stop-color="#C88A5C"/></linearGradient>
+  <linearGradient id="metal-rare" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".18" stop-color="#8E959D"/><stop offset=".38" stop-color="#EEF1F4"/><stop offset=".52" stop-color="#6F767E"/><stop offset=".7" stop-color="#D9DDE2"/><stop offset=".86" stop-color="#5D636B"/><stop offset="1" stop-color="#C6CBD1"/></linearGradient>
+  <linearGradient id="metal-elite" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF3C4"/><stop offset=".18" stop-color="#B08A3E"/><stop offset=".38" stop-color="#FBE39A"/><stop offset=".52" stop-color="#8F6A26"/><stop offset=".7" stop-color="#EBCB78"/><stop offset=".86" stop-color="#7C5A1E"/><stop offset="1" stop-color="#E2BE65"/></linearGradient>
+  <linearGradient id="metal-icon" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".16" stop-color="#B9B4CC"/><stop offset=".34" stop-color="#F7F4FF"/><stop offset=".5" stop-color="#A6B9C8"/><stop offset=".66" stop-color="#FFF6E2"/><stop offset=".84" stop-color="#9C98B4"/><stop offset="1" stop-color="#EDEAF7"/></linearGradient>
+  <linearGradient id="metal-legend" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3A3A3E"/><stop offset=".2" stop-color="#0B0B0C"/><stop offset=".42" stop-color="#2B2B2F"/><stop offset=".55" stop-color="#050505"/><stop offset=".75" stop-color="#26262A"/><stop offset="1" stop-color="#0A0A0B"/></linearGradient>
+</defs></svg>
+<main>
+  <header class="pagehead"><div class="brand"><span class="logo" aria-hidden="true"></span>FootSnap</div><h1>Redesign mock</h1><p>A calm, dark shell with one accent, and cards that look like the real thing. Real players and real season numbers. Drag or hover a big card to tilt it.</p></header>
+  <section class="showcase"><h2>The card</h2><p class="sub">Four rarities, four metals. Top: with photos. Bottom: the store build, photos and crests off.</p>
+    <div class="lineup"><figure><div class="fc s-full m-icon ph foil tiltable bo" style="--c1:#6CABDD;--c2:#F3F1E7;--ht:0.116;" role="img" aria-label="Erling Haaland, Icon card, cost 6, power 12">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-icon)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/38101.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-icon)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    <div class="breakout"><div class="photo"><img src="/art/38101.webp" alt="" draggable="false"></div></div>
+    <div class="type">
+      <div class="col"><div class="pwr">12</div><div class="pos">FWD</div><div class="rule"></div><div class="nat">NOR</div><div class="kitdot"></div><div class="tla">MCI</div></div>
+      <div class="cost"><span>6</span></div>
+      <div class="name">Haaland</div><div class="nrule"></div><div class="stats"><div><b>9</b><i>GLS</i></div><div><b>1.13</b><i>G/GM</i></div><div><b>8</b><i>APP</i></div><div><b>26</b><i>AGE</i></div></div>
+      <div class="foot">Premier League · 26/27</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div><figcaption>Icon · Erling Haaland</figcaption></figure><figure><div class="fc s-full m-elite ph foil tiltable" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.116;" role="img" aria-label="Harry Kane, Gold card, cost 5, power 9">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-elite)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/8004.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-elite)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type">
+      <div class="col"><div class="pwr">9</div><div class="pos">FWD</div><div class="rule"></div><div class="nat">ENG</div><div class="kitdot"></div><div class="tla">FCB</div></div>
+      <div class="cost"><span>5</span></div>
+      <div class="name">Kane</div><div class="nrule"></div><div class="stats"><div><b>4</b><i>GLS</i></div><div><b>4</b><i>AST</i></div><div><b>7</b><i>APP</i></div><div><b>33</b><i>AGE</i></div></div>
+      <div class="foot">Bundesliga · 26/27</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div><figcaption>Gold · Harry Kane</figcaption></figure><figure><div class="fc s-full m-rare ph tiltable" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.076;" role="img" aria-label="Bukayo Saka, Silver card, cost 3, power 5">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-rare)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/99813.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-rare)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type">
+      <div class="col"><div class="pwr">5</div><div class="pos">FWD</div><div class="rule"></div><div class="nat">ENG</div><div class="kitdot"></div><div class="tla">ARS</div></div>
+      <div class="cost"><span>3</span></div>
+      <div class="name">Saka</div><div class="nrule"></div><div class="stats"><div><b>3</b><i>GLS</i></div><div><b>0.43</b><i>G/GM</i></div><div><b>7</b><i>APP</i></div><div><b>25</b><i>AGE</i></div></div>
+      <div class="foot">Premier League · 26/27</div></div>
+    <div class="sheen"></div><div class="glare"></div>
+    
+  </div>
+</div><figcaption>Silver · Bukayo Saka</figcaption></figure><figure><div class="fc s-full m-common ph tiltable" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.064;" role="img" aria-label="Martin Ødegaard, Bronze card, cost 2, power 3">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-common)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/7427.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-common)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type">
+      <div class="col"><div class="pwr">3</div><div class="pos">MID</div><div class="rule"></div><div class="nat">NOR</div><div class="kitdot"></div><div class="tla">ARS</div></div>
+      <div class="cost"><span>2</span></div>
+      <div class="name">Ødegaard</div><div class="nrule"></div><div class="trait"><i>Midfielder</i><span>Midfielder at Arsenal, from Norway.</span></div>
+      <div class="foot">Premier League · 26/27</div></div>
+    <div class="sheen"></div><div class="glare"></div>
+    
+  </div>
+</div><figcaption>Bronze · Martin Ødegaard</figcaption></figure></div><div class="lineup"><figure><div class="fc s-full m-icon np foil tiltable" style="--c1:#6CABDD;--c2:#F3F1E7;--ht:0.1;" role="img" aria-label="Erling Haaland, Icon card, cost 6, power 12">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-icon)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="mono"><div class="sash"></div><div class="rings"></div><div class="letter"><span>H</span></div></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-icon)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type">
+      <div class="col"><div class="pwr">12</div><div class="pos">FWD</div><div class="rule"></div><div class="nat">NOR</div><div class="kitdot"></div><div class="tla">MCI</div></div>
+      <div class="cost"><span>6</span></div>
+      <div class="name">Haaland</div><div class="nrule"></div><div class="stats"><div><b>9</b><i>GLS</i></div><div><b>1.13</b><i>G/GM</i></div><div><b>8</b><i>APP</i></div><div><b>26</b><i>AGE</i></div></div>
+      <div class="foot">Premier League · 26/27</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div><figcaption>Icon · photos off</figcaption></figure><figure><div class="fc s-full m-elite np foil tiltable" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.1;" role="img" aria-label="Harry Kane, Gold card, cost 5, power 9">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-elite)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="mono"><div class="sash"></div><div class="rings"></div><div class="letter"><span>K</span></div></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-elite)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type">
+      <div class="col"><div class="pwr">9</div><div class="pos">FWD</div><div class="rule"></div><div class="nat">ENG</div><div class="kitdot"></div><div class="tla">FCB</div></div>
+      <div class="cost"><span>5</span></div>
+      <div class="name">Kane</div><div class="nrule"></div><div class="stats"><div><b>4</b><i>GLS</i></div><div><b>4</b><i>AST</i></div><div><b>7</b><i>APP</i></div><div><b>33</b><i>AGE</i></div></div>
+      <div class="foot">Bundesliga · 26/27</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div><figcaption>Gold · photos off</figcaption></figure><figure><div class="fc s-full m-rare np tiltable" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.1;" role="img" aria-label="Bukayo Saka, Silver card, cost 3, power 5">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-rare)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="mono"><div class="sash"></div><div class="rings"></div><div class="letter"><span>S</span></div></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-rare)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type">
+      <div class="col"><div class="pwr">5</div><div class="pos">FWD</div><div class="rule"></div><div class="nat">ENG</div><div class="kitdot"></div><div class="tla">ARS</div></div>
+      <div class="cost"><span>3</span></div>
+      <div class="name">Saka</div><div class="nrule"></div><div class="stats"><div><b>3</b><i>GLS</i></div><div><b>0.43</b><i>G/GM</i></div><div><b>7</b><i>APP</i></div><div><b>25</b><i>AGE</i></div></div>
+      <div class="foot">Premier League · 26/27</div></div>
+    <div class="sheen"></div><div class="glare"></div>
+    
+  </div>
+</div><figcaption>Silver · photos off</figcaption></figure><figure><div class="fc s-full m-common np tiltable" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.1;" role="img" aria-label="Martin Ødegaard, Bronze card, cost 2, power 3">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-common)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="mono"><div class="sash"></div><div class="rings"></div><div class="letter"><span>Ø</span></div></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-common)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type">
+      <div class="col"><div class="pwr">3</div><div class="pos">MID</div><div class="rule"></div><div class="nat">NOR</div><div class="kitdot"></div><div class="tla">ARS</div></div>
+      <div class="cost"><span>2</span></div>
+      <div class="name">Ødegaard</div><div class="nrule"></div><div class="trait"><i>Midfielder</i><span>Midfielder at Arsenal, from Norway.</span></div>
+      <div class="foot">Premier League · 26/27</div></div>
+    <div class="sheen"></div><div class="glare"></div>
+    
+  </div>
+</div><figcaption>Bronze · photos off</figcaption></figure></div>
+    <p class="sub">Upgrade tiers add finishes, never change the stats. Three sizes from one design.</p>
+    <div class="lineup"><figure><div class="fc s-full m-legend ph foil tiltable f-gold bo" style="--c1:#C8102E;--c2:#F3F1E7;--ht:0.113;" role="img" aria-label="Alexander Isak, Icon card, cost 6, power 11">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-legend)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/6486.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-legend)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    <div class="breakout"><div class="photo"><img src="/art/6486.webp" alt="" draggable="false"></div></div>
+    <div class="type">
+      <div class="col"><div class="pwr">11</div><div class="pos">FWD</div><div class="rule"></div><div class="nat">SWE</div><div class="kitdot"></div><div class="tla">LIV</div></div>
+      <div class="cost"><span>6</span></div>
+      <div class="name">Isak</div><div class="nrule"></div><div class="stats"><div><b>6</b><i>GLS</i></div><div><b>0.86</b><i>G/GM</i></div><div><b>7</b><i>APP</i></div><div><b>27</b><i>AGE</i></div></div>
+      <div class="foot">Legend · Gilded · 26/27</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div><figcaption>Legend tier · Gilded finish</figcaption></figure>
+<figure><div class="fc s-full m-elite ph foil tiltable bo" style="--c1:#6CABDD;--c2:#F3F1E7;--ht:0.114;" role="img" aria-label="Rayan Cherki, Gold card, cost 5, power 9">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-elite)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/133242.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-elite)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    <div class="breakout"><div class="photo"><img src="/art/133242.webp" alt="" draggable="false"></div></div>
+    <div class="type">
+      <div class="col"><div class="pwr">9</div><div class="pos">MID</div><div class="rule"></div><div class="nat">FRA</div><div class="kitdot"></div><div class="tla">MCI</div></div>
+      <div class="cost"><span>5</span></div>
+      <div class="name">Cherki</div><div class="nrule"></div><div class="stats"><div><b>4</b><i>GLS</i></div><div><b>2</b><i>AST</i></div><div><b>8</b><i>APP</i></div><div><b>23</b><i>AGE</i></div></div>
+      <div class="foot">Premier League · 26/27</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div><figcaption>Holo tier (5) · Gold base</figcaption></figure>
+<figure class="sizes"><div class="sizerow"><div class="fc s-grid m-icon ph foil" style="--c1:#6CABDD;--c2:#F3F1E7;--ht:0.116;--w:110px;" role="img" aria-label="Erling Haaland, Icon card, cost 6, power 12">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-icon)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/38101.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-icon)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">12</div><div class="cost"><span>6</span></div><div class="name">Haaland</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="fc s-hand m-icon ph foil" style="--c1:#6CABDD;--c2:#F3F1E7;--ht:0.116;--w:74px;" role="img" aria-label="Erling Haaland, Icon card, cost 6, power 12">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-icon)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/38101.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-icon)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">12</div><div class="cost"><span>6</span></div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="fc s-board m-icon ph foil" style="--c1:#6CABDD;--c2:#F3F1E7;--ht:0.116;--w:56px;" role="img" aria-label="Erling Haaland, Icon card, cost 6, power 12">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-icon)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/38101.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-icon)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="bpwr">12</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div></div><div class="sizerow"><div class="fc s-grid m-elite np foil" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.1;--w:110px;" role="img" aria-label="Harry Kane, Gold card, cost 5, power 9">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-elite)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="mono"><div class="sash"></div><div class="rings"></div><div class="letter"><span>K</span></div></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-elite)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">9</div><div class="cost"><span>5</span></div><div class="name">Kane</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="fc s-hand m-elite np foil" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.1;--w:74px;" role="img" aria-label="Harry Kane, Gold card, cost 5, power 9">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-elite)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="mono"><div class="sash"></div><div class="rings"></div><div class="letter"><span>K</span></div></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-elite)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">9</div><div class="cost"><span>5</span></div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="fc s-board m-elite np foil" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.1;--w:56px;" role="img" aria-label="Harry Kane, Gold card, cost 5, power 9">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-elite)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="mono"><div class="sash"></div><div class="rings"></div><div class="letter"><span>K</span></div></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-elite)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="bpwr">9</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div></div><figcaption>Grid 110 · hand 74 · board 56</figcaption></figure></div>
+  </section>
+  <section class="showcase"><h2>Screens</h2><p class="sub">iPhone 15 size, 393 × 852.</p>
+    <div class="devices"><figure class="device"><div class="phone "><div class="status"><span class="time">9:41</span><span class="island"></span><span class="sicons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="currentColor"/><rect x="10" y="3" width="3" height="9" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.6" height="4" rx=".8" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="scroll">
+  <header class="large"><div><div class="date">Wednesday 28 October</div><h1>Today</h1></div><div class="hright"><span class="credits"><span class="coin" aria-hidden="true"></span>420</span><span class="avatar">O</span></div></header>
+
+  <section class="sec">
+    <div class="sechead"><h2>Your teams</h2><a>Edit</a></div>
+    <div class="mblock"><div class="mmeta"><span>Premier League · Sun 1 Nov, 16:30</span><span>Anfield</span></div><div class="out">
+    <span class="kit" style="--c1:#C8102E;--c2:#F3F1E7;--s:20px" aria-hidden="true"></span>
+    <span class="oname">Liverpool</span>
+    <span class="obar"><i style="width:34%"></i></span>
+    <span class="opill"><b>34%</b></span>
+  </div><div class="out">
+    <span class="kit draw" aria-hidden="true"></span>
+    <span class="oname">Draw</span>
+    <span class="obar"><i style="width:29%"></i></span>
+    <span class="opill"><b>29%</b></span>
+  </div><div class="out picked lead">
+    <span class="kit" style="--c1:#DA291C;--c2:#F3F1E7;--s:20px" aria-hidden="true"></span>
+    <span class="oname">Arsenal</span>
+    <span class="obar"><i style="width:37%"></i></span>
+    <span class="opill"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ><path d="m5.5 12.5 4 4 9-9"/></svg><b>37%</b></span>
+  </div><div class="mfoot"><span class="mine">Your pick · Arsenal</span><span>+2 points if right</span></div></div>
+    <div class="mblock"><div class="mmeta"><span>Premier League · Sat 31 Oct, 15:00</span><span>Etihad</span></div><div class="out">
+    <span class="kit" style="--c1:#6CABDD;--c2:#F3F1E7;--s:20px" aria-hidden="true"></span>
+    <span class="oname">Man City</span>
+    <span class="obar"><i style="width:36%"></i></span>
+    <span class="opill"><b>36%</b></span>
+  </div><div class="out">
+    <span class="kit draw" aria-hidden="true"></span>
+    <span class="oname">Draw</span>
+    <span class="obar"><i style="width:22%"></i></span>
+    <span class="opill"><b>22%</b></span>
+  </div><div class="out lead">
+    <span class="kit" style="--c1:#2563EB;--c2:#F3F1E7;--s:20px" aria-hidden="true"></span>
+    <span class="oname">Brighton</span>
+    <span class="obar"><i style="width:42%"></i></span>
+    <span class="opill"><b>42%</b></span>
+  </div><div class="mfoot"><span>Tap an outcome to pick</span><span>Locks at kick-off</span></div></div>
+  </section>
+
+  <a class="packrow">
+    <span class="minipack" aria-hidden="true"><i></i></span>
+    <span class="pr-text"><b>Daily pack is ready</b><span>Premier League · 5 cards</span></span>
+    <span class="btn sm">Open</span>
+  </a>
+
+  <section class="sec">
+    <div class="sechead"><h2>Matchday 9</h2><a>All matches <svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ><path d="m9 5 7 7-7 7"/></svg></a></div>
+    <div class="score3"><div><b>14</b><i>Your points</i></div><div><b>12</b><i>Model</i></div><div><b>2<em>/10</em></b><i>Picked</i></div></div>
+    <div class="crow"><div class="cteams"><div><span class="kit" style="--c1:#1D4ED8;--c2:#F3F1E7;--s:16px" aria-hidden="true"></span>Chelsea</div><div><span class="kit" style="--c1:#DA291C;--c2:#141414;--s:16px" aria-hidden="true"></span>Man United</div></div><div class="ctime">Sat 12:30</div><div class="cprobs"><span class="cp top"><b>56</b><i>1</i></span><span class="cp"><b>20</b><i>X</i></span><span class="cp"><b>24</b><i>2</i></span></div></div>
+    <div class="crow"><div class="cteams"><div><span class="kit" style="--c1:#F3F1E7;--c2:#1B2A5A;--s:16px" aria-hidden="true"></span>Tottenham</div><div><span class="kit" style="--c1:#DA291C;--c2:#2563EB;--s:16px" aria-hidden="true"></span>Crystal Palace</div></div><div class="ctime">Sat 17:30</div><div class="cprobs"><span class="cp top"><b>51</b><i>1</i></span><span class="cp"><b>24</b><i>X</i></span><span class="cp"><b>25</b><i>2</i></span></div></div>
+  </section>
+</div>
+<nav class="tabbar"><a class="on"><svg class="ic" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" fill="currentColor" fill-opacity=".16"><path d="M3.5 10.2 12 3.5l8.5 6.7V19a1.5 1.5 0 0 1-1.5 1.5h-4.2v-5.6H9.2v5.6H5A1.5 1.5 0 0 1 3.5 19z"/></svg><span>Home</span></a><a class=""><svg class="ic" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ><rect x="3.5" y="4.5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 2.8v3.4M16 2.8v3.4M7.5 13.5h2M11 13.5h2M14.5 13.5h2M7.5 17h2M11 17h2"/></svg><span>Matches</span></a><a class=""><svg class="ic" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ><rect x="7" y="3.5" width="12" height="16" rx="2" transform="rotate(8 13 11.5)"/><rect x="4.5" y="4.5" width="12" height="16" rx="2"/></svg><span>Cards</span></a><a class=""><svg class="ic" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ><path d="M13.2 2.8 5.6 13.3h5.6l-1 7.9 7.7-10.6h-5.7z"/></svg><span>Play</span></a><div class="homebar"></div></nav></div><figcaption>Home</figcaption></figure><figure class="device"><div class="phone "><div class="status"><span class="time">9:41</span><span class="island"></span><span class="sicons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="currentColor"/><rect x="10" y="3" width="3" height="9" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.6" height="4" rx=".8" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="scroll">
+  <div class="navbar"><svg class="ic" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ><path d="m15 5-7 7 7 7"/></svg><span class="navtitle">Premier League · Matchday 9</span><svg class="ic" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ><circle cx="5.5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18.5" cy="12" r="1.2"/></svg></div>
+  <div class="mhero">
+    <div class="team"><span class="kit" style="--c1:#C8102E;--c2:#F3F1E7;--s:52px" aria-hidden="true"></span><b>Liverpool</b><i>4th · 15 pts</i></div>
+    <div class="ko"><b>16:30</b><i>Sun 1 Nov</i><i>Anfield</i></div>
+    <div class="team"><span class="kit" style="--c1:#DA291C;--c2:#F3F1E7;--s:52px" aria-hidden="true"></span><b>Arsenal</b><i>2nd · 21 pts</i></div>
+  </div>
+
+  <section class="sec tight">
+    <div class="overline">Model's chance</div>
+    <div class="bigprobs"><div><b>34<em>%</em></b><i>Liverpool</i></div><div><b>29<em>%</em></b><i>Draw</i></div><div class="lead"><b>37<em>%</em></b><i>Arsenal</i></div></div>
+    <div class="probbar"><i style="flex:34"></i><i style="flex:29"></i><i class="lead" style="flex:37"></i></div>
+    <div class="xg"><span>Expected goals</span><b>1.09 – 1.14</b></div>
+  </section>
+
+  <section class="sec tight">
+    <div class="overline">Your pick <span class="free">Free · points only</span></div>
+    <div class="seg3"><span>Liverpool</span><span>Draw</span><span class="on">Arsenal</span></div>
+    <div class="press"><div><b>Press</b><span>Right +4, wrong −2. One per matchday.</span></div><span class="switch"><i></i></span></div>
+  </section>
+
+  <section class="sec tight">
+    <div class="overline">Likeliest scores</div>
+    <div class="scores"><div class="top"><b>1–1</b><span class="sbar"><i style="height:100%"></i></span><i>13%</i></div><div class=""><b>0–1</b><span class="sbar"><i style="height:92%"></i></span><i>12%</i></div><div class=""><b>1–0</b><span class="sbar"><i style="height:92%"></i></span><i>12%</i></div><div class=""><b>0–0</b><span class="sbar"><i style="height:85%"></i></span><i>11%</i></div><div class=""><b>1–2</b><span class="sbar"><i style="height:62%"></i></span><i>8%</i></div></div>
+  </section>
+
+  <section class="sec tight">
+    <div class="overline">Last five</div>
+    <div class="formrow"><span><span class="kit" style="--c1:#C8102E;--c2:#F3F1E7;--s:16px" aria-hidden="true"></span>Liverpool</span><span class="form"><i class="D">D</i><i class="W">W</i><i class="L">L</i><i class="W">W</i><i class="W">W</i></span></div>
+    <div class="formrow"><span><span class="kit" style="--c1:#DA291C;--c2:#F3F1E7;--s:16px" aria-hidden="true"></span>Arsenal</span><span class="form"><i class="W">W</i><i class="L">L</i><i class="W">W</i><i class="W">W</i><i class="W">W</i></span></div>
+  </section>
+  <p class="fine">From a goals model fitted to this season's 80 results. Called before each game, it has been right 38% of the time (Brier 0.672).</p>
+</div></div><figcaption>Match · prediction</figcaption></figure><figure class="device"><div class="phone "><div class="status"><span class="time">9:41</span><span class="island"></span><span class="sicons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="currentColor"/><rect x="10" y="3" width="3" height="9" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.6" height="4" rx=".8" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="scroll">
+  <header class="large"><div><button class="league">Premier League <svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ><path d="m6 9 6 6 6-6"/></svg></button><h1>Cards</h1></div><div class="hright"><span class="credits"><span class="coin" aria-hidden="true"></span>420</span></div></header>
+  <div class="level">
+    <div class="lv-top"><span><b>Level 23</b> Collection</span><span class="muted">62 of 545 cards</span></div>
+    <div class="lvbar"><i style="width:30%"></i></div>
+    <div class="lv-bot"><span>Next reward at 30</span><span>+50 credits</span></div>
+  </div>
+  <div class="actions2">
+    <a><span class="minipack" aria-hidden="true"><i></i></span><span><b>Daily pack</b><i>Ready to open</i></span></a>
+    <a><span class="qmark" aria-hidden="true">?</span><span><b>Who's this?</b><i>3 of 5 left</i></span></a>
+  </div>
+  <div class="filters"><span class="on">All</span><span>Icon</span><span>Gold</span><span>Silver</span><span>Bronze</span></div>
+  <div class="grid"><div class="fc s-grid m-icon ph foil" style="--c1:#6CABDD;--c2:#F3F1E7;--ht:0.116;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-icon)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/38101.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-icon)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">12</div><div class="cost"><span>6</span></div><div class="name">Haaland</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="fc s-grid m-icon ph foil" style="--c1:#C8102E;--c2:#F3F1E7;--ht:0.113;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-icon)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/6486.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-icon)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">11</div><div class="cost"><span>6</span></div><div class="name">Isak</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="fc s-grid m-icon np foil dim" style="--c1:#1D4ED8;--c2:#F3F1E7;--ht:0.1;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-icon)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="mono"><div class="sash"></div><div class="rings"></div><div class="letter"><span>P</span></div></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-icon)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">11</div><div class="cost"><span>6</span></div><div class="name">João Pedro</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    <div class="dimmer"></div>
+  </div>
+</div><div class="fc s-grid m-elite ph foil" style="--c1:#DA291C;--c2:#141414;--ht:0.129;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-elite)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/6396.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-elite)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">9</div><div class="cost"><span>5</span></div><div class="name">Tavernier</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="fc s-grid m-elite ph foil" style="--c1:#6CABDD;--c2:#F3F1E7;--ht:0.114;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-elite)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/133242.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-elite)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">9</div><div class="cost"><span>5</span></div><div class="name">Cherki</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="fc s-grid m-elite ph foil dim" style="--c1:#1D4ED8;--c2:#F3F1E7;--ht:0.117;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-elite)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/82140.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-elite)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">7</div><div class="cost"><span>4</span></div><div class="name">Rogers</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    <div class="dimmer"></div>
+  </div>
+</div><div class="fc s-grid m-rare ph" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.076;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-rare)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/99813.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-rare)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">5</div><div class="cost"><span>3</span></div><div class="name">Saka</div></div>
+    <div class="sheen"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="fc s-grid m-rare ph" style="--c1:#DA291C;--c2:#141414;--ht:0.077;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-rare)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/3257.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-rare)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">5</div><div class="cost"><span>3</span></div><div class="name">Fernandes</div></div>
+    <div class="sheen"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="fc s-grid m-rare ph dim" style="--c1:#1D4ED8;--c2:#F3F1E7;--ht:0.14;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-rare)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/2074.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-rare)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">5</div><div class="cost"><span>3</span></div><div class="name">Neto</div></div>
+    <div class="sheen"></div><div class="glare"></div>
+    <div class="dimmer"></div>
+  </div>
+</div><div class="fc s-grid m-common ph" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.064;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-common)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/7427.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-common)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">3</div><div class="cost"><span>2</span></div><div class="name">Ødegaard</div></div>
+    <div class="sheen"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="fc s-grid m-common ph" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.119;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-common)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/80171.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-common)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">2</div><div class="cost"><span>1</span></div><div class="name">Saliba</div></div>
+    <div class="sheen"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="fc s-grid m-common ph dim" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.086;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-common)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/4832.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-common)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">2</div><div class="cost"><span>1</span></div><div class="name">Raya</div></div>
+    <div class="sheen"></div><div class="glare"></div>
+    <div class="dimmer"></div>
+  </div>
+</div></div>
+</div>
+<nav class="tabbar"><a class=""><svg class="ic" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ><path d="M3.5 10.2 12 3.5l8.5 6.7V19a1.5 1.5 0 0 1-1.5 1.5h-4.2v-5.6H9.2v5.6H5A1.5 1.5 0 0 1 3.5 19z"/></svg><span>Home</span></a><a class=""><svg class="ic" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ><rect x="3.5" y="4.5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 2.8v3.4M16 2.8v3.4M7.5 13.5h2M11 13.5h2M14.5 13.5h2M7.5 17h2M11 17h2"/></svg><span>Matches</span></a><a class="on"><svg class="ic" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" fill="currentColor" fill-opacity=".16"><rect x="7" y="3.5" width="12" height="16" rx="2" transform="rotate(8 13 11.5)"/><rect x="4.5" y="4.5" width="12" height="16" rx="2"/></svg><span>Cards</span></a><a class=""><svg class="ic" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ><path d="M13.2 2.8 5.6 13.3h5.6l-1 7.9 7.7-10.6h-5.7z"/></svg><span>Play</span></a><div class="homebar"></div></nav></div><figcaption>Cards · collection</figcaption></figure><figure class="device"><div class="phone "><div class="status"><span class="time">9:41</span><span class="island"></span><span class="sicons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="currentColor"/><rect x="10" y="3" width="3" height="9" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.6" height="4" rx=".8" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="stage" style="--tint:rgba(200,210,255,.16)">
+  <div class="navbar over"><svg class="ic" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ><path d="M6 6l12 12M18 6 6 18"/></svg><span></span><span class="credits"><span class="coin" aria-hidden="true"></span>420</span></div>
+  <div class="cardwrap"><div class="fc s-full m-icon ph foil tiltable bo" style="--c1:#6CABDD;--c2:#F3F1E7;--ht:0.116;--w:268px;" role="img" aria-label="Erling Haaland, Icon card, cost 6, power 12">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-icon)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/38101.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-icon)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    <div class="breakout"><div class="photo"><img src="/art/38101.webp" alt="" draggable="false"></div></div>
+    <div class="type">
+      <div class="col"><div class="pwr">12</div><div class="pos">FWD</div><div class="rule"></div><div class="nat">NOR</div><div class="kitdot"></div><div class="tla">MCI</div></div>
+      <div class="cost"><span>6</span></div>
+      <div class="name">Haaland</div><div class="nrule"></div><div class="stats"><div><b>9</b><i>GLS</i></div><div><b>1.13</b><i>G/GM</i></div><div><b>8</b><i>APP</i></div><div><b>26</b><i>AGE</i></div></div>
+      <div class="foot">Premier League · 26/27</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div></div>
+  <div class="hint"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5M20 4v4.5h-4.5M20 12a8 8 0 0 1-13.7 5.6L4 15.5M4 20v-4.5h4.5"/></svg> Drag to tilt · Tap to flip</div>
+  <div class="cv">
+    <div class="cvname"><h2>Erling Haaland</h2><span>Man City · Forward · Norway · 26</span></div>
+    <div class="ab"><i class="duel">Duel</i><div><b>Ongoing</b><span>+2 Power if this is your highest-Power card here.</span></div></div><div class="ab"><i class="">Season</i><div><b>Golden Boot leader</b><span>Leads the Premier League with 9 goals.</span></div></div><div class="ab"><i class="">Trait</i><div><b>Forward</b><span>Forward at Man City, from Norway.</span></div></div>
+    <div class="upg"><div><b>Next: Breakout</b><span>3 of 5 boosters · 25 credits</span><span class="ubar"><i style="width:60%"></i></span></div><span class="btn">Upgrade</span></div>
+    <p class="credit">Photo: Bryan Berlin · CC BY-SA 4.0 · Wikimedia Commons (edited) ↗</p>
+  </div>
+</div></div><figcaption>Card · with photo</figcaption></figure><figure class="device"><div class="phone "><div class="status"><span class="time">9:41</span><span class="island"></span><span class="sicons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="currentColor"/><rect x="10" y="3" width="3" height="9" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.6" height="4" rx=".8" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="stage" style="--tint:rgba(240,200,110,.14)">
+  <div class="navbar over"><svg class="ic" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ><path d="M6 6l12 12M18 6 6 18"/></svg><span></span><span class="credits"><span class="coin" aria-hidden="true"></span>420</span></div>
+  <div class="cardwrap"><div class="fc s-full m-elite np foil tiltable" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.1;--w:268px;" role="img" aria-label="Harry Kane, Gold card, cost 5, power 9">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-elite)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="mono"><div class="sash"></div><div class="rings"></div><div class="letter"><span>K</span></div></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-elite)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type">
+      <div class="col"><div class="pwr">9</div><div class="pos">FWD</div><div class="rule"></div><div class="nat">ENG</div><div class="kitdot"></div><div class="tla">FCB</div></div>
+      <div class="cost"><span>5</span></div>
+      <div class="name">Kane</div><div class="nrule"></div><div class="stats"><div><b>4</b><i>GLS</i></div><div><b>4</b><i>AST</i></div><div><b>7</b><i>APP</i></div><div><b>33</b><i>AGE</i></div></div>
+      <div class="foot">Bundesliga · 26/27</div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div></div>
+  <div class="hint"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5M20 4v4.5h-4.5M20 12a8 8 0 0 1-13.7 5.6L4 15.5M4 20v-4.5h4.5"/></svg> Drag to tilt · Tap to flip</div>
+  <div class="cv">
+    <div class="cvname"><h2>Harry Kane</h2><span>Bayern · Forward · England · 33</span></div>
+    <div class="ab"><i class="duel">Duel</i><div><b>On Reveal</b><span>+1 Power to your other cards here.</span></div></div><div class="ab"><i class="">Season</i><div><b>Playmaker</b><span>4 assists on top of 4 goals.</span></div></div><div class="ab"><i class="">Trait</i><div><b>Veteran</b><span>33: one of 3 players aged 33+ at Bayern.</span></div></div>
+    <div class="upg"><div><b>Next: Depth</b><span>10 of 10 boosters · 100 credits</span><span class="ubar"><i style="width:100%"></i></span></div><span class="btn">Upgrade</span></div>
+    
+  </div>
+</div></div><figcaption>Card · photos off (store build)</figcaption></figure><figure class="device"><div class="phone dark-arena"><div class="status"><span class="time">9:41</span><span class="island"></span><span class="sicons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="currentColor"/><rect x="10" y="3" width="3" height="9" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.6" height="4" rx=".8" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="arena">
+  <div class="atop">
+    <span class="iconbtn" aria-label="Retreat"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ><path d="M5.5 21V4M5.5 4.5h11l-2.2 4 2.2 4h-11"/></svg></span>
+    <div class="turn"><b>Turn 4</b><span class="ticks"><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i><i class=""></i><i class=""></i></span></div>
+    <span class="stakes"><i>Prize</i><b>×2</b></span>
+  </div>
+  <div class="opp"><span class="avatar sm">AI</span>AI Manager <span class="muted">· 3 cards in hand</span></div>
+  <div class="zones">
+    <div class="zone">
+    <div class="pieces"><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="fc s-board m-common np" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.1;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-common)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="mono"><div class="sash"></div><div class="rings"></div><div class="letter"><span>G</span></div></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-common)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="bpwr">3</div></div>
+    <div class="sheen"></div><div class="glare"></div>
+    
+  </div>
+</div></div>
+    <div class="zplate tie">
+      <span class="zn them">3</span>
+      <div class="zc"><i>Left wing</i><b>Floodlights</b><span>+1 Power here</span></div>
+      <span class="zn you">3</span>
+    </div>
+    <div class="pieces"><div class="fc s-board m-common ph" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.064;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-common)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/7427.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-common)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="bpwr">3</div></div>
+    <div class="sheen"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="slot"></div><div class="slot"></div><div class="slot"></div></div>
+  </div>
+    <div class="zone">
+    <div class="pieces"><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="fc s-board m-rare ph" style="--c1:#1D4ED8;--c2:#F3F1E7;--ht:0.14;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-rare)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/2074.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-rare)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="bpwr">7</div></div>
+    <div class="sheen"></div><div class="glare"></div>
+    
+  </div>
+</div></div>
+    <div class="zplate tie">
+      <span class="zn them">7</span>
+      <div class="zc"><i>Centre</i><b>Derby</b><span>First card +2</span></div>
+      <span class="zn you">7<em>+5</em></span>
+    </div>
+    <div class="pieces"><div class="fc s-board m-rare ph" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.076;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-rare)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/99813.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-rare)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="bpwr">7</div></div>
+    <div class="sheen"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="fc s-board m-rare ph pending" style="--c1:#DA291C;--c2:#141414;--ht:0.077;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-rare)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/3257.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-rare)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="bpwr">5</div></div>
+    <div class="sheen"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="slot"></div><div class="slot"></div></div>
+  </div>
+    <div class="zone">
+    <div class="pieces"><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="fc s-board m-common ph" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.086;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-common)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/4832.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-common)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="bpwr">1</div></div>
+    <div class="sheen"></div><div class="glare"></div>
+    
+  </div>
+</div></div>
+    <div class="zplate you">
+      <span class="zn them">1</span>
+      <div class="zc"><i>Right wing</i><b>Wet pitch</b><span>Costs 1 more here</span></div>
+      <span class="zn you">2</span>
+    </div>
+    <div class="pieces"><div class="fc s-board m-common ph" style="--c1:#DA291C;--c2:#F3F1E7;--ht:0.119;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-common)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/80171.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-common)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="bpwr">2</div></div>
+    <div class="sheen"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="slot"></div><div class="slot"></div><div class="slot"></div></div>
+  </div>
+  </div>
+  <div class="hand"><div class="fc s-hand m-icon ph foil cant" style="--c1:#6CABDD;--c2:#F3F1E7;--ht:0.116;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-icon)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/38101.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-icon)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">12</div><div class="cost"><span>6</span></div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="fc s-hand m-elite ph foil cant" style="--c1:#6CABDD;--c2:#F3F1E7;--ht:0.114;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-elite)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/133242.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-elite)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">9</div><div class="cost"><span>5</span></div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="fc s-hand m-elite ph foil cant" style="--c1:#DA291C;--c2:#141414;--ht:0.129;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-elite)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/6396.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-elite)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">9</div><div class="cost"><span>5</span></div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div><div class="fc s-hand m-elite ph foil cant" style="--c1:#1D4ED8;--c2:#F3F1E7;--ht:0.117;" aria-hidden="true">
+  <div class="tilt">
+    <svg class="frame" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path class="rim" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="url(#metal-elite)"/><path class="edge" d="M 15.76 4.24 Q 20 0 26 0 L 274 0 Q 280 0 284.24 4.24 L 295.76 15.76 Q 300 20 300 26 L 300 382 Q 300 388 294.13 389.25 L 155.87 418.75 Q 150 420 144.13 418.75 L 5.87 389.25 Q 0 388 0 382 L 0 26 Q 0 20 4.24 15.76 Z" fill="none"/><path d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" class="facefill"/></svg>
+    <div class="face"><div class="bg"></div><div class="photo"><img src="/art/82140.webp" alt="" draggable="false"></div><div class="vig"></div></div>
+    <svg class="hair" viewBox="0 0 300 420" preserveAspectRatio="none" aria-hidden="true"><path d="M 22.64 13.62 Q 24.76 11.5 27.76 11.5 L 272.24 11.5 Q 275.24 11.5 277.36 13.62 L 286.38 22.64 Q 288.5 24.76 288.5 27.76 L 288.5 375.69 Q 288.5 378.69 285.57 379.32 L 152.93 407.62 Q 150 408.24 147.07 407.62 L 14.43 379.32 Q 11.5 378.69 11.5 375.69 L 11.5 27.76 Q 11.5 24.76 13.62 22.64 Z" fill="none" stroke="url(#metal-elite)"/><path class="inedge" d="M 20.07 9.83 Q 22.9 7 26.9 7 L 273.1 7 Q 277.1 7 279.93 9.83 L 290.17 20.07 Q 293 22.9 293 26.9 L 293 378.34 Q 293 382.34 289.09 383.17 L 153.91 412.01 Q 150 412.84 146.09 412.01 L 10.91 383.17 Q 7 382.34 7 378.34 L 7 26.9 Q 7 22.9 9.83 20.07 Z" fill="none"/></svg>
+    
+    <div class="type"><div class="pwr">7</div><div class="cost"><span>4</span></div></div>
+    <div class="sheen"></div><div class="holo"></div><div class="glare"></div>
+    
+  </div>
+</div></div>
+  <div class="abar">
+    <div class="energy"><span class="gem">1</span><span><b>Energy</b><i>1 of 4 left</i></span></div>
+    <span class="btn ghost">Press</span>
+    <span class="btn wide">End turn</span>
+  </div>
+</div></div><figcaption>Play · Duel board</figcaption></figure></div>
+  </section>
+</main>
+<script>// Tilt + foil: pointer position drives --mx/--my (0-100) on the card. Skipped under reduced motion.
+(function () {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  document.querySelectorAll('.fc.tiltable').forEach(function (el) {
+    function move(e) {
+      var r = el.getBoundingClientRect();
+      var x = Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100));
+      var y = Math.min(100, Math.max(0, ((e.clientY - r.top) / r.height) * 100));
+      el.classList.add('live');
+      el.style.setProperty('--mx', x.toFixed(1));
+      el.style.setProperty('--my', y.toFixed(1));
+    }
+    function leave() {
+      el.classList.remove('live');
+      el.style.removeProperty('--mx');
+      el.style.removeProperty('--my');
+    }
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerdown', move);
+    el.addEventListener('pointerleave', leave);
+    el.addEventListener('pointerup', function (e) { if (e.pointerType !== 'mouse') leave(); });
+    el.addEventListener('pointercancel', leave);
+  });
+})();
+</script>
+</body></html>
