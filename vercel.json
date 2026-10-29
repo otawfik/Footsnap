@@ -11,15 +11,15 @@
     },
     {
       "source": "/card/:id",
-      "destination": "/card/[id].html"
+      "destination": "/card/[id]"
     },
     {
       "source": "/match/:id",
-      "destination": "/match/[id].html"
+      "destination": "/match/[id]"
     },
     {
       "source": "/club/:id",
-      "destination": "/club/[id].html"
+      "destination": "/club/[id]"
     }
   ],
   "headers": [
