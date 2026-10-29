@@ -7,7 +7,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
-import { Button, Credits, LargeHeader, Row, Screen, tap } from '../../components/ui';
+import { Button, Credits, LargeHeader, Pitch, Row, Screen, tap } from '../../components/ui';
 import { DuelCard } from '../../components/duel/DuelCard';
 import { useLeague } from '../../context/league';
 import { useCards } from '../../hooks/data';
@@ -70,8 +70,8 @@ export default function Play() {
     <Screen>
       <LargeHeader title="Play" leagueMenu right={<Credits credits={profile.credits} />} />
 
-      {/* the Duel */}
-      <View style={styles.hero}>
+      {/* the Duel, on a floodlit pitch */}
+      <Pitch style={styles.hero}>
         <View style={styles.heroHead}>
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={type.title} accessibilityRole="header">
@@ -156,7 +156,7 @@ export default function Play() {
         <View style={{ paddingHorizontal: 16 }}>
           <Button label="Play" onPress={start} disabled={!deck} accessibilityLabel="Play a duel against the AI Manager" />
         </View>
-      </View>
+      </Pitch>
 
       {/* Who's this? */}
       <View style={{ marginTop: space.lg }}>
@@ -205,8 +205,6 @@ export default function Play() {
 
 const styles = StyleSheet.create({
   hero: {
-    backgroundColor: color.surface,
-    borderRadius: radius.lg,
     paddingVertical: 16,
     gap: 14,
     overflow: 'hidden',
@@ -234,13 +232,13 @@ const styles = StyleSheet.create({
     fontFamily: font.medium,
     fontSize: 12,
     lineHeight: 16,
-    color: color.text3,
+    color: color.text2,
   },
   deckNote: {
     fontFamily: font.regular,
     fontSize: 13,
     lineHeight: 18,
-    color: color.text3,
+    color: color.text2,
     paddingHorizontal: 16,
     marginTop: 4,
   },
@@ -262,7 +260,7 @@ const styles = StyleSheet.create({
     fontFamily: font.medium,
     fontSize: 15,
     lineHeight: 20,
-    color: color.text3,
+    color: color.text2,
   },
   recordSep: { color: color.text3 },
   qmark: {

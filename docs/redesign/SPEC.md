@@ -5,48 +5,83 @@ Where the mock and this document disagree, this document wins.
 
 ## 1. Direction
 
-**A calm dark shell with one accent, and cards that look like the real thing.**
+**A floodlit-ink shell where the colour comes from the clubs, and cards that look like the real thing.**
 
-- **The shell works like Kalshi.** It's neutral and near-black, with no tinted surfaces. It uses one sans (Inter), big tabular numbers and hairline list rows, never boxes inside boxes. Predictions are shown as **% chance** with thin bars, and every match is a three-row "market" (home / draw / away). Picking an outcome is the interaction.
-- **It's dark, not light, even though Kalshi is light-first.** There are three reasons. (1) The hero object is a metal card with foil. Metal and foil read as light on a dark ground, and on white they read as grey and yellow print. (2) Card view, packs and the duel are immersive. A light shell would flash between grounds every time you enter one. (3) Football gets watched in the evening. Kalshi's discipline (neutral greys, one accent, generous space, big numbers) carries over to dark intact.
-- **There is one accent: Snap blue (`#2C64E8`).** It stands for energy, selection and the primary action, and it is the cost gem on every card. Win green and loss red are semantic only. Gold appears only on the credits coin and the cards.
+*v2.1 (colour and character pass). The first shell was near-black, one electric blue and grey everything. The owner judged it colourless and generic, and he was right. The rules below replace it.*
+
+- **The shell keeps Kalshi's calm.** Hairline list rows, never boxes inside boxes. Big tabular numbers. Predictions as **% chance** with thin bars, and every match as a three-row "market" (home / draw / away) where picking an outcome is the interaction.
+- **The ground is deep ink navy (`#0B1220`), not neutral black.** Think a stadium at night, or a matchday programme's cover stock. Type is warm chalk cream (`#F4EFE4`), like pitch markings. It's still dark: metal and foil only read on a dark ground, and the immersive screens (card view, packs, duel) never flash between grounds.
+- **Colour comes from football, not decoration.** Anything about one team is drawn in that club's kit:
+  - kit stripes beside every team name;
+  - outcome bars and the picked pill in the club's colour;
+  - a programme rule (home kit | away kit) over every fixture;
+  - the match hero as a diagonal split of the two kits;
+  - the club page header in the club's kit with its sash;
+  - table rows washed in each club's colour.
+  - `fixtureTones()` makes sure two red clubs never draw in the same red: the away side takes its other colour.
+- **Broadcast moments sit inside the calm.** Kick-off times and scores are set in a **score bug**: the club code on its kit colour, then the time on chalk, then the other club's code. That's the TV graphic. Big numbers, titles and club names are Inter Tight heavy caps, the same face as the card numerals.
+- **Two brand colours only.** Chalk is the primary action (chalk button, selected segment, selected chip). **Pitch green** (`#4BD68C`) is links, progress and your side, and doubles as win. Game surfaces (the Play hero, the duel board) are a floodlit pitch (`#0C251C`) with mowing stripes and faint markings. The Snap-blue cost gem stays on the cards only, as the one "energy" colour.
+- **Banned (anti-slop list):** purple or indigo gradients, glassmorphism, glow blobs, electric blue as the only colour, emoji icons, and identical rounded grey cards stacked down a screen.
 - **The cards are FUT-grade collectibles.** Each has a "crest-cut" silhouette (chamfered top corners, shallow shield point) and a metal rim per rarity: Bronze, Silver, Gold or Icon (pearl platinum). There's a Legend obsidian frame for tier 6. The face is dark with a halo behind the head, and the cut-out is framed the same way on every card. FUT typography sits top-left (Power, position, nation, club). The Snap cost gem sits top-right. A real-stats row runs along the bottom.
 - **Photos off is a first-class design, not a fallback.** The store build ships without photos or crests. In that mode the face shows the club's kit as a diagonal sash, with an engraved metal medallion carrying the surname's initial on top. It needs no image rights and still reads as an expensive card.
 - **Predictions are free points only.** Never use money, odds, bets, stakes or a sportsbook look. The copy rules are in §10.
 
 ## 2. Tokens (`constants/design.ts`)
 
-### Colour (all text ≥ 4.5:1, computed with WCAG relative luminance)
+### Colour: "floodlit ink" (all text ≥ 4.5:1, computed with WCAG relative luminance)
 
-| token | hex | use | on `bg` #0A0A0C | on `surface` #141417 | on `raised` #1D1D21 |
+| token | hex | use | on `bg` #0B1220 | on `surface` #111A2C | on `raised` #18233A |
 |---|---|---|---|---|---|
-| `bg` | `#0A0A0C` | app ground | | | |
-| `surface` | `#141417` | grouped rows, sheets, tab bar | | | |
-| `raised` | `#1D1D21` | chips, segmented track, pressed | | | |
-| `hairline` | `#26262B` | 1 px separators (decorative) | 1.31 | 1.22 | – |
-| `hairlineStrong` | `#3A3A41` | bar tracks, outlines (non-text) | 1.75 | 1.63 | 1.49 |
-| `text` | `#F4F4F6` | primary | 18.01 | 16.74 | 15.29 |
-| `text2` | `#A6A6AF` | secondary | 8.19 | 7.61 | 6.96 |
-| `text3` | `#8A8A94` | captions (min 12 pt) | 5.79 | 5.38 | 4.92 |
-| `accent` | `#2C64E8` | fills only | – | – | – |
-| `onAccent` | `#FFFFFF` | text on accent | 5.13 on `accent` | | |
-| `accentText` | `#6F9DFF` | accent as text/lines | 7.48 | 6.95 | 6.35 |
-| `win` | `#3DD68C` | W, boosted power | 10.55 | 9.80 | 8.96 |
-| `loss` | `#FF6B6B` | L, cut power, zone lost | 7.13 | 6.63 | 6.05 |
-| `live` | `#FF5247` | live dot and minute | 6.17 | 5.73 | 5.24 |
-| `gold` | `#E9C46A` | credits coin only | 11.84 | 11.00 | 10.06 |
+| `bg` | `#0B1220` | app ground (ink navy) | | | |
+| `surface` | `#111A2C` | sheets, promo tiles, tab bar | | | |
+| `raised` | `#18233A` | chips, segmented track, % pills, pressed | | | |
+| `hairline` | `#1F2B44` | 1 px separators (decorative) | – | – | – |
+| `hairlineStrong` | `#2C3A57` | bar tracks, outlines (non-text) | 1.65 | 1.53 | 1.38 |
+| `text` / `chalk` | `#F4EFE4` | primary text; the primary button fill | 16.33 | 15.16 | 13.66 |
+| `text2` | `#BDB7AA` | secondary | 9.38 | 8.71 | 7.85 |
+| `text3` | `#948F85` | captions (min 12 pt) | 5.82 | 5.40 | 4.87 |
+| `onChalk` | `#0B1220` | text on chalk | 16.33 on `chalk` | | |
+| `accent` / `accentText` | `#4BD68C` | pitch green: links, progress, your side | 10.07 | 9.35 | 8.43 |
+| `onAccent` | `#0B1220` | text on accent | 10.07 on `accent` | | |
+| `win` | `#4BD68C` | W, boosted power | 10.07 | 9.35 | 8.43 |
+| `loss` | `#FF7A6B` | L, cut power, zone lost | 7.35 | 6.83 | 6.15 |
+| `live` | `#FF5A50` | live dot and minute | 6.09 | 5.65 | 5.10 |
+| `gold` | `#E9C46A` | credits coin, pack borders | 11.21 | 10.40 | 9.38 |
+| `pitch` | `#0C251C` | game surfaces only (stripe `#0F2C21`) | text 13.4 · text2 8.11 / 7.50 · text3 5.03 / 4.65 | | |
 
-Form pills: `win` on `winSoft` composited over `raised` is 7.95. `loss` on `lossSoft` composited over `raised` is 5.88. The inverse primary (bg `#0A0A0C` on `text` `#F4F4F6`, used by the selected filter chip) is 18.01.
+- **Form pills:** `win` on `winSoft` over `raised` is 6.31. `loss` on `lossSoft` over `raised` is 5.00.
+- **Zone plates on the duel pitch** are ink at 82%, so all text tokens keep their `bg` ratios.
+- **Card text:** each colour was computed against the darkest face colour it sits on, the bottom plate. Bronze ink `#EDC29C` on `#150E0A` is 11.64, name 16.72. Silver ink 13.30, name 19.92. Gold ink 13.24, name 16.90. Icon ink 14.05. The cost-gem number (white) sits on the gem's mid tone `#2C64E8` at 5.13.
 
-Card text was computed against the darkest face colour it sits on (the bottom plate). Bronze ink `#EDC29C` on `#150E0A` is 11.64, name 16.72. Silver ink 13.30, name 19.92. Gold ink 13.24, name 16.90. Icon ink 14.05. The cost-gem number (white) sits on the gem's mid tone `#2C64E8`: 5.13. The metal labels at 80% alpha still clear 9:1. **Recompute if you change a colour.**
+### Club colour, used boldly and safely (`components/ui.tsx`)
 
-Club colours (`lib/colors.ts`) are never used for text. They appear only in kit chips, the card sash and the face's club wash.
+Club colours come from `lib/colors.ts` (parsed from football-data's `clubColors`). Never use a raw kit hex for text or for a fill that carries text. Go through these helpers:
+
+| helper | returns | rule |
+|---|---|---|
+| `clubTone(c)` | the colour to draw a club as a **graphic** (bars, stripes, fields, washes) | primary, unless under 2.2:1 on the ground (navy on ink), then secondary, then primary lifted toward white |
+| `fixtureTones(home, away)` | `[home, away]` for one fixture | if the two are near-identical (Liverpool v Arsenal, Leeds v Spurs), the away side takes its secondary, lifted until it shows |
+| `solidFill(tone)` | a fill that will **carry text** (picked pill, Segmented thumb, score-bug tab) | the tone, darkened just enough that ink or chalk clears 4.5:1 on it |
+| `onFill(fill)` | ink or chalk | whichever contrasts more with `fill` (≥ 4.5 guaranteed after `solidFill`) |
+| `clubText(c)` / `toneText(tone)` | a club colour safe **as text** | lifted toward chalk until ≥ 4.5:1 on the ground ("Your pick · Arsenal", team names under the match-page chances) |
+
+Where club colour appears:
+- `KitStripe` (4 pt, primary 70% / secondary 30%) beside every team name in rows, the table and projections.
+- The `OutcomeRow` bar is in the side's tone (draw: `text2`). The picked pill is `solidFill(tone)` (draw: chalk).
+- `ProbabilityBar` takes `tones`: the leader at full strength, the others at 72%.
+- `CompactMatchRow`: the favourite's tile is tinted 20% with a 75% border in its tone.
+- `MatchMarket` starts with a 3 pt programme rule (home | away). A `featured` market (the first fixture on Home) becomes a full-bleed split `KitField` with the `ScoreBug`.
+- Match page: a full-bleed split `KitField` (176 tall) with the `ScoreBug`. Names sit below it in `clubName` caps.
+- Club page: a full-bleed `KitField` in the club's kit (190 tall) with its crest or kit chip, then the name in `clubName` 36.
+- Table: each row carries a horizontal wash of its club tone (17% → 0 over 55% of the row).
+- Kit fields start **below** the nav bar, never under it. A white kit (Spurs, Fulham, Leeds) behind a nav title fails contrast.
+- Text over a field's fade has been pixel-audited. The audit samples the worst pixel behind every text element on Home, Matches, match pages, club pages for Arsenal, Spurs, Newcastle and Man City, Cards, Play, Teams, You, About and the duel board; all pass. Rerun it whenever a field's height, fade or text position changes.
 
 ### Type: Inter for the UI, Inter Tight for card numerals and names. Every number uses `fontVariant: ['tabular-nums']`.
 
 | style | font | size / line | tracking | use |
 |---|---|---|---|---|
-| largeTitle | Inter 800 | 32/38 | −0.6 | tab titles ("Today", "Cards") |
+| largeTitle | Inter Tight 800 | 34/40 | −0.8 | tab titles ("Today", "Cards") |
 | title | Inter 700 | 22/28 | −0.3 | section heads, card-view name |
 | headline | Inter 600 | 17/22 | −0.2 | row titles |
 | body | Inter 400 | 15/21 | 0 | prose, `text2` |
@@ -55,8 +90,12 @@ Club colours (`lib/colors.ts`) are never used for text. They appear only in kit 
 | caption | Inter 500 | 12/16 | 0 | legal, credit |
 | overline | Inter 600 | 12/16 | +0.6, caps | "MODEL'S CHANCE" |
 | tab | Inter 500 | 10.5/13 | +0.1 | tab bar |
-| numHero | Inter 700 | 40/44 | −1.2 | match-page probabilities (the "%" at 22) |
-| numLarge | Inter 700 | 28/32 | −0.6 | points, level |
+| numHero | Inter Tight 800 | 44/48 | −1.4 | match-page probabilities (the "%" at 22) |
+| numLarge | Inter Tight 800 | 30/34 | −0.6 | points, level, scores |
+| strap | Inter Tight 800, caps | 13/16 | +1.4 | score-bug club codes, "SAT 31 OCT" |
+| bug | Inter Tight 800 | 22/26 | −0.2 | the time or score inside the score bug (ink on chalk) |
+| clubName | Inter Tight 800, caps | 30/32 | −0.4 | club names set big (club header 36, match hero 24, featured fixture 20) |
+| section title | Inter Tight 800 | 22/28 | −0.4 | "Your teams", "Matchday 9" |
 | num | Inter 600 | 15/20 | 0 | % pills, table numbers |
 
 ### Spacing, radii, sizes
@@ -82,19 +121,23 @@ APIs are fixed here so developers 2 and 3 can code against them on day one. Keep
 - **`NavBar`** `{ title?, onBack?, right? }`: 44 tall, chevron-back 26, title 15/600 `text2`, centred.
 - **`SectionHeader`** `{ title, action?: { label, onPress } }`: title 20/700, action 14/500 `accentText` with a 14 chevron.
 - **`Row`** `{ left?, title, subtitle?, right?, onPress?, chevron? }`: 52 min height, a 1 px `hairline` divider under it (inset 0, the row sits in the gutter), pressed bg `raised`.
-- **`KitChip`** `{ colors: ClubColors, size? = 20 }`: a circle split at 135° (primary top-left, secondary bottom-right), inner ring 1 px `rgba(255,255,255,.14)`, outer 1 px `rgba(0,0,0,.4)`. **It replaces crests everywhere in list rows, even when crests are on.** Crests appear only on the club page header (photos-on builds).
+- **`KitChip`** `{ colors: ClubColors, size? = 20 }`: a circle split at 135° (primary top-left, secondary bottom-right), inner ring 1 px `rgba(255,255,255,.14)`, outer 1 px `rgba(0,0,0,.4)`. Used in the favourites picker, the You sheet and as the crest fallback on the club header. In match lists, the table and projections, team names carry a `KitStripe` instead (below). Crests appear only on the club page header (photos-on builds).
 - **`Credits`** (alias `Wallet`) `{ credits }`: a pill 30 tall on `raised`, a 15 gold coin (radial `#FFF0B8` → `#E9C46A` → `#A9822F`) and the number 14/600, tabular.
-- **`Button`** `{ label, onPress, kind?: 'primary' | 'secondary' | 'ghost', size?: 'md' | 'sm', icon?, disabled? }`: primary is `accent` with white text, radius 12, height 50 (sm: 34, pill radius). Secondary is `raised` with `text`. Ghost is text-only `accentText`. Disabled is 40% opacity.
-- **`Segmented`** `{ options: string[], value: number, onChange }`: track `raised`, radius 12, 3 inset. The thumb is `accent` with white 15/600 text, 40 tall, and slides on change. Used for picks and the Fixtures/Table switch.
+- **`Button`** `{ label, onPress, kind?: 'primary' | 'secondary' | 'ghost', size?: 'md' | 'sm', icon?, disabled? }`: primary is **chalk** with ink 15/700 text, radius 12, height 50 (sm: 34, pill radius). Secondary is `raised` with `text`. Ghost is text-only `accentText` (pitch green). Disabled is 40% opacity.
+- **`Segmented`** `{ options, value, onChange, tones? }`: track `raised`, radius 12, 3 inset. The thumb is chalk with ink 15/700 text, 40 tall, and slides on change. With `tones` (a pick: `[homeTone, undefined, awayTone]`) the thumb is `solidFill(tone)` with `onFill` text, chalk for Draw.
 - **`FilterChips`** `{ options, value, onChange }`: pills 32 tall on `surface`, `text2`. The selected chip is inverted (`text` bg, `bg` text, 600).
-- **`ProbabilityBar`** `{ home, draw, away, lead: 'H'|'D'|'A' }`: three flex segments, 6 tall, radius 3, gap 3. The leader is `accent` and the others `hairlineStrong`. Club colours are deliberately not used (Liverpool and Arsenal are both red).
-- **`OutcomeRow`** `{ kit?: ClubColors, label, pct, picked, lead, onPress }`: the core "market row". It's a grid of kit (20) | label 16/500 with a 3-px bar under it (bar width = pct; track `raised`; fill `hairlineStrong`, `text2` when it's the model's lead, `accentText` when picked) | a pill 64×36 radius 10 on `raised` with "34%" 15/600. When picked, the pill is `accent` with white text and a 14 check. Rows are 5 above and below. The **whole row** is the hit target.
+- **`ProbabilityBar`** `{ home, draw, away, lead, tones?, height? = 8 }`: three flex segments, radius 4, gap 3. With `tones` (from `fixtureTones`) the sides are drawn in their kits and the draw in `text2`. The leader is at full strength, the others at 72%. Without tones the leader is chalk and the others `hairlineStrong`.
+- **`OutcomeRow`** `{ kit?, label, pct, picked, lead, onPress, tone? }`: the core "market row". It's a grid of `KitStripe` (4×34) | label 16/500 with a 3 pt bar under it (bar width = pct, in the side's tone; draw `text2`; track `raised`) | a pill 64×36 radius 10 on `raised` with "34%" 15/600. When picked, the pill is `solidFill(tone)` (draw: chalk) with `onFill` text and a 14 check. The **whole row** is the hit target.
 - **`MatchMarket`** `{ match, prediction, pick, onPick }`: a meta line (`text3` 13: "Premier League · Sun 1 Nov, 16:30" left, venue right), then three OutcomeRows (home, Draw with an empty ring instead of a kit chip, away). The footer says "Your pick · Arsenal" in `accentText` on the left and "+2 points if right" in `text3` on the right. With no pick it says "Tap an outcome to pick" and "Locks at kick-off". When locked or finished, rows aren't pressable and the result outcome gets a `win` check. Separated by a hairline.
-- **`CompactMatchRow`** `{ match, prediction }`: two stacked team lines (kit 16 + name 15/500), the time 13 `text3`, then three 44×46 tiles (`surface`) with the % at 15/600 and a "1 / X / 2" label at 10.5. The highest tile is `raised` with `text`, the others `text2`. Used in lists and Matches.
+- **`CompactMatchRow`** `{ match, prediction }`: two stacked team lines (`KitStripe` 3×18 + name 15/500), the time 13 `text3`, then three 44×46 tiles (`surface`) with the % at 15/600 and "1 / X / 2" at 10.5. The favourite's tile is tinted 20% in its tone with a 75% border (draw: chalk). Scores in Inter Tight 800 18.
+- **`KitStripe`** `{ colors, tone?, height, width }`: the vertical kit mark beside every team name (primary 70%, secondary 30%; `null` = the quiet draw stripe). `KitChip` stays for the favourites picker and the crest fallback.
+- **`ScoreBug`** `{ home: { code, tone }, away, center, live?, small? }`: the TV graphic. Club code tabs (`solidFill(tone)`, strap type) and a chalk centre with the time or score (`bug` type). The centre goes `live` red while in play. 40 tall (small: 30).
+- **`KitField`** `{ colors, away?, tones?, height, fade? }`: a full-bleed block in a club's kit with the diagonal −28° sash and secondary pinstripes (the same language as photo-less cards). With `away` it splits diagonally into both kits. It fades to `bg` over the bottom `fade` fraction. Always placed below the nav bar.
+- **`Pitch`** `{ lanes?, radius? }`: the floodlit-pitch surface (`pitch`, mowing stripes, halfway line, centre circle, dashed lane lines). For game surfaces only.
 - **`FormPills`** `{ results }`: 24×24, radius 6, 11/700. W is win on winSoft, L is loss on lossSoft, D is `text2` on `raised`. Oldest first, as `recentForm` returns them.
 - **`Sheet`** `{ visible, onClose, title?, children }`: bottom sheet, `surface`, radius 28 at the top, a 36×5 grabber `hairlineStrong`, a scrim `rgba(0,0,0,.6)`. Used for the league picker, favourite-team picker and duel results.
 - **`ProgressBar`** `{ value 0-1 }`: 4 tall, radius 2, track `raised`, fill `accent`.
-- **Tab bar** (`app/(tabs)/_layout.tsx`): 4 tabs, a `BlurView` (dark, intensity 40) over `surface` at 92%, a hairline top, 49 tall plus the safe area. Ionicons: `home-outline`/`home`, `calendar-clear-outline`/`calendar-clear`, `albums-outline`/`albums`, `flash-outline`/`flash` (24). Active is `text`, inactive `text3`, labels 10.5/500 sentence case. No indicator bar.
+- **Tab bar** (`app/(tabs)/_layout.tsx`): 4 tabs over `surface` at 92% (`BlurView` on iOS), a hairline top, 49 tall plus the safe area. Ionicons: `home-outline`/`home`, `calendar-clear-outline`/`calendar-clear`, `albums-outline`/`albums`, `flash-outline`/`flash` (24). Active is chalk with a 22×2 pitch-green touchline mark above the icon; inactive is `text3`. Labels 10.5/500.
 - **`Skeleton`**: `raised` blocks pulsing between opacity 0.5 and 1 (static under reduced motion). **`Empty` / `Failed`**: an icon 28 `text3`, a headline and a body, plus a secondary Button "Try again".
 
 ## 4. Information architecture

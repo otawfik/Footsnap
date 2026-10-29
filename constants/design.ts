@@ -1,49 +1,60 @@
 import type { TextStyle } from 'react-native';
 
 /**
- * FootSnap design system v2: "night stadium, metal cards".
- * Spec: docs/redesign/SPEC.md. This file replaces constants/theme.ts screen by screen;
- * theme.ts stays until nothing imports it.
+ * FootSnap design system v2.1: "floodlit ink" (docs/redesign/SPEC.md §2).
  *
- * One dark, neutral shell (no green tint), one accent (Snap blue = energy, selection, primary
- * action), win/loss semantics, and cards that carry all the colour.
+ * The ground is deep ink navy (a stadium at night, a matchday programme's cover stock), never
+ * neutral black. Type is warm chalk cream, like pitch markings. Colour comes from football
+ * itself: every team-specific thing (outcome bars, picked pills, match heroes, club headers,
+ * table stripes) is drawn in that club's kit via clubTone() / onFill() in components/ui.tsx,
+ * which fall back automatically when a kit colour wouldn't read. The brand accent is pitch
+ * green (links, progress, your side, wins). The primary action is chalk on ink.
  *
- * WCAG contrast, computed (calc in SPEC.md §2), against bg / surface / raised:
- *   text      18.01 / 16.74 / 15.29     text2   8.19 / 7.61 / 6.96     text3  5.79 / 5.38 / 4.92
- *   accentText 7.48 / 6.95 / 6.35       win    10.55 / 9.80 / 8.96     loss   7.13 / 6.63 / 6.05
- *   live       6.17 / 5.73 / 5.24       gold   11.84 / 11.00 / 10.06
- *   onAccent (#FFFFFF) on accent 5.13
+ * WCAG contrast, computed against bg / surface / raised:
+ *   text   16.33 / 15.16 / 13.66     text2  9.38 / 8.71 / 7.85     text3  5.82 / 5.40 / 4.87 (on pitch 5.03, its stripe 4.65)
+ *   accent (pitch) 10.07 / 9.35 / 8.43    loss 7.35 / 6.83 / 6.15    live 6.09 / 5.65 / 5.10
+ *   gold   11.21 / 10.40 / 9.38
+ *   onChalk (ink) on chalk 16.33 · onAccent (ink) on accent 10.07
+ *   win on winSoft over raised 6.31 · loss on lossSoft over raised 5.00
  * Every text colour clears 4.5:1 on every ground. Recompute if you change one.
  */
 
 export const color = {
-  // grounds
-  bg: '#0A0A0C', // app ground
-  surface: '#141417', // grouped rows, sheets, the tab bar
-  raised: '#1D1D21', // chips, segmented track, pressed rows
-  hairline: '#26262B', // separators (decorative, 1 px)
-  hairlineStrong: '#3A3A41', // control outlines, bar tracks
+  // grounds: ink navy, lifted in two steps
+  bg: '#0B1220', // app ground
+  surface: '#111A2C', // sheets, promo tiles, tab bar
+  raised: '#18233A', // chips, segmented track, pressed rows, % pills
+  hairline: '#1F2B44', // separators (decorative, 1 px)
+  hairlineStrong: '#2C3A57', // bar tracks, outlines (non-text)
 
-  // text
-  text: '#F4F4F6',
-  text2: '#A6A6AF',
-  text3: '#8A8A94', // captions, metadata; never below 12 pt
+  // text: warm chalk
+  text: '#F4EFE4',
+  text2: '#BDB7AA',
+  text3: '#948F85', // captions, metadata; never below 12 pt
 
-  // the one accent
-  accent: '#2C64E8', // fills: primary button, selected segment, picked outcome, energy
-  accentText: '#6F9DFF', // accent as text or thin lines on dark
-  accentSoft: 'rgba(44,100,232,0.16)', // selected-row wash
-  onAccent: '#FFFFFF',
+  // the primary action: chalk on ink (buttons, selected segment, selected chip)
+  chalk: '#F4EFE4',
+  onChalk: '#0B1220',
+
+  // brand accent: pitch green (links, progress, your pick when there's no club, your side in the duel)
+  accent: '#4BD68C', // fills
+  accentText: '#4BD68C', // as text or thin lines
+  accentSoft: 'rgba(75,214,140,0.14)',
+  onAccent: '#0B1220',
 
   // semantics
-  win: '#3DD68C',
-  winSoft: 'rgba(61,214,140,0.14)',
-  loss: '#FF6B6B',
-  lossSoft: 'rgba(255,107,107,0.14)',
-  live: '#FF5247',
+  win: '#4BD68C',
+  winSoft: 'rgba(75,214,140,0.14)',
+  loss: '#FF7A6B',
+  lossSoft: 'rgba(255,122,107,0.14)',
+  live: '#FF5A50',
   gold: '#E9C46A', // credits coin only
 
-  scrim: 'rgba(0,0,0,0.6)',
+  /** a deep floodlit-pitch green, for game surfaces only (Play hero, duel board) */
+  pitch: '#0C251C',
+  pitchLine: 'rgba(244,239,228,0.07)',
+
+  scrim: 'rgba(3,6,12,0.66)',
 } as const;
 
 /** Card metals. Rim gradients run top-left to bottom-right (start {0,0} end {1,1}). */
@@ -185,7 +196,7 @@ const tab: TextStyle['fontVariant'] = ['tabular-nums'];
 
 /** Type scale (pt). Every style that can show a number uses tabular figures. */
 export const type = {
-  largeTitle: { fontFamily: font.heavy, fontSize: 32, lineHeight: 38, letterSpacing: -0.6, color: color.text },
+  largeTitle: { fontFamily: font.cardHeavy, fontSize: 34, lineHeight: 40, letterSpacing: -0.8, color: color.text },
   title: { fontFamily: font.bold, fontSize: 22, lineHeight: 28, letterSpacing: -0.3, color: color.text },
   headline: { fontFamily: font.semibold, fontSize: 17, lineHeight: 22, letterSpacing: -0.2, color: color.text },
   body: { fontFamily: font.regular, fontSize: 15, lineHeight: 21, color: color.text2 },
@@ -196,10 +207,17 @@ export const type = {
   overline: { fontFamily: font.semibold, fontSize: 12, lineHeight: 16, letterSpacing: 0.6, textTransform: 'uppercase', color: color.text3 },
   tab: { fontFamily: font.medium, fontSize: 10.5, lineHeight: 13, letterSpacing: 0.1 },
   // numbers
-  numHero: { fontFamily: font.bold, fontSize: 40, lineHeight: 44, letterSpacing: -1.2, color: color.text, fontVariant: tab },
-  numLarge: { fontFamily: font.bold, fontSize: 28, lineHeight: 32, letterSpacing: -0.6, color: color.text, fontVariant: tab },
+  numHero: { fontFamily: font.cardHeavy, fontSize: 44, lineHeight: 48, letterSpacing: -1.4, color: color.text, fontVariant: tab },
+  numLarge: { fontFamily: font.cardHeavy, fontSize: 30, lineHeight: 34, letterSpacing: -0.6, color: color.text, fontVariant: tab },
   num: { fontFamily: font.semibold, fontSize: 15, lineHeight: 20, color: color.text, fontVariant: tab },
   numSmall: { fontFamily: font.semibold, fontSize: 13, lineHeight: 16, color: color.text, fontVariant: tab },
+  // broadcast moments (TV graphics, matchday programme): Inter Tight, caps, tracked
+  /** club codes on score-bug tabs, "MATCHDAY 9" straps */
+  strap: { fontFamily: font.cardHeavy, fontSize: 13, lineHeight: 16, letterSpacing: 1.4, textTransform: 'uppercase', color: color.text },
+  /** kick-off time / score inside the score bug */
+  bug: { fontFamily: font.cardHeavy, fontSize: 22, lineHeight: 26, letterSpacing: -0.2, color: color.onChalk, fontVariant: tab },
+  /** a club's name set big (club page header, match hero) */
+  clubName: { fontFamily: font.cardHeavy, fontSize: 30, lineHeight: 32, letterSpacing: -0.4, textTransform: 'uppercase', color: color.text },
 } satisfies Record<string, TextStyle>;
 
 // ---------------------------------------------------------------- space, radii, motion

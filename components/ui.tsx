@@ -1,9 +1,11 @@
 /**
- * FootSnap UI primitives, design system v2 (docs/redesign/SPEC.md §3, tokens in constants/design.ts).
+ * FootSnap UI primitives, design system v2.1 (docs/redesign/SPEC.md §3, tokens in constants/design.ts).
  *
- * A calm, neutral dark shell: one sans (Inter), hairline rows instead of boxes, big tabular
- * numbers, one accent (Snap blue) for selection and the primary action. Club colours appear
- * only in kit chips, never as text.
+ * A calm shell on ink navy: hairline rows instead of boxes, big tabular numbers, chalk for the
+ * primary action, pitch green for links and progress. Colour comes from the clubs: anything
+ * about one team is drawn in its kit (clubTone / fixtureTones / solidFill / onFill below), and
+ * broadcast moments (ScoreBug, KitField, straps) set times and scores like a TV graphic.
+ * Club colours are only ever text through clubText(), which guarantees 4.5:1.
  *
  * The names exported by the v1 shell (Header, Section, Panel, Pill, LeagueTabs, Form, OddsBar,
  * Crest, KitStripe, LiveLamp, Num, Coin, Wallet…) are kept and restyled, so screens that
@@ -37,7 +39,7 @@ import Animated, {
   Easing,
   useReducedMotion,
 } from 'react-native-reanimated';
-import Svg, { Circle, ClipPath, Defs, G, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, G, Path, Polygon, RadialGradient, Rect, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -47,7 +49,7 @@ import { LEAGUES, League } from '../constants/leagues';
 import { useLeague } from '../context/league';
 import type { Team } from '../lib/types';
 import type { Result } from '../lib/football';
-import { alpha, ClubColors } from '../lib/colors';
+import { alpha, ClubColors, contrast, mix } from '../lib/colors';
 import { subscribeOffline } from '../services/api';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -77,6 +79,80 @@ export const pctText = (p: number, sign = true) => {
 export function useTabBarHeight() {
   const insets = useSafeAreaInsets();
   return size.tabBar + Math.max(insets.bottom, 8);
+}
+
+
+// ---------------------------------------------------------------- club colour (SPEC §2, "colour from football")
+
+const near = (a: string, b: string) => {
+  const p = (h: string, i: number) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
+  return Math.hypot(p(a, 0) - p(b, 0), p(a, 1) - p(b, 1), p(a, 2) - p(b, 2)) < 70;
+};
+
+/**
+ * A club's colour as a graphic (bars, stripes, fields) on `ground`: its primary, unless that
+ * would vanish (under 2.2:1, e.g. navy on the ink ground), then its secondary, then the
+ * primary lifted toward white until it shows.
+ */
+export function clubTone(c?: ClubColors | null, ground: string = color.bg): string {
+  if (!c) return color.text3;
+  for (const x of [c.primary, c.secondary]) if (contrast(x, ground) >= 2.2) return x;
+  for (let t = 0.2; t <= 1; t += 0.2) {
+    const x = mix(c.primary, '#FFFFFF', t);
+    if (contrast(x, ground) >= 2.2) return x;
+  }
+  return '#FFFFFF';
+}
+
+/** Home and away tones for one fixture. Two red clubs (Liverpool v Arsenal) can't both be red, so the away side takes its other colour. */
+export function fixtureTones(h?: ClubColors | null, a?: ClubColors | null, ground: string = color.bg): [string, string] {
+  const th = clubTone(h, ground);
+  let ta = clubTone(a, ground);
+  if (near(th, ta)) {
+    // the away side's other colour, lifted until it shows on the ground (Spurs navy → a visible navy)
+    let pick: string | null = null;
+    for (const alt of [a?.secondary, a?.primary]) {
+      if (!alt || near(th, alt) || pick) continue;
+      for (let t = 0; t <= 0.8 && !pick; t += 0.1) {
+        const x = t ? mix(alt, '#FFFFFF', t) : alt;
+        if (contrast(x, ground) >= 2.2 && !near(th, x)) pick = x;
+      }
+    }
+    // no usable second colour: a darker or lighter version of the same kit, whichever is further from home
+    ta = pick ?? (contrast(th, '#FFFFFF') < 3 ? mix(th, '#5A6580', 0.6) : mix(ta, '#FFFFFF', 0.55));
+  }
+  return [th, ta];
+}
+
+/** Ink or chalk, whichever reads better on `fill`. */
+export const onFill = (fill: string) => (contrast(color.onChalk, fill) >= contrast(color.chalk, fill) ? color.onChalk : color.chalk);
+
+/** `tone` as a solid fill that carries text: darkened just enough that ink or chalk clears 4.5:1 on it. */
+export function solidFill(tone: string): string {
+  for (let t = 0; t <= 0.7; t += 0.05) {
+    const f = t ? mix(tone, '#000000', t) : tone;
+    if (Math.max(contrast(color.chalk, f), contrast(color.onChalk, f)) >= 4.5) return f;
+  }
+  return mix(tone, '#000000', 0.7);
+}
+
+/** Any tone made safe as text on `ground` (≥ 4.5:1), lifted toward chalk until it reads. */
+export function toneText(tone: string, ground: string = color.bg): string {
+  for (let t = 0; t <= 1; t += 0.1) {
+    const x = t ? mix(tone, color.chalk, t) : tone;
+    if (contrast(x, ground) >= 4.5) return x;
+  }
+  return color.text;
+}
+
+/** A club colour safe as text on `ground` (≥ 4.5:1): the tone, lifted toward chalk until it reads. */
+export function clubText(c?: ClubColors | null, ground: string = color.bg): string {
+  const base = clubTone(c, ground);
+  for (let t = 0; t <= 1; t += 0.1) {
+    const x = t ? mix(base, color.chalk, t) : base;
+    if (contrast(x, ground) >= 4.5) return x;
+  }
+  return color.text;
 }
 
 // ---------------------------------------------------------------- screen
@@ -435,12 +511,126 @@ export function Crest({ team, size: s = 28, colors }: { team: Pick<Team, 'name' 
   return <KitChip colors={colors} size={s} />;
 }
 
-/** @deprecated v1. Two-tone kit stripe; prefer KitChip. */
-export function KitStripe({ colors, height = 28, width = 4 }: { colors?: ClubColors; height?: number; width?: number }) {
+/**
+ * The kit stripe: a vertical bar in the club's colours (primary 70%, secondary 30%), the mark
+ * beside every team name in a list. `colors={null}` draws the quiet Draw stripe; `tone` overrides
+ * the primary (fixtureTones, so two red clubs don't match).
+ */
+export function KitStripe({ colors, height = 28, width = 4, tone }: { colors?: ClubColors | null; height?: number; width?: number; tone?: string }) {
+  if (colors === null) return <View style={{ width, height, borderRadius: 2, backgroundColor: color.hairlineStrong }} />;
+  const top = tone ?? clubTone(colors);
+  const second = colors?.secondary && !near(colors.secondary, top) ? colors.secondary : mix(top, color.bg, 0.45);
   return (
-    <View style={{ width, height, borderRadius: width, overflow: 'hidden' }}>
-      <View style={{ flex: 1, backgroundColor: colors?.primary ?? color.hairlineStrong }} />
-      <View style={{ flex: 1, backgroundColor: colors?.secondary ?? color.text3 }} />
+    <View style={{ width, height, borderRadius: 2, overflow: 'hidden' }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View style={{ flex: 7, backgroundColor: top }} />
+      <View style={{ flex: 3, backgroundColor: second }} />
+    </View>
+  );
+}
+
+/**
+ * The score bug, set like a TV graphic: [club code on its colour][time or score on chalk][club code].
+ * `center` is "16:30", "2–1" or "HT".
+ */
+export function ScoreBug({
+  home,
+  away,
+  center,
+  live,
+  small,
+  style,
+}: {
+  home: { code: string; colors?: ClubColors | null; tone?: string };
+  away: { code: string; colors?: ClubColors | null; tone?: string };
+  center: string;
+  live?: boolean;
+  small?: boolean;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const h = small ? 30 : 40;
+  const tab = (t: { code: string; colors?: ClubColors | null; tone?: string }) => {
+    const f = solidFill(t.tone ?? clubTone(t.colors));
+    return (
+      <View style={[styles.bugTab, { backgroundColor: f, height: h, minWidth: small ? 48 : 62 }]}>
+        <Text style={[type.strap, { color: onFill(f), fontSize: small ? 11.5 : 14 }]}>{t.code}</Text>
+      </View>
+    );
+  };
+  return (
+    <View style={[styles.bug, style]} accessible accessibilityLabel={`${home.code} ${center} ${away.code}`}>
+      {tab(home)}
+      <View style={[styles.bugMid, { height: h, paddingHorizontal: small ? 10 : 14 }, live && { backgroundColor: color.live }]}>
+        <Text style={[type.bug, small && { fontSize: 16, lineHeight: 20 }, live && { color: onFill(color.live) }]}>{center}</Text>
+      </View>
+      {tab(away)}
+    </View>
+  );
+}
+
+/**
+ * A kit field: a full-bleed block in a club's colours with the diagonal sash and pinstripes the
+ * photo-less cards use, fading into the ground at the bottom. With `away`, the field splits
+ * diagonally into the two clubs' kits (match hero).
+ */
+export function KitField({ colors, away, tones, height, fade = 0.55, children, style }: { colors?: ClubColors | null; away?: ClubColors | null; tones?: [string, string]; height: number; fade?: number; children?: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  const { width: W } = useWindowDimensions();
+  const id = useRef(`f${Math.random().toString(36).slice(2, 9)}`).current;
+  const w = Math.min(W, 600);
+  const c1 = tones?.[0] ?? clubTone(colors);
+  const c2 = tones?.[1] ?? (away ? clubTone(away) : c1);
+  const s1 = colors?.secondary && !near(colors.secondary, c1) ? colors.secondary : mix(c1, '#FFFFFF', 0.5);
+  const s2 = away?.secondary && !near(away.secondary, c2) ? away.secondary : mix(c2, '#FFFFFF', 0.5);
+  // the sash: a band across the field at -28°, edged with the secondary colour
+  const band = (cx: number, col: string, sec: string, key: string) => {
+    const t = Math.tan((28 * Math.PI) / 180);
+    const b = height * 0.34;
+    const y0 = height * 0.58 + cx * t;
+    const pts = (off: number, thick: number) => `${-20},${y0 - off} ${w + 20},${y0 - off - (w + 40) * t} ${w + 20},${y0 - off - (w + 40) * t + thick} ${-20},${y0 - off + thick}`;
+    return (
+      <G key={key} opacity={0.55}>
+        <Polygon points={pts(b * 0.5, b)} fill={mix(col, '#000000', 0.28)} />
+        <Polygon points={pts(b * 0.5 + 6, 2)} fill={sec} />
+        <Polygon points={pts(-b * 0.5 + 4, 2)} fill={sec} />
+      </G>
+    );
+  };
+  return (
+    <View style={[{ height, width: '100%', overflow: 'hidden' }, style]}>
+      <Svg width="100%" height={height} viewBox={`0 0 ${w} ${height}`} preserveAspectRatio="xMidYMid slice" style={StyleSheet.absoluteFill}>
+        <Defs>
+          <SvgLinearGradient id={`${id}f`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={color.bg} stopOpacity={0} />
+            <Stop offset={String(1 - fade)} stopColor={color.bg} stopOpacity={0.25} />
+            <Stop offset="1" stopColor={color.bg} stopOpacity={1} />
+          </SvgLinearGradient>
+          <ClipPath id={`${id}l`}>
+            <Polygon points={`0,0 ${w * 0.56},0 ${w * 0.44},${height} 0,${height}`} />
+          </ClipPath>
+          <ClipPath id={`${id}r`}>
+            <Polygon points={`${w * 0.56},0 ${w},0 ${w},${height} ${w * 0.44},${height}`} />
+          </ClipPath>
+        </Defs>
+        {away ? (
+          <>
+            <G clipPath={`url(#${id}l)`}>
+              <Rect x={0} y={0} width={w} height={height} fill={c1} />
+              {band(0, c1, s1, 'l')}
+            </G>
+            <G clipPath={`url(#${id}r)`}>
+              <Rect x={0} y={0} width={w} height={height} fill={c2} />
+              {band(0, c2, s2, 'r')}
+            </G>
+            <Polygon points={`${w * 0.56 - 1.5},0 ${w * 0.56 + 1.5},0 ${w * 0.44 + 1.5},${height} ${w * 0.44 - 1.5},${height}`} fill={color.bg} opacity={0.9} />
+          </>
+        ) : (
+          <>
+            <Rect x={0} y={0} width={w} height={height} fill={c1} />
+            {band(0, c1, s1, 'one')}
+          </>
+        )}
+        <Rect x={0} y={0} width={w} height={height} fill={`url(#${id}f)`} />
+      </Svg>
+      {children}
     </View>
   );
 }
@@ -540,6 +730,34 @@ export function Stepper({ value, min, max, onChange, label }: { value: number; m
   );
 }
 
+/**
+ * The pitch: a floodlit-green surface with mowing stripes and faint markings (halfway line,
+ * centre circle, the three duel lanes). Game surfaces only: the Play hero and the duel board.
+ * Text on it: text / text2 / text3 all clear 4.5:1 on its lightest stripe.
+ */
+export function Pitch({ children, style, lanes = true, radius: r = radius.lg }: { children?: React.ReactNode; style?: StyleProp<ViewStyle>; lanes?: boolean; radius?: number }) {
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const { w, h } = box;
+  const stripes = 9;
+  return (
+    <View
+      style={[{ backgroundColor: color.pitch, borderRadius: r, overflow: 'hidden' }, style]}
+      onLayout={(e: LayoutChangeEvent) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+    >
+      {w ? (
+        <Svg width={w} height={h} style={StyleSheet.absoluteFill} pointerEvents="none">
+          {Array.from({ length: stripes }, (_, i) => (i % 2 ? <Rect key={i} x={0} y={(i * h) / stripes} width={w} height={h / stripes} fill="#0F2C21" /> : null))}
+          <Rect x={10} y={10} width={w - 20} height={h - 20} rx={4} stroke={color.pitchLine} strokeWidth={1.5} fill="none" />
+          <Path d={`M10 ${h / 2} H${w - 10}`} stroke={color.pitchLine} strokeWidth={1.5} />
+          <Circle cx={w / 2} cy={h / 2} r={Math.min(w, h) * 0.16} stroke={color.pitchLine} strokeWidth={1.5} fill="none" />
+          {lanes ? <Path d={`M${w / 3} 10 V${h - 10} M${(2 * w) / 3} 10 V${h - 10}`} stroke={color.pitchLine} strokeWidth={1} strokeDasharray="3 6" /> : null}
+        </Svg>
+      ) : null}
+      {children}
+    </View>
+  );
+}
+
 // ---------------------------------------------------------------- buttons and controls
 
 export function Button({
@@ -561,7 +779,7 @@ export function Button({
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
 }) {
-  const fg = kind === 'primary' ? color.onAccent : kind === 'secondary' ? color.text : color.accentText;
+  const fg = kind === 'primary' ? color.onChalk : kind === 'secondary' ? color.text : color.accentText;
   return (
     <PressScale
       disabled={disabled}
@@ -586,20 +804,26 @@ export function Button({
   );
 }
 
-/** Segmented control: track `raised`, an `accent` thumb that slides (200 ms). value −1 shows no thumb. */
+/**
+ * Segmented control: track `raised`, a chalk thumb that slides (200 ms). value −1 shows no thumb.
+ * `tones` paints the thumb per option (a pick: the home club's kit, chalk for Draw, the away kit).
+ */
 export function Segmented({
   options,
   value,
   onChange,
   disabled,
   style,
+  tones,
 }: {
   options: string[];
   value: number;
   onChange: (i: number) => void;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
+  tones?: (string | undefined)[];
 }) {
+  const thumbFill = tones?.[value] ? solidFill(tones[value]!) : color.chalk;
   const [w, setW] = useState(0);
   const reduced = useReducedMotion();
   const seg = w ? (w - 6 - 3 * (options.length - 1)) / options.length : 0;
@@ -616,7 +840,7 @@ export function Segmented({
       onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}
       accessibilityRole="tablist"
     >
-      {shown && seg ? <Animated.View style={[styles.segThumb, { width: seg }, thumb]} /> : null}
+      {shown && seg ? <Animated.View style={[styles.segThumb, { width: seg, backgroundColor: thumbFill }, thumb]} /> : null}
       {options.map((o, i) => {
         const on = i === value;
         return (
@@ -632,7 +856,7 @@ export function Segmented({
             accessibilityState={{ selected: on, disabled: !!disabled }}
             accessibilityLabel={o}
           >
-            <Text style={[styles.segText, on && { color: color.onAccent }]} numberOfLines={1}>{o}</Text>
+            <Text style={[styles.segText, on && { color: onFill(thumbFill), fontFamily: font.bold }]} numberOfLines={1}>{o}</Text>
           </Pressable>
         );
       })}
@@ -698,17 +922,23 @@ function useGrow() {
   return g;
 }
 
-/** Home / draw / away bar. The leader is `accent`, the others `hairlineStrong`. No club colours. */
-export function ProbabilityBar({ home, draw, away, lead, style }: { home: number; draw: number; away: number; lead: 'H' | 'D' | 'A'; style?: StyleProp<ViewStyle> }) {
+/**
+ * Home / draw / away bar. With `tones` (fixtureTones) the two sides are drawn in their kits and
+ * the draw in chalk; the leader is full strength, the others at 45%. Without tones: chalk leader.
+ */
+export function ProbabilityBar({ home, draw, away, lead, style, tones, height: bh = 8 }: { home: number; draw: number; away: number; lead: 'H' | 'D' | 'A'; style?: StyleProp<ViewStyle>; tones?: [string, string]; height?: number }) {
   const g = useGrow();
   const st = useAnimatedStyle(() => ({ width: `${g.value * 100}%` }));
-  const seg = (p: number, on: boolean) => <View style={{ flex: Math.max(p, 0.02), height: 6, borderRadius: 3, backgroundColor: on ? color.accent : color.hairlineStrong }} />;
+  const fills = { H: tones?.[0] ?? color.chalk, D: tones ? color.text2 : color.chalk, A: tones?.[1] ?? color.chalk };
+  const seg = (p: number, on: boolean, o: 'H' | 'D' | 'A' = 'H') => (
+    <View style={{ flex: Math.max(p, 0.02), height: bh, borderRadius: bh / 2, backgroundColor: tones || on ? fills[o] : color.hairlineStrong, opacity: tones && !on ? 0.72 : 1 }} />
+  );
   return (
     <View style={style} accessible accessibilityLabel={`Model's chance: home ${pctText(home)}, draw ${pctText(draw)}, away ${pctText(away)}`}>
       <Animated.View style={[{ flexDirection: 'row', gap: 3 }, st]}>
-        {seg(home, lead === 'H')}
-        {seg(draw, lead === 'D')}
-        {seg(away, lead === 'A')}
+        {seg(home, lead === 'H', 'H')}
+        {seg(draw, lead === 'D', 'D')}
+        {seg(away, lead === 'A', 'A')}
       </Animated.View>
     </View>
   );
@@ -739,6 +969,7 @@ export function OutcomeRow({
   onPress,
   disabled,
   result,
+  tone,
 }: {
   kit?: ClubColors | null;
   label: string;
@@ -748,11 +979,15 @@ export function OutcomeRow({
   onPress?: () => void;
   disabled?: boolean;
   result?: boolean;
+  /** the side's colour in this fixture (fixtureTones); defaults to clubTone(kit), chalk for the draw */
+  tone?: string;
 }) {
-  const fill = picked ? color.accentText : lead ? color.text2 : color.hairlineStrong;
+  const t = kit === null ? color.text2 : tone ?? clubTone(kit);
+  const fill = t;
+  const pill = picked ? (kit === null ? color.chalk : solidFill(t)) : null;
   const inner = (pressed: boolean) => (
     <View style={[styles.out, pressed && { opacity: 0.75 }]}>
-      <KitChip colors={kit} size={20} />
+      <KitStripe colors={kit} tone={kit === null ? undefined : t} height={34} width={4} />
       <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Text style={styles.outLabel} numberOfLines={1}>{label}</Text>
@@ -760,9 +995,9 @@ export function OutcomeRow({
         </View>
         <MiniBar value={pct ?? 0} fill={fill} />
       </View>
-      <View style={[styles.outPill, picked && { backgroundColor: color.accent }]}>
-        {picked ? <Ionicons name="checkmark" size={14} color={color.onAccent} /> : null}
-        <Text style={[styles.outPct, picked && { color: color.onAccent }]}>{pct === null ? '–' : pctText(pct)}</Text>
+      <View style={[styles.outPill, pill ? { backgroundColor: pill } : null]}>
+        {pill ? <Ionicons name="checkmark" size={14} color={onFill(pill)} /> : null}
+        <Text style={[styles.outPct, pill ? { color: onFill(pill), fontFamily: font.bold } : null]}>{pct === null ? '–' : pctText(pct)}</Text>
       </View>
     </View>
   );
@@ -1026,7 +1261,7 @@ export const styles = StyleSheet.create({
 
   sectionHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6, gap: space.md },
   sectionHeadOld: { flexDirection: 'row', alignItems: 'flex-end', gap: space.md },
-  sectionTitle: { fontFamily: font.bold, fontSize: 20, lineHeight: 26, letterSpacing: -0.4, color: color.text, flexShrink: 1 },
+  sectionTitle: { fontFamily: font.cardHeavy, fontSize: 22, lineHeight: 28, letterSpacing: -0.4, color: color.text, flexShrink: 1 },
   sectionAction: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   sectionActionText: { fontFamily: font.medium, fontSize: 14, color: color.accentText },
   section: { marginTop: space.sm, marginBottom: space.xl, gap: space.md },
@@ -1041,16 +1276,16 @@ export const styles = StyleSheet.create({
 
   credits: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 30, paddingLeft: 8, paddingRight: 11, borderRadius: radius.pill, backgroundColor: color.raised },
   creditsText: { fontFamily: font.semibold, fontSize: 14, color: color.text, fontVariant: ['tabular-nums'] },
-  avatar: { backgroundColor: '#2A2A30', alignItems: 'center', justifyContent: 'center' },
+  avatar: { backgroundColor: color.raised, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: color.hairlineStrong },
   avatarText: { fontFamily: font.semibold, fontSize: 13, color: color.text },
 
-  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, height: size.button, paddingHorizontal: space.xl, borderRadius: 12, backgroundColor: color.accent },
+  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, height: size.button, paddingHorizontal: space.xl, borderRadius: 12, backgroundColor: color.chalk },
   btnSm: { height: size.buttonSm, paddingHorizontal: space.lg, borderRadius: radius.pill },
   btnGhost: { backgroundColor: 'transparent', paddingHorizontal: space.sm },
-  btnText: { fontFamily: font.semibold, fontSize: 15, color: color.onAccent },
+  btnText: { fontFamily: font.bold, fontSize: 15, color: color.onChalk },
 
   segTrack: { flexDirection: 'row', padding: 3, gap: 3, borderRadius: 12, backgroundColor: color.raised },
-  segThumb: { position: 'absolute', left: 3, top: 3, height: 40, borderRadius: 9, backgroundColor: color.accent },
+  segThumb: { position: 'absolute', left: 3, top: 3, height: 40, borderRadius: 9, backgroundColor: color.chalk },
   segItem: { flex: 1, height: 40, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   segText: { fontFamily: font.semibold, fontSize: 15, color: color.text2 },
 
@@ -1065,6 +1300,10 @@ export const styles = StyleSheet.create({
   outLabel: { fontFamily: font.medium, fontSize: 16, lineHeight: 21, letterSpacing: -0.15, color: color.text, flexShrink: 1 },
   outPill: { minWidth: 64, height: 36, borderRadius: radius.sm, backgroundColor: color.raised, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingHorizontal: 8 },
   outPct: { fontFamily: font.semibold, fontSize: 15, color: color.text, fontVariant: ['tabular-nums'] },
+
+  bug: { flexDirection: 'row', alignSelf: 'center', borderRadius: 6, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  bugTab: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+  bugMid: { alignItems: 'center', justifyContent: 'center', backgroundColor: color.chalk, minWidth: 74 },
 
   oddsLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
   oddsNum: { ...type.numSmall, color: color.text2 },

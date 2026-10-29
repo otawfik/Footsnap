@@ -7,7 +7,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Share, useWindowDimensions } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, NavBar, Overline, ProbabilityBar, Segmented, Toggle, KitChip, FormPills, Skeleton, Empty, LiveDot, tap, teamName, pctText } from '../../components/ui';
+import { Screen, NavBar, Overline, ProbabilityBar, Segmented, Toggle, KitStripe, KitField, ScoreBug, Bleed, FormPills, Skeleton, Empty, LiveDot, tap, teamName, pctText, fixtureTones, clubText } from '../../components/ui';
 import { LineChart } from '../../components/Charts';
 import { SnapCard } from '../../components/SnapCard';
 import { clock, shortDate, statusLabel } from '../../components/Match';
@@ -111,19 +111,22 @@ export default function MatchScreen() {
     Share.share({ message: `${what} · ${league.name}.${chance} Via FootSnap.` }).catch(() => {});
   };
 
-  const team = (t: Match['homeTeam'], cc: typeof hc) => {
+  const [th, ta] = fixtureTones(hc, ac);
+  const code = (t: Match['homeTeam']) => (t.tla ?? teamName(t).slice(0, 3)).toUpperCase();
+  const team = (t: Match['homeTeam'], align: 'flex-start' | 'flex-end') => {
     const r = row(t.id);
     return (
-      <Pressable style={styles.team} onPress={() => openClub(t.id)} accessibilityRole="button" accessibilityLabel={`${t.name}${r ? `, ${ordinal(r.position)}, ${r.points} points` : ''}. Open club`}>
-        <KitChip colors={cc} size={52} style={{ marginBottom: 6 }} />
-        <Text style={styles.teamName} numberOfLines={2}>{teamName(t)}</Text>
+      <Pressable style={[styles.team, { alignItems: align }]} onPress={() => openClub(t.id)} accessibilityRole="button" accessibilityLabel={`${t.name}${r ? `, ${ordinal(r.position)}, ${r.points} points` : ''}. Open club`}>
+        <Text style={[styles.teamName, { textAlign: align === 'flex-start' ? 'left' : 'right' }]} numberOfLines={2}>{teamName(t)}</Text>
         {r ? <Text style={styles.teamMeta}>{ordinal(r.position)} · {r.points} pts</Text> : null}
       </Pressable>
     );
   };
+  const bugCenter = done || live ? `${h}–${a}` : m.status === 'POSTPONED' ? 'TBC' : clock(m.utcDate);
 
   return (
     <Screen tabBar={false}>
+      <View style={{ zIndex: 2 }}>
       <NavBar
         title={`${league.name}${m.matchday ? ` · Matchday ${m.matchday}` : ''}`}
         right={
@@ -132,31 +135,25 @@ export default function MatchScreen() {
           </Pressable>
         }
       />
+      </View>
 
+      {/* the fixture in its two kits, the kick-off (or score) set like a TV score bug */}
+      <Bleed style={{ marginTop: 4 }}>
+        <KitField colors={hc} away={ac} tones={[th, ta]} height={176} fade={0.6}>
+          <View style={styles.bugWrap} pointerEvents="none">
+            <ScoreBug home={{ code: code(m.homeTeam), tone: th }} away={{ code: code(m.awayTeam), tone: ta }} center={bugCenter} live={live} />
+          </View>
+        </KitField>
+      </Bleed>
       <View style={styles.hero}>
-        {team(m.homeTeam, hc)}
-        <View style={styles.ko}>
-          {done || live ? (
-            <>
-              <Text style={type.numHero} accessibilityLabel={`${h} to ${a}`}>{h}–{a}</Text>
-              {live ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <LiveDot size={7} />
-                  <Text style={[styles.koMeta, { color: color.live }]}>{statusLabel(m)}</Text>
-                </View>
-              ) : (
-                <Text style={styles.koMeta}>FT · {shortDate(m.utcDate)}</Text>
-              )}
-            </>
-          ) : (
-            <>
-              <Text style={styles.koTime}>{m.status === 'POSTPONED' ? 'TBC' : clock(m.utcDate)}</Text>
-              <Text style={styles.koMeta}>{m.status === 'POSTPONED' ? 'Postponed' : shortDate(m.utcDate)}</Text>
-            </>
-          )}
-          {venue ? <Text style={styles.koMeta} numberOfLines={2}>{venue}</Text> : null}
-        </View>
-        {team(m.awayTeam, ac)}
+        {team(m.homeTeam, 'flex-start')}
+        {team(m.awayTeam, 'flex-end')}
+      </View>
+      <View style={styles.koRow}>
+        {live ? <LiveDot size={7} /> : null}
+        <Text style={[styles.koMeta, live && { color: color.live }]} numberOfLines={1}>
+          {[live ? statusLabel(m) : done ? 'Full time' : m.status === 'POSTPONED' ? 'Postponed' : shortDate(m.utcDate), venue].filter(Boolean).join(' · ')}
+        </Text>
       </View>
 
       {p ? (
@@ -172,7 +169,7 @@ export default function MatchScreen() {
                     {txt}
                     <Text style={styles.bigPct}>%</Text>
                   </Text>
-                  <Text style={styles.bigLabel} numberOfLines={1}>
+                  <Text style={[styles.bigLabel, o !== 'D' && { color: clubText(o === 'H' ? hc : ac), fontFamily: font.semibold }]} numberOfLines={1}>
                     {o === 'H' ? teamName(m.homeTeam) : o === 'D' ? 'Draw' : teamName(m.awayTeam)}
                     {result === o ? '  ✓' : ''}
                   </Text>
@@ -180,7 +177,7 @@ export default function MatchScreen() {
               );
             })}
           </View>
-          <ProbabilityBar home={p.home} draw={p.draw} away={p.away} lead={lead} style={{ marginVertical: 14 }} />
+          <ProbabilityBar home={p.home} draw={p.draw} away={p.away} lead={lead} tones={[th, ta]} style={{ marginVertical: 14 }} />
           <View style={styles.xg}>
             <Text style={styles.xgLabel}>Expected goals</Text>
             <Text style={styles.xgValue}>{p.xgHome.toFixed(2)} – {p.xgAway.toFixed(2)}</Text>
@@ -193,6 +190,7 @@ export default function MatchScreen() {
         <Segmented
           options={[teamName(m.homeTeam), 'Draw', teamName(m.awayTeam)]}
           value={pick ? OUTCOMES.indexOf(pick.outcome) : -1}
+          tones={[th, undefined, ta]}
           onChange={(i) => setPicks((all) => applyPick(all, m.id, OUTCOMES[i]))}
           disabled={isLocked}
         />
@@ -236,7 +234,7 @@ export default function MatchScreen() {
                 <View key={`${x.i}-${x.j}`} style={styles.scoreCol} accessible accessibilityLabel={`${x.i}–${x.j}: ${pctText(x.v)}`}>
                   <Text style={styles.scoreText}>{x.i}–{x.j}</Text>
                   <View style={styles.sbar}>
-                    <View style={{ height: `${(x.v / maxTop) * 100}%`, backgroundColor: k === 0 ? color.accent : color.hairlineStrong, borderTopLeftRadius: 5, borderTopRightRadius: 5 }} />
+                    <View style={{ height: `${(x.v / maxTop) * 100}%`, width: '46%', alignSelf: 'center', backgroundColor: k === 0 ? color.chalk : color.hairlineStrong, borderTopLeftRadius: 4, borderTopRightRadius: 4 }} />
                   </View>
                   <Text style={styles.scorePct}>{pctText(x.v)}</Text>
                 </View>
@@ -290,7 +288,7 @@ export default function MatchScreen() {
         {[m.homeTeam, m.awayTeam].map((t) => (
           <Pressable key={t.id} style={styles.formRow} onPress={() => openClub(t.id)} accessibilityRole="button">
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-              <KitChip colors={colors.get(t.id)} size={16} />
+              <KitStripe colors={colors.get(t.id)} tone={t.id === m.homeTeam.id ? th : ta} height={18} width={3} />
               <Text style={styles.formName} numberOfLines={1}>{teamName(t)}</Text>
             </View>
             <FormPills results={recentForm(matches, t.id)} />
@@ -339,9 +337,11 @@ export default function MatchScreen() {
 }
 
 const styles = StyleSheet.create({
-  hero: { flexDirection: 'row', alignItems: 'flex-start', paddingTop: 18, paddingBottom: 26 },
-  team: { flex: 1, alignItems: 'center', gap: 4 },
-  teamName: { fontFamily: font.bold, fontSize: 17, lineHeight: 22, letterSpacing: -0.2, color: color.text, textAlign: 'center' },
+  bugWrap: { position: 'absolute', left: 0, right: 0, top: 46, alignItems: 'center' },
+  hero: { flexDirection: 'row', alignItems: 'flex-start', marginTop: -34, gap: space.lg },
+  team: { flex: 1, gap: 3 },
+  teamName: { ...type.clubName, fontSize: 24, lineHeight: 26 },
+  koRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: space.md, paddingBottom: 26 },
   teamMeta: { fontFamily: font.medium, fontSize: 13, color: color.text3, fontVariant: ['tabular-nums'] },
   ko: { width: 120, alignItems: 'center', gap: 2, paddingTop: 6 },
   koTime: { fontFamily: font.bold, fontSize: 26, lineHeight: 32, letterSpacing: -0.5, color: color.text, fontVariant: ['tabular-nums'] },

@@ -147,6 +147,7 @@ export default function Home() {
               onOpen={() => openMatch(f.match, f.competitionId)}
               press={pressFor(f.match, f.competitionId)}
               divider={i < home.fixtures.length - 1}
+              featured={i === 0}
             />
           ))
         )}
@@ -178,7 +179,7 @@ export default function Home() {
           <>
             <View style={styles.score3}>
               <View style={styles.score3Cell}>
-                <Text style={type.numLarge}>{mdScore.you}</Text>
+                <Text style={[type.numLarge, { color: color.accentText }]}>{mdScore.you}</Text>
                 <Text style={styles.score3Label}>Your points</Text>
               </View>
               <View style={styles.score3Cell}>
@@ -220,7 +221,7 @@ const styles = StyleSheet.create({
   promo: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 16, backgroundColor: color.surface, marginTop: space.sm },
   promoIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: color.accentSoft, alignItems: 'center', justifyContent: 'center' },
   promoTitle: { fontFamily: font.semibold, fontSize: 16, color: color.text },
-  packRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 16, backgroundColor: color.surface, marginTop: space.xs, marginBottom: space.xxl },
+  packRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 16, backgroundColor: color.surface, marginTop: space.xs, marginBottom: space.xxl, borderWidth: 1, borderColor: 'rgba(233,196,106,0.42)' },
   packTitle: { fontFamily: font.semibold, fontSize: 16, color: color.text },
   score3: { flexDirection: 'row', paddingTop: space.sm, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: color.hairline },
   score3Cell: { flex: 1, gap: 2 },

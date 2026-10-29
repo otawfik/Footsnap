@@ -6,7 +6,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, useWindowDimensions, InteractionManager, Image } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, NavBar, Segmented, Overline, KitChip, Row, Skeleton, Empty, tap, teamName, pctText } from '../../components/ui';
+import { Screen, NavBar, Segmented, Overline, KitChip, KitField, Bleed, FormPills, Row, Skeleton, Empty, tap, teamName, pctText } from '../../components/ui';
 import { LineChart } from '../../components/Charts';
 import { SnapCard } from '../../components/SnapCard';
 import { MatchMarket, CompactMatchRow } from '../../components/Match';
@@ -86,6 +86,7 @@ export default function Club() {
 
   return (
     <Screen tabBar={false}>
+      <View style={{ zIndex: 2 }}>
       <NavBar
         title={league.name}
         right={
@@ -94,13 +95,22 @@ export default function Club() {
           </Pressable>
         }
       />
+      </View>
 
+      {/* the club in its kit: the field runs under the nav bar and fades into the ground */}
+      <Bleed style={{ marginTop: 4 }}>
+        <KitField colors={cc} height={190} fade={0.62}>
+          <View style={styles.crest} pointerEvents="none">
+            {SHOW_CRESTS && team?.crest ? <Image source={{ uri: team.crest }} style={{ width: 72, height: 72 }} resizeMode="contain" accessibilityLabel={`${name} crest`} /> : <KitChip colors={cc} size={64} />}
+          </View>
+        </KitField>
+      </Bleed>
       <View style={styles.hero}>
-        {SHOW_CRESTS && team?.crest ? <Image source={{ uri: team.crest }} style={{ width: 64, height: 64 }} resizeMode="contain" accessibilityLabel={`${name} crest`} /> : <KitChip colors={cc} size={64} />}
-        <Text style={[type.title, { textAlign: 'center' }]} accessibilityRole="header">{name}</Text>
-        <Text style={styles.heroMeta}>
-          {[row ? `${ordinal(row.position)} · ${row.points} pts` : null, form.length ? form.join(' ') : null].filter(Boolean).join(' · ')}
-        </Text>
+        <Text style={styles.name} accessibilityRole="header" numberOfLines={2}>{name}</Text>
+        <View style={styles.heroLine}>
+          {row ? <Text style={styles.heroMeta}>{ordinal(row.position)} · {row.points} pts</Text> : null}
+          {form.length ? <FormPills results={form} size={20} /> : null}
+        </View>
         {team?.venue || team?.coach?.name ? <Text style={type.footnote}>{[team?.coach?.name ? `Coach ${team.coach.name}` : null, team?.venue].filter(Boolean).join(' · ')}</Text> : null}
       </View>
 
@@ -220,8 +230,11 @@ export default function Club() {
 }
 
 const styles = StyleSheet.create({
-  hero: { alignItems: 'center', gap: 6, paddingTop: space.md, paddingBottom: space.xxl },
-  heroMeta: { fontFamily: font.medium, fontSize: 14, color: color.text2, fontVariant: ['tabular-nums'] },
+  crest: { position: 'absolute', left: space.gutter, top: 30 },
+  hero: { gap: 8, marginTop: -58, paddingBottom: space.xxl },
+  name: { ...type.clubName, fontSize: 36, lineHeight: 38 },
+  heroLine: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  heroMeta: { fontFamily: font.cardHeavy, fontSize: 17, color: color.text, fontVariant: ['tabular-nums'] },
   grid: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 10, rowGap: 14 },
   val: { fontFamily: font.semibold, fontSize: 15, color: color.text, fontVariant: ['tabular-nums'] },
 });
