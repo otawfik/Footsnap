@@ -194,7 +194,7 @@ lib/                      pure logic, unit-tested
   colors.ts               club colours from football-data.org's text
   football.ts, proxy.ts   helpers; proxy allowlist and cache policy
 services/api.ts           client: base URL, request sharing, saved copies for offline, optional crest stripping
-constants/theme.ts        the design system (colours with measured contrast, type)
+constants/design.ts       the design system: tokens with measured contrast, Inter type (spec: docs/redesign/SPEC.md)
 public/                   privacy policy and support pages; art/ holds the player cut-outs
 scripts/art/              the photo pipeline (below)
 ```

@@ -12,14 +12,6 @@ import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold';
 import { InterTight_700Bold } from '@expo-google-fonts/inter-tight/700Bold';
 import { InterTight_800ExtraBold } from '@expo-google-fonts/inter-tight/800ExtraBold';
-// v1 fonts: kept registered until nothing imports constants/theme.ts (SPEC §11)
-import { Barlow_400Regular } from '@expo-google-fonts/barlow/400Regular';
-import { Barlow_500Medium } from '@expo-google-fonts/barlow/500Medium';
-import { Barlow_600SemiBold } from '@expo-google-fonts/barlow/600SemiBold';
-import { BarlowCondensed_600SemiBold } from '@expo-google-fonts/barlow-condensed/600SemiBold';
-import { BarlowCondensed_700Bold } from '@expo-google-fonts/barlow-condensed/700Bold';
-import { BarlowCondensed_800ExtraBold_Italic } from '@expo-google-fonts/barlow-condensed/800ExtraBold_Italic';
-import { BarlowCondensed_900Black_Italic } from '@expo-google-fonts/barlow-condensed/900Black_Italic';
 import { LeagueProvider } from '../context/league';
 import { color } from '../constants/design';
 
@@ -37,15 +29,6 @@ export default function RootLayout() {
     Inter_800ExtraBold,
     InterTight_700Bold,
     InterTight_800ExtraBold,
-    BigShouldersDisplay_900Black: require('@expo-google-fonts/big-shoulders-display/BigShouldersDisplay_900Black.ttf'),
-    BigShouldersDisplay_700Bold: require('@expo-google-fonts/big-shoulders-display/BigShouldersDisplay_700Bold.ttf'),
-    Barlow_400Regular,
-    Barlow_500Medium,
-    Barlow_600SemiBold,
-    BarlowCondensed_600SemiBold,
-    BarlowCondensed_700Bold,
-    BarlowCondensed_800ExtraBold_Italic,
-    BarlowCondensed_900Black_Italic,
   });
 
   useEffect(() => {

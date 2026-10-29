@@ -30,7 +30,6 @@ import { cardMetal, clubField } from './card/metals';
 import { luminance, mix } from '../lib/colors';
 
 // retired v1 pieces, re-exported until guess.tsx / arena.tsx stop importing them (SPEC §6)
-export { KitArt, Badges, RARITY_FRAME, FRAME_START, FRAME_END, frameOf, emWidth } from './card/legacy';
 
 export type CardSize = 'full' | 'grid' | 'hand' | 'board';
 type LegacySize = 'sm' | 'md' | 'lg';
