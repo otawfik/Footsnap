@@ -2,13 +2,50 @@
 
 [![ci](https://github.com/otawfik/Footsnap/actions/workflows/ci.yml/badge.svg)](https://github.com/otawfik/Footsnap/actions/workflows/ci.yml)
 
-Football as a card game, built on real data. Every player in Europe's top five leagues and the Champions League is
-a collectible card whose rarity and abilities come from real stats; the season can be replayed, simulated and
-rewritten; every match comes with a model that shows its work. Expo / React Native for iOS and Android, plus the
-same app on the web.
+**A collectible card game for real football, driven by live data and a statistical model.** Every player in Europe's
+top five leagues and the Champions League (about 3,000 of them) is a card whose rarity, Power and abilities are
+computed from this season's real numbers. You collect them from free daily packs, upgrade them, and play them in a
+Marvel Snap-style duel. Every fixture gets a win / draw / loss forecast from a Poisson goals model, and the rest of
+the season is simulated 3,000 times so you can ask "what if?". One TypeScript codebase ships to iOS, Android and the web.
 
-**Open it:** [footsnap-app.vercel.app](https://footsnap-app.vercel.app) · or run it in Expo Go (below) ·
-releasing to the stores: [`docs/app-store.md`](docs/app-store.md), a step-by-step guide.
+**Open it:** [footsnap-app.vercel.app](https://footsnap-app.vercel.app) · run it in Expo Go (below) ·
+store release guide: [`docs/app-store.md`](docs/app-store.md)
+
+### At a glance
+
+| | |
+|---|---|
+| **Platforms** | iOS, Android and web from one Expo / React Native codebase (TypeScript, strict) |
+| **Data** | Live fixtures, tables, scorers and squads for 6 competitions, through a serverless edge-cached proxy |
+| **Model** | Poisson goals model (Maher 1982, the base of Dixon & Coles 1997) fitted by maximum likelihood, plus a Monte Carlo season simulator with parameter uncertainty and common random numbers |
+| **Game** | ~3,000 auto-generated cards, a daily-pack economy, 7 upgrade tiers, and a turn-based duel engine with an AI opponent |
+| **Computer vision** | An automated art pipeline: Wikipedia / Wikidata photo matching verified by date of birth, background removal (U²-Net), face alignment (YuNet) and quality gates, giving 774 licence-credited player cut-outs |
+| **Quality** | 130 unit tests (Vitest); CI runs typecheck, tests, `expo-doctor`, a native-compat check and a full web build on every push |
+| **Cost to run** | $0: free data tier, free hosting; the API key never leaves the server |
+
+### Engineering highlights
+
+- **A forecast that shows its work.** Team attack and defence strengths are fitted by iterative scaling to the
+  maximum-likelihood solution, with a prior that stops early-season results from swinging the ratings. Each match
+  page shows the full scoreline probability grid the forecast comes from.
+- **"What if?" that only moves what it should.** The season simulator pins any results you set and re-runs the
+  rest. Common random numbers mean only the clubs your result actually affects change, not noise from re-rolling.
+- **A shared rate limit, spent once.** The free data tier allows 10 requests a minute. A Vercel edge function holds
+  the key, allowlists four upstream paths, and caches each resource for an appropriate time (30 s to 12 h), so one
+  upstream call serves every user. When the tier is busy, the edge keeps serving the last good copy, and the app
+  falls back to a saved copy when offline.
+- **Cards that are always true.** Every ability is a fact computed from the data ("Leads the Premier League with
+  9 goals", "The only player from Japan in the Premier League"), never invented.
+- **Art at scale, legally.** Only freely licensed Wikimedia Commons photos are used, matched to the right player by
+  date of birth and credited on every card. Every face is detected, levelled and framed identically, and blurry or
+  badly cropped photos are rejected automatically. The App Store build ships with photos and crests switched off
+  (a build flag), for image rights.
+
+### In progress: the 2.0 redesign
+
+A full visual redesign is underway: a calm, Kalshi-clean dark interface with predictions shown as market-style
+probability rows, and FIFA Ultimate Team-grade cards with metal tiers and tilt-reactive foil. The spec is in
+[`docs/redesign/SPEC.md`](docs/redesign/SPEC.md), and work happens on the `redesign-wip` branch.
 
 <p>
   <img src="docs/screenshots/1-legend-card.jpg" width="190" alt="A Legend-tier card for Erling Haaland: the player cut out and breaking the frame, with a Starfield finish">
@@ -23,9 +60,8 @@ releasing to the stores: [`docs/app-store.md`](docs/app-store.md), a step-by-ste
 4–10 Elite, 11–20 Rare). The big number is Power (goals × 2 + assists) or age. Abilities are always true statements
 computed from the data, such as "Leads the Premier League with 8 goals", "3 of 8 goals from the penalty spot", or
 "The only player from Japan in the Premier League". The art is
-the player's own photo, cut out of its background and redrawn comic-book style (ink lines, cel shading, halftone),
-standing in a floodlit stadium in the club's colours and breaking out of the frame on rare cards. The name is a big
-3D logo across the bottom of the card, coloured by rarity. Cards tilt with the phone's gyroscope, carry foil on
+the player's own photo, cut out of its background and framed identically on every card (same head size, eyes on
+the same line), in the club's colours and breaking out of the frame on rare cards. Cards tilt with the phone's gyroscope, carry foil on
 Elite and Icon, and flip to show full stats and exactly how each number was worked out.
 
 **A collection system modelled on Marvel Snap's.** A free daily pack per league (odds shown, nothing to buy), credits
