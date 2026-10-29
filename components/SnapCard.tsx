@@ -3,7 +3,8 @@
  *
  *   - crest-cut silhouette (chamfered top, shallow shield point), a 7-stop metal rim per rarity
  *     (Bronze, Silver, Gold, Icon pearl) and an obsidian Legend frame for tier 6
- *   - a dark face lit by a halo behind the head; every cut-out is framed the same way
+ *   - a club-colour field lit behind the head (components/card/metals.ts), darkened only as far as
+ *     the text needs; every cut-out is framed the same way; not-owned cards stay in full colour
  *   - FUT type top-left (Power, position, nation, club), the Snap cost gem top-right,
  *     a real-stats row along the bottom (never a 0 the data doesn't hold)
  *   - photos off (the store build): the club kit as a diagonal sash and an engraved metal
@@ -25,6 +26,8 @@ import { cardStats, GOAL_BONUS_CAP } from '../lib/game';
 import { nationCode } from '../lib/nations';
 import { useArt, type Art } from '../lib/art';
 import { CARD, CARD_RATIO, cardPath, color, font, gem, metal, motion, type Metal } from '../constants/design';
+import { cardMetal, clubField } from './card/metals';
+import { luminance, mix } from '../lib/colors';
 
 // retired v1 pieces, re-exported until guess.tsx / arena.tsx stop importing them (SPEC §6)
 export { KitArt, Badges, RARITY_FRAME, FRAME_START, FRAME_END, frameOf, emWidth } from './card/legacy';
@@ -48,7 +51,8 @@ const SHOW_CRESTS = process.env.EXPO_PUBLIC_SHOW_CRESTS !== 'false';
 const LINE_CODE = { FW: 'FWD', MF: 'MID', DF: 'DEF', GK: 'GK' } as const;
 // local tokens (not in design.ts): the duel's unaffordable gem, the uncollected dimmer
 const GEM_OFF = { hi: '#8A8F9A', mid: '#6A6F7A', low: '#3D414A', edge: '#25282E' };
-const DIMMER = 'rgba(10,10,12,0.62)';
+// not owned: a light shade over full colour (the collection should look like a catalogue, not a graveyard)
+const UNOWNED = 'rgba(8,8,10,0.24)';
 
 /** Inter Tight 800 advances (em), measured from the font, so names fit before layout. */
 const IT800: Record<string, number> = {
@@ -158,7 +162,7 @@ function Foil({ uid, w, H, u, kind, mx = 30 }: { uid: string; w: number; H: numb
       : kind === 'gold'
       ? [[0, '#FFECAA', 0], [0.3, '#FFECAA', 0], [0.42, '#FFECAA', 0.9], [0.46, '#FFFFFF', 0.7], [0.5, '#FFECAA', 0.9], [0.62, '#FFECAA', 0], [1, '#FFECAA', 0]]
       : [[0, '#FF5AAA', 0], [0.18, '#FF5AAA', 0.9], [0.32, '#FFD664', 0.9], [0.47, '#6EFFD2', 0.9], [0.62, '#5AA0FF', 0.9], [0.78, '#C86EFF', 0.9], [1, '#FF5AAA', 0]];
-  const op = kind === 'pearl' ? 0.16 : kind === 'gold' ? 0.3 : 0.22;
+  const op = kind === 'pearl' ? 0.3 : kind === 'gold' ? 0.3 : 0.22;
   return (
     <G opacity={op * 0.75} transform={`rotate(25 ${w / 2} ${H / 2})`}>
       <Defs>
@@ -173,14 +177,27 @@ function Foil({ uid, w, H, u, kind, mx = 30 }: { uid: string; w: number; H: numb
   );
 }
 
+/** The not-owned mark: a small padlock in a dark disc, ringed in the card's metal. */
+function Lock({ cx, cy, r, stroke }: { cx: number; cy: number; r: number; stroke: string }) {
+  const k = r / 10;
+  return (
+    <G>
+      <Circle cx={cx} cy={cy} r={r} fill="#0C0C0F" opacity={0.92} />
+      <Circle cx={cx} cy={cy} r={r - Math.max(0.5, k * 0.6)} fill="none" stroke={stroke} strokeWidth={Math.max(0.8, k * 1.2)} />
+      <Path d={`M ${cx - 3 * k} ${cy - 0.6 * k} v ${-2 * k} a ${3 * k} ${3 * k} 0 0 1 ${6 * k} 0 v ${2 * k}`} fill="none" stroke="#F4F4F6" strokeWidth={Math.max(0.9, 1.3 * k)} strokeLinecap="round" />
+      <Rect x={cx - 4.4 * k} y={cy - 0.8 * k} width={8.8 * k} height={6.4 * k} rx={1.2 * k} fill="#F4F4F6" />
+    </G>
+  );
+}
+
 function Face({ card, w, size, look, art, collected, competition, season, power, state, mystery, back, sheenX }: FaceProps) {
   const uid = 'c' + useId().replace(/[^a-zA-Z0-9]/g, '');
   const u = (n: number) => (n * w) / 100;
   const H = w * CARD_RATIO;
   const legend = look.tier === 6;
   const mk: Metal = legend ? 'legend' : card.rarity;
-  const m = metal[mk];
-  const gold = metal.elite;
+  const m = cardMetal[mk];
+  const gold = cardMetal.elite;
   const full = size === 'full';
   const small = size === 'hand' || size === 'board';
   const dim = collected === false;
@@ -188,9 +205,15 @@ function Face({ card, w, size, look, art, collected, competition, season, power,
   const bo = full && !dim && !back && !!photo && breaksFrame(card, look);
   const monoBreak = full && !dim && !back && !photo && look.tier >= 1;
   const { c1, c2 } = { c1: card.team.colors.primary, c2: card.team.colors.secondary };
+  const cf = clubField(c1, c2, m);
   const stats = cardStats(card);
 
-  const paths = useMemo(() => ({ outer: cardPath(w, 0, 6), face: cardPath(w, 7, 4), hair: cardPath(w, 11.5, 3) }), [w]);
+  // the rim is wider below full size so the metal still reads at 110 pt
+  const fi = (full ? 7 : 10) + (m.band ? 1.5 : 0);
+  const paths = useMemo(
+    () => ({ outer: cardPath(w, 0, 6), band: cardPath(w, fi - 4, 5), face: cardPath(w, fi, 4), hair: cardPath(w, fi + 4.5, 3) }),
+    [w, fi]
+  );
   const padX = u(6);
   const padTop = bo || monoBreak ? u(8) : u(2);
   const padBot = full ? u(9) : u(4);
@@ -244,7 +267,7 @@ function Face({ card, w, size, look, art, collected, competition, season, power,
   };
 
   const sash = (
-    <G opacity={0.5} transform={`rotate(-28 ${u(50)} ${u(sashCy)})`}>
+    <G opacity={luminance(cf.accent) > 0.5 ? 0.2 : 0.62} transform={`rotate(-28 ${u(50)} ${u(sashCy)})`}>
       <Rect x={u(-40)} y={u(sashCy - sashH / 2)} width={u(180)} height={u(sashH * 0.016)} fill={`url(#${uid}s2)`} />
       <Rect x={u(-40)} y={u(sashCy - sashH / 2 + sashH * 0.055)} width={u(180)} height={u(sashH * 0.89)} fill={`url(#${uid}s1)`} />
       <Rect x={u(-40)} y={u(sashCy + sashH / 2 - sashH * 0.016)} width={u(180)} height={u(sashH * 0.016)} fill={`url(#${uid}s2)`} />
@@ -333,12 +356,12 @@ function Face({ card, w, size, look, art, collected, competition, season, power,
         <SvgText x={u(16.5)} y={u(21.92)} fontSize={u(16)} fontFamily={font.cardHeavy} letterSpacing={-u(0.8)} textAnchor="middle" fill={`url(#${uid}num)`}>{String(stats.power)}</SvgText>
         {card.line ? T({ x: u(16.5) + u(0.22), y: u(28.17), size: u(4.4), fam: font.cardHeavy, fill: ink, ls: u(0.44), children: LINE_CODE[card.line] }) : null}
         <Rect x={u(12.5)} y={u(31.28)} width={u(8)} height={u(0.32)} fill={m.line} />
-        {nationCode(card.nationality) ? T({ x: u(16.5) + u(0.25), y: u(37.06), size: u(3.6), fam: font.semibold, fill: ink, op: 0.8, ls: u(0.5), children: nationCode(card.nationality)! }) : null}
+        {nationCode(card.nationality) ? T({ x: u(16.5) + u(0.25), y: u(37.06), size: u(3.6), fam: font.semibold, fill: ink, ls: u(0.5), children: nationCode(card.nationality)! }) : null}
         <Circle cx={u(16.5)} cy={u(43.65)} r={u(4.1)} fill={m.line} />
         <Circle cx={u(16.5)} cy={u(43.65)} r={u(3.7)} fill="#000" opacity={0.6} />
         <Circle cx={u(16.5)} cy={u(43.65)} r={u(3.2)} fill={c2} />
         <Path d={`M ${u(16.5 + 3.2 * 0.7071)} ${u(43.65 - 3.2 * 0.7071)} A ${u(3.2)} ${u(3.2)} 0 0 0 ${u(16.5 - 3.2 * 0.7071)} ${u(43.65 + 3.2 * 0.7071)} Z`} fill={c1} />
-        {T({ x: u(16.5) + u(0.23), y: u(51.41), size: u(3.3), fam: font.bold, fill: ink, op: 0.8, ls: u(0.46), children: teamCode(card.team) })}
+        {T({ x: u(16.5) + u(0.23), y: u(51.41), size: u(3.3), fam: font.bold, fill: ink, ls: u(0.46), children: teamCode(card.team) })}
         {gemAt(87.66, 13.9, 6.55, 0.95, u(7.2))}
         {/* name, rule, stats */}
         {T({ x: u(50), y: u(95.3) + nfs * 0.8635, size: nfs, fam: font.cardHeavy, fill: look.premium && photo ? `url(#${uid}nameG)` : m.name, ls: nfs * 0.01, shadow: u(0.4), children: nameLabel })}
@@ -350,14 +373,14 @@ function Face({ card, w, size, look, art, collected, competition, season, power,
                 <G key={s.label}>
                   {i > 0 ? <Rect x={u(9 + cw * i) - u(0.125)} y={u(110.9)} width={u(0.25)} height={u(8.2)} fill={m.line} opacity={0.45} /> : null}
                   {T({ x: cx, y: u(115.58), size: u(6.4), fam: font.cardBold, fill: m.stat, ls: -u(0.128), children: s.value })}
-                  {T({ x: cx + u(0.2), y: u(119.75), size: u(2.55), fam: font.semibold, fill: ink, op: 0.8, ls: u(0.41), children: s.label })}
+                  {T({ x: cx + u(0.2), y: u(119.75), size: u(2.55), fam: font.semibold, fill: ink, ls: u(0.41), children: s.label })}
                 </G>
               );
             })
           : trait
-          ? T({ x: u(50) + u(0.2), y: u(112), size: u(2.55), fam: font.semibold, fill: ink, op: 0.8, ls: u(0.41), children: trait.title.toUpperCase() })
+          ? T({ x: u(50) + u(0.2), y: u(112), size: u(2.55), fam: font.semibold, fill: ink, ls: u(0.41), children: trait.title.toUpperCase() })
           : null}
-        {T({ x: u(50) + u(0.26), y: u(128.97), size: u(2.2), fam: font.semibold, fill: ink, op: 0.7, ls: u(0.53), children: (legend ? `LEGEND · ${look.finish ? FINISH_NAME[look.finish] : 'GILDED'} · ${season}` : [competition, season].filter(Boolean).join(' · ')).toUpperCase() })}
+        {T({ x: u(50) + u(0.26), y: u(128.97), size: u(2.2), fam: font.semibold, fill: ink, op: 0.85, ls: u(0.53), children: (legend ? `LEGEND · ${look.finish ? FINISH_NAME[look.finish] : 'GILDED'} · ${season}` : [competition, season].filter(Boolean).join(' · ')).toUpperCase() })}
       </G>
     );
   } else if (!back && (size === 'grid' || size === 'hand')) {
@@ -465,24 +488,32 @@ function Face({ card, w, size, look, art, collected, competition, season, power,
         <ClipPath id={`${uid}bo`}>
           <Rect x={u(-10)} y={u(-40)} width={u(120)} height={u(44.4)} />
         </ClipPath>
+        {/* the club field: lit at the top, the kit colour through the middle, settling into the metal's dark plate */}
         <LG id={`${uid}base`} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={m.faceTop} />
-          <Stop offset="0.52" stopColor={m.faceMid} />
-          <Stop offset="1" stopColor={m.faceBottom} />
+          <Stop offset="0" stopColor={back ? cf.deep : cf.light} />
+          <Stop offset="0.42" stopColor={back ? cf.deep : cf.field} />
+          <Stop offset="0.7" stopColor={cf.deep} />
+          <Stop offset="1" stopColor={m.plate} />
         </LG>
-        <RG id={`${uid}wash`}>
-          <Stop offset="0" stopColor={c1} stopOpacity={0.16} />
-          <Stop offset="0.7" stopColor={c1} stopOpacity={0} />
-        </RG>
-        <RG id={`${uid}top`}>
-          <Stop offset="0" stopColor={`rgb(${m.glow})`} stopOpacity={m.glowAlpha * 0.4} />
-          <Stop offset="0.7" stopColor={`rgb(${m.glow})`} stopOpacity={0} />
-        </RG>
+        {/* light falling on the field behind the head */}
         <RG id={`${uid}halo`}>
-          <Stop offset="0" stopColor={`rgb(${m.glow})`} stopOpacity={m.glowAlpha} />
-          <Stop offset="0.45" stopColor={`rgb(${m.glow})`} stopOpacity={m.glowAlpha * 0.35} />
-          <Stop offset="1" stopColor={`rgb(${m.glow})`} stopOpacity={0} />
+          <Stop offset="0" stopColor={mix(cf.field, '#FFFFFF', 0.4)} stopOpacity={0.5} />
+          <Stop offset="0.5" stopColor={mix(cf.field, '#FFFFFF', 0.2)} stopOpacity={0.18} />
+          <Stop offset="1" stopColor={cf.field} stopOpacity={0} />
         </RG>
+        <LG id={`${uid}bevel`} x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.7} />
+          <Stop offset="0.35" stopColor="#FFFFFF" stopOpacity={0} />
+          <Stop offset="0.7" stopColor="#000000" stopOpacity={0} />
+          <Stop offset="1" stopColor="#000000" stopOpacity={0.45} />
+        </LG>
+        {m.band ? (
+          <LG id={`${uid}band`} x1="0" y1="0" x2="1" y2="1">
+            {m.band.colors.map((c, i) => (
+              <Stop key={i} offset={m.band!.locations[i]} stopColor={c} />
+            ))}
+          </LG>
+        ) : null}
         <RG id={`${uid}engM`}>
           <Stop offset="0" stopColor="#FFFFFF" stopOpacity={1} />
           <Stop offset="0.75" stopColor="#FFFFFF" stopOpacity={0} />
@@ -491,13 +522,15 @@ function Face({ card, w, size, look, art, collected, competition, season, power,
           <Rect x={u(58 - 70)} y={u(42 - 60)} width={u(140)} height={u(120)} fill={`url(#${uid}engM)`} />
         </Mask>
         <LG id={`${uid}vigL`} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0.58" stopColor="#000" stopOpacity={0} />
-          <Stop offset="0.72" stopColor="#000" stopOpacity={0.42} />
-          <Stop offset="1" stopColor="#000" stopOpacity={0.62} />
+          {/* the photo dissolves into the club's deep colour, not into grey */}
+          <Stop offset="0.56" stopColor={cf.deep} stopOpacity={0} />
+          <Stop offset="0.72" stopColor={cf.deep} stopOpacity={0.62} />
+          <Stop offset="0.86" stopColor={m.plate} stopOpacity={0.7} />
+          <Stop offset="1" stopColor={m.plate} stopOpacity={0.8} />
         </LG>
         <RG id={`${uid}vigR`}>
-          <Stop offset="0.6" stopColor="#000" stopOpacity={0} />
-          <Stop offset="1" stopColor="#000" stopOpacity={0.4} />
+          <Stop offset="0.55" stopColor="#000" stopOpacity={0} />
+          <Stop offset="1" stopColor="#000" stopOpacity={0.45} />
         </RG>
         {/* photo fade: opaque to 57% of the image height, gone by 80%; the left 9% fades in */}
         <LG id={`${uid}pmV`} x1="0" y1="0" x2="0" y2="1">
@@ -514,20 +547,19 @@ function Face({ card, w, size, look, art, collected, competition, season, power,
           <Rect x={u(pl) - outline} y={u(pt)} width={u(pw) * 0.09 + outline} height={u(ph)} fill={`url(#${uid}pmH)`} />
         </Mask>
         <LG id={`${uid}s1`} x1="0" y1="0" x2="1" y2="0">
-          <Stop offset="0.08" stopColor={c1} stopOpacity={0} />
-          <Stop offset="0.34" stopColor={c1} stopOpacity={1} />
-          <Stop offset="0.66" stopColor={c1} stopOpacity={1} />
-          <Stop offset="0.92" stopColor={c1} stopOpacity={0} />
+          <Stop offset="0" stopColor={cf.accent} stopOpacity={0.55} />
+          <Stop offset="0.3" stopColor={cf.accent} stopOpacity={1} />
+          <Stop offset="0.7" stopColor={cf.accent} stopOpacity={1} />
+          <Stop offset="1" stopColor={cf.accent} stopOpacity={0.55} />
         </LG>
         <LG id={`${uid}s2`} x1="0" y1="0" x2="1" y2="0">
-          <Stop offset="0.08" stopColor={c2} stopOpacity={0} />
-          <Stop offset="0.34" stopColor={c2} stopOpacity={1} />
-          <Stop offset="0.66" stopColor={c2} stopOpacity={1} />
-          <Stop offset="0.92" stopColor={c2} stopOpacity={0} />
+          <Stop offset="0" stopColor={m.line} stopOpacity={0.4} />
+          <Stop offset="0.5" stopColor={m.line} stopOpacity={1} />
+          <Stop offset="1" stopColor={m.line} stopOpacity={0.4} />
         </LG>
-        <RG id={`${uid}medFill`} cx="0.5" cy="0.4" r="0.78" fx="0.5" fy="0.4">
-          <Stop offset="0" stopColor={m.faceTop} />
-          <Stop offset="1" stopColor={m.faceBottom} />
+        <RG id={`${uid}medFill`} cx="0.5" cy="0.36" r="0.8" fx="0.5" fy="0.3">
+          <Stop offset="0" stopColor={mix(cf.field, '#FFFFFF', 0.12)} />
+          <Stop offset="1" stopColor={cf.deep} />
         </RG>
         <RG id={`${uid}gem`} cx="0.34" cy="0.28" r="0.98" fx="0.34" fy="0.28">
           <Stop offset="0" stopColor={gem.hi} />
@@ -553,9 +585,6 @@ function Face({ card, w, size, look, art, collected, competition, season, power,
           <Stop offset="0.8" stopColor={m.line} />
           <Stop offset="1" stopColor={m.line} stopOpacity={0} />
         </LG>
-        <Filter id={`${uid}gray`}>
-          <FeColorMatrix type="saturate" values="0" />
-        </Filter>
         <Filter id={`${uid}white`}>
           <FeColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0" />
         </Filter>
@@ -574,8 +603,14 @@ function Face({ card, w, size, look, art, collected, competition, season, power,
       )}
       {state === 'pending' ? <Path d={paths.outer} fill="none" stroke={color.accentText} strokeWidth={3} opacity={0.9} /> : null}
 
-      {/* 1 rim */}
+      {/* 1 rim: the metal, a bevel catching the light top-left, and the gold inner band on Icon and Legend */}
       <Path d={paths.outer} fill={`url(#${uid}rim)`} />
+      {!dim ? (
+        <G clipPath={`url(#${uid}outer)`}>
+          <Path d={paths.outer} fill="none" stroke={`url(#${uid}bevel)`} strokeWidth={Math.max(1.2, u(1.6))} />
+        </G>
+      ) : null}
+      {m.band ? <Path d={paths.band} fill={`url(#${uid}band)`} /> : null}
       <Path d={paths.outer} fill="none" stroke="rgba(0,0,0,0.6)" strokeWidth={1} />
 
       {/* 2 face */}
@@ -583,9 +618,7 @@ function Face({ card, w, size, look, art, collected, competition, season, power,
         <Rect x={0} y={0} width={w} height={H} fill={`url(#${uid}base)`} />
         {!back ? (
           <>
-            <Rect x={u(-70)} y={H - u(34)} width={u(140)} height={u(68)} fill={`url(#${uid}wash)`} />
-            <Rect x={u(-60)} y={H * -0.04 - u(30)} width={u(220)} height={u(60)} fill={`url(#${uid}top)`} />
-            <Rect x={u(58 - 34)} y={H * 0.27 - u(32)} width={u(68)} height={u(64)} fill={`url(#${uid}halo)`} />
+            <Rect x={u(58 - 46)} y={H * 0.27 - u(44)} width={u(92)} height={u(88)} fill={`url(#${uid}halo)`} />
             {full ? <Path d={lines118(w, H, u(1.25))} stroke="#FFFFFF" strokeOpacity={0.03} strokeWidth={u(0.22)} mask={`url(#${uid}eng)`} /> : null}
             {look.tier >= 4 && full ? (
               SHOW_CRESTS && card.team.crest ? (
@@ -594,7 +627,7 @@ function Face({ card, w, size, look, art, collected, competition, season, power,
                 <SvgText x={u(56)} y={u(70)} fontSize={u(40)} fontFamily={font.cardHeavy} textAnchor="middle" fill="#FFFFFF" opacity={0.06}>{teamCode(card.team)}</SvgText>
               )
             ) : null}
-            <G filter={dim ? `url(#${uid}gray)` : undefined}>{artLayer}</G>
+            {artLayer}
             <Rect x={0} y={0} width={w} height={H} fill={`url(#${uid}vigL)`} />
             <Rect x={u(-80)} y={H * 0.34 - u(126)} width={u(260)} height={u(252)} fill={`url(#${uid}vigR)`} />
             {crackle ? <Path d={crackle} stroke="#E9C46A" strokeOpacity={0.18} strokeWidth={u(0.25)} fill="none" /> : null}
@@ -627,8 +660,9 @@ function Face({ card, w, size, look, art, collected, competition, season, power,
         </G>
       ) : null}
 
-      {/* 7 not collected: dimmed, never see-through */}
-      {dim ? <Path d={paths.outer} fill={DIMMER} /> : null}
+      {/* 7 not owned: full colour under a light shade, and a lock at the shield point */}
+      {dim ? <Path d={paths.outer} fill={UNOWNED} /> : null}
+      {dim && size === 'grid' ? <Lock cx={u(50)} cy={u(131.4)} r={u(5.6)} stroke={`url(#${uid}rim)`} /> : null}
     </Svg>
   );
 }
@@ -639,7 +673,7 @@ function Face({ card, w, size, look, art, collected, competition, season, power,
 
 function BackFace({ card, w, look, art, competition, season }: { card: PlayerCard; w: number; look: Look; art: Art | null; competition: string; season: string }) {
   const u = (n: number) => (n * w) / 100;
-  const m = metal[look.tier === 6 ? 'legend' : card.rarity];
+  const m = cardMetal[look.tier === 6 ? 'legend' : card.rarity];
   const s = card.stats;
   const g = cardStats(card);
   const [why1, why2] = explainStats(card, g.cost, g.power, GOAL_BONUS_CAP);
@@ -653,7 +687,7 @@ function BackFace({ card, w, look, art, competition, season }: { card: PlayerCar
   }
   if (card.rank !== null) rows.push(['Rank', `#${card.rank} of 20 scorers`]);
   const meta = [card.team.shortName, card.position, card.nationality, card.age !== null ? String(card.age) : null].filter(Boolean).join(' · ');
-  const label = { fontFamily: font.semibold, fontSize: u(2.9), letterSpacing: u(0.4), color: m.ink, opacity: 0.8 } as const;
+  const label = { fontFamily: font.semibold, fontSize: u(2.9), letterSpacing: u(0.4), color: m.ink } as const;
   const body = { fontFamily: font.medium, fontSize: u(3.8), lineHeight: u(5.2), color: m.stat } as const;
   return (
     <View style={{ width: w, height: w * CARD_RATIO }} pointerEvents="none">
@@ -741,12 +775,12 @@ function TraitText({ card, w, look, dim }: { card: PlayerCard; w: number; look: 
   const trait = card.abilities.find((a) => a.kind === 'trait') ?? card.abilities[0];
   if (!trait) return null;
   const u = (n: number) => (n * w) / 100;
-  const m = metal[look.tier === 6 ? 'legend' : card.rarity];
+  const m = cardMetal[look.tier === 6 ? 'legend' : card.rarity];
   return (
     <Text
       pointerEvents="none"
       numberOfLines={2}
-      style={{ position: 'absolute', top: u(113.75), left: u(12), right: u(12), textAlign: 'center', fontFamily: font.medium, fontSize: u(3.7), lineHeight: u(4.81), color: m.stat, opacity: dim ? 0.38 : 1 }}
+      style={{ position: 'absolute', top: u(113.75), left: u(12), right: u(12), textAlign: 'center', fontFamily: font.medium, fontSize: u(3.7), lineHeight: u(4.81), color: m.stat, opacity: dim ? 0.85 : 1 }}
     >
       {trait.text}
     </Text>
