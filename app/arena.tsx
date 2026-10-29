@@ -491,8 +491,9 @@ export default function Arena() {
 
   return (
     <View style={[styles.wrap, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 8) }]}>
-      {/* the pitch, barely there: a soft centre light, the centre circle and the halfway line */}
+      {/* the pitch: floodlit green with mowing stripes, a soft centre light, the centre circle and the halfway line */}
       <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
+        {Array.from({ length: 12 }, (_, i) => (i % 2 ? <Rect key={`mow${i}`} x={0} y={(i * height) / 12} width={width} height={height / 12} fill="#0F2C21" /> : null))}
         <Defs>
           <RadialGradient
             id="arenaLight"
@@ -816,7 +817,7 @@ function defaultHint(s: GameState, canPlay: boolean, energy: number): string {
 // ---------------------------------------------------------------- styles
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, backgroundColor: color.bg, alignItems: 'center' },
+  wrap: { flex: 1, backgroundColor: color.pitch, alignItems: 'center' },
   top: {
     height: TOP_H,
     flexDirection: 'row',
@@ -922,15 +923,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: color.accentSoft,
     borderWidth: 1,
-    borderColor: 'rgba(111,157,255,0.55)',
+    borderColor: 'rgba(75,214,140,0.6)',
   },
   plate: {
     alignSelf: 'stretch',
     height: PLATE_H,
     borderRadius: radius.md,
-    backgroundColor: color.surface,
+    backgroundColor: 'rgba(11,18,32,0.82)',
     borderWidth: 1,
-    borderColor: color.hairline,
+    borderColor: 'rgba(244,239,228,0.1)',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 7,

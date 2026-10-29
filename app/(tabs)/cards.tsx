@@ -96,9 +96,10 @@ export default function Cards() {
         <>
           <View style={styles.level}>
             <View style={styles.between}>
-              <Text style={styles.levelTitle}>
-                <Text style={{ fontFamily: font.bold }}>Level {level}</Text> Collection
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+                <Text style={styles.levelNum}>{level}</Text>
+                <Text style={styles.levelTitle}>Collection level</Text>
+              </View>
               <Text style={type.footnote}>{`${ownedCount} of ${list.length} cards`}</Text>
             </View>
             <ProgressBar value={(level % MILESTONE_STEP) / MILESTONE_STEP} style={{ marginVertical: 10 }} />
@@ -113,7 +114,7 @@ export default function Cards() {
           </View>
 
           <View style={styles.tiles}>
-            <Pressable style={({ pressed }) => [styles.tile, pressed && { backgroundColor: color.raised }]} onPress={() => router.push('/pack')} accessibilityRole="button" accessibilityLabel={opened ? "See today's pack" : 'Open your daily pack'}>
+            <Pressable style={({ pressed }) => [styles.tile, styles.packTile, pressed && { backgroundColor: color.raised }]} onPress={() => router.push('/pack')} accessibilityRole="button" accessibilityLabel={opened ? "See today's pack" : 'Open your daily pack'}>
               <MiniPack width={28} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.tileTitle}>Daily pack</Text>
@@ -163,9 +164,11 @@ export default function Cards() {
 const styles = StyleSheet.create({
   level: { paddingTop: 2, paddingBottom: 18 },
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  levelTitle: { fontFamily: font.medium, fontSize: 14, color: color.text },
+  levelTitle: { fontFamily: font.medium, fontSize: 14, color: color.text2 },
+  levelNum: { fontFamily: font.cardHeavy, fontSize: 30, lineHeight: 34, color: color.text, fontVariant: ['tabular-nums'] },
   tiles: { flexDirection: 'row', gap: 10, marginBottom: 18 },
   tile: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: radius.md, backgroundColor: color.surface },
+  packTile: { borderWidth: 1, borderColor: 'rgba(233,196,106,0.42)' },
   tileTitle: { fontFamily: font.semibold, fontSize: 15, color: color.text },
   tileSub: { fontFamily: font.medium, fontSize: 12.5, color: color.text3, marginTop: 1 },
   qmark: { width: 28, height: 38, borderRadius: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: color.raised, borderWidth: 1, borderColor: color.hairlineStrong },

@@ -17,7 +17,8 @@ import {
   Skeleton,
   Failed,
   Empty,
-  KitChip,
+  KitStripe,
+  clubTone,
   MiniBar,
   Row,
   tap,
@@ -33,7 +34,8 @@ import { lastMatchday, remaining, simulate, tableAfter, Projection } from '../..
 import { applyPick, applyPress, locked, pressedIn, tally } from '../../lib/picks';
 import { usePicks } from '../../lib/storage';
 import type { Match, StandingRow, Team } from '../../lib/types';
-import type { ClubColors } from '../../lib/colors';
+import { alpha, type ClubColors } from '../../lib/colors';
+import { LinearGradient } from 'expo-linear-gradient';
 import { color, font, motion, radius, size, space, type } from '../../constants/design';
 
 const openMatch = (m: Match, c: number) => router.push({ pathname: '/match/[id]', params: { id: String(m.id), c: String(c) } });
@@ -104,6 +106,7 @@ function Fixtures({ matches, competitionId, competition, colors, venues, ratings
             return (
               <MatchMarket
                 key={m.id}
+                showDay={false}
                 match={m}
                 prediction={pred}
                 pick={picks[String(m.id)]}
@@ -175,7 +178,7 @@ function Table({ table, matches, competitionId, colors }: { table: StandingRow[]
       {last ? <Stepper value={md} min={1} max={last} onChange={setMd} label={`Matchday ${md} of ${total}`} /> : null}
       <View style={[styles.trow, styles.thead]}>
         <Text style={[styles.th, { width: 24 }]}>#</Text>
-        <Text style={[styles.th, { flex: 1, paddingLeft: 30 }]}>Club</Text>
+        <Text style={[styles.th, { flex: 1, paddingLeft: 14 }]}>Club</Text>
         <Text style={[styles.th, styles.tnum]}>P</Text>
         <Text style={[styles.th, styles.tnum]}>GD</Text>
         <Text style={[styles.th, styles.tnum]}>Pts</Text>
@@ -189,9 +192,17 @@ function Table({ table, matches, competitionId, colors }: { table: StandingRow[]
               <Pressable onPress={() => openClub(r.team.id, competitionId)} accessibilityRole="button" accessibilityLabel={`${r.position}, ${r.team.name}, ${r.points} points. Open club`}>
                 {({ pressed }) => (
                   <View style={[styles.trow, { height: ROW }, pressed && { backgroundColor: color.raised }]}>
+                    {/* each club's row carries a wash of its kit, so the table reads in club colours */}
+                    <LinearGradient
+                      colors={[alpha(clubTone(colors.get(r.team.id)), 0.17), alpha(clubTone(colors.get(r.team.id)), 0)]}
+                      start={{ x: 0, y: 0.5 }}
+                      end={{ x: 0.55, y: 0.5 }}
+                      style={StyleSheet.absoluteFill}
+                      pointerEvents="none"
+                    />
                     <View style={[styles.zone, z && { backgroundColor: ZONE[z] }]} />
-                    <Text style={styles.tpos}>{r.position}</Text>
-                    <KitChip colors={colors.get(r.team.id)} size={20} />
+                    <Text style={[styles.tpos, z === 'top' && { color: color.text }]}>{r.position}</Text>
+                    <KitStripe colors={colors.get(r.team.id)} height={26} width={4} />
                     <Text style={styles.tname} numberOfLines={1}>{teamName(r.team)}</Text>
                     <Text style={[styles.tcell, styles.tnum]}>{r.played}</Text>
                     <Text style={[styles.tcell, styles.tnum]}>{signed(r.goalDifference)}</Text>
@@ -306,7 +317,7 @@ function Projections({ table, matches, ratings, competitionId, colors }: { table
       <Text style={[type.footnote, { marginBottom: space.sm }]}>{left} fixtures left, each simulated 2,000 times with the goals model.</Text>
       <View style={[styles.trow, styles.thead]}>
         <Text style={[styles.th, { width: 24 }]}>#</Text>
-        <Text style={[styles.th, { flex: 1, paddingLeft: 30 }]}>Club</Text>
+        <Text style={[styles.th, { flex: 1, paddingLeft: 14 }]}>Club</Text>
         {cols.map(([k, l]) => (
           <Text key={k} style={[styles.th, styles.pcol, { textAlign: 'left' }]}>{l}</Text>
         ))}
@@ -319,7 +330,7 @@ function Projections({ table, matches, ratings, competitionId, colors }: { table
             {({ pressed }) => (
               <View style={[styles.trow, { height: 48 }, styles.tdiv, pressed && { backgroundColor: color.raised }]}>
                 <Text style={styles.tpos}>{i + 1}</Text>
-                <KitChip colors={colors.get(r.team.id)} size={20} />
+                <KitStripe colors={colors.get(r.team.id)} height={26} width={4} />
                 <Text style={styles.tname} numberOfLines={1}>{teamName(r.team)}</Text>
                 {cols.map(([k]) => {
                   const d = delta(r.team.id, k);
@@ -330,7 +341,7 @@ function Projections({ table, matches, ratings, competitionId, colors }: { table
                         <Text style={[styles.pnum, k === 'relegation' && p[k] >= 0.3 && { color: color.loss }]}>{pctText(p[k])}</Text>
                         {Math.abs(d) >= 1 ? <Text style={[styles.pdelta, { color: good ? color.win : color.loss }]}>{d > 0 ? '▲' : '▼'}{Math.abs(Math.round(d))}</Text> : null}
                       </View>
-                      <MiniBar value={p[k]} width={40} fill={k === 'relegation' ? color.loss : color.text2} />
+                      <MiniBar value={p[k]} width={40} fill={k === 'relegation' ? color.loss : clubTone(colors.get(r.team.id))} />
                     </View>
                   );
                 })}
@@ -349,7 +360,7 @@ function Projections({ table, matches, ratings, competitionId, colors }: { table
               const good = d[0] === 'relegation' ? d[1] < 0 : d[1] > 0;
               return (
                 <View key={r.team.id} style={styles.mover}>
-                  <KitChip colors={colors.get(r.team.id)} size={16} />
+                  <KitStripe colors={colors.get(r.team.id)} height={18} width={3} />
                   <Text style={styles.moverName} numberOfLines={1}>{teamName(r.team)}</Text>
                   <Text style={type.footnote}>{cols.find((c) => c[0] === d[0])?.[1]}</Text>
                   <Text style={[styles.pdelta, { fontSize: 13, color: good ? color.win : color.loss }]}>{d[1] > 0 ? '▲' : '▼'} {Math.abs(Math.round(d[1]))}</Text>
@@ -380,7 +391,7 @@ function Projections({ table, matches, ratings, competitionId, colors }: { table
                 const val = v ? v[side === 'home' ? 0 : 1] : null;
                 return (
                   <View key={side} style={styles.wiTeam}>
-                    <KitChip colors={colors.get(t.id)} size={16} />
+                    <KitStripe colors={colors.get(t.id)} height={18} width={3} />
                     <Text style={styles.wiName} numberOfLines={1}>{teamName(t)}</Text>
                     <GoalStepper
                       value={val}
@@ -475,11 +486,11 @@ const styles = StyleSheet.create({
   tdiv: { borderBottomWidth: 1, borderBottomColor: color.hairline },
   glide: { position: 'absolute', left: 0, right: 0, top: 0, borderBottomWidth: 1, borderBottomColor: color.hairline },
   zone: { position: 'absolute', left: -space.gutter + 4, width: 3, height: 22, borderRadius: 2, backgroundColor: 'transparent' },
-  tpos: { width: 24, fontFamily: font.medium, fontSize: 13, color: color.text3, fontVariant: ['tabular-nums'] },
+  tpos: { width: 24, fontFamily: font.cardHeavy, fontSize: 14, color: color.text2, fontVariant: ['tabular-nums'] },
   tname: { flex: 1, minWidth: 0, fontFamily: font.medium, fontSize: 15, color: color.text },
   tcell: { fontFamily: font.regular, fontSize: 15, color: color.text2, fontVariant: ['tabular-nums'] },
   tnum: { width: 30, textAlign: 'right' },
-  tpts: { fontFamily: font.semibold, color: color.text },
+  tpts: { fontFamily: font.cardHeavy, fontSize: 16, color: color.text },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: space.lg, marginTop: space.lg },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendSwatch: { width: 3, height: 12, borderRadius: 2 },

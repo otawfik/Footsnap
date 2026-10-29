@@ -6,11 +6,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { KitChip, LiveDot, OutcomeRow, pctText, tap, teamName } from './ui';
+import { Bleed, KitField, KitStripe, LiveDot, OutcomeRow, ScoreBug, fixtureTones, pctText, tap, teamName, toneText } from './ui';
 import type { Match } from '../lib/types';
 import type { Outcome, Prediction } from '../lib/model';
 import { outcome as resultOf, pick as leadOf } from '../lib/model';
-import type { ClubColors } from '../lib/colors';
+import { alpha, type ClubColors } from '../lib/colors';
 import { isFinished, isLive } from '../lib/football';
 import { locked, points, type UserPick } from '../lib/picks';
 import { color, font, radius, space, type } from '../constants/design';
@@ -84,6 +84,8 @@ export function MatchMarket({
   onOpen,
   press,
   divider = true,
+  featured,
+  showDay = true,
 }: {
   match: Match;
   prediction: Prediction | null;
@@ -96,6 +98,10 @@ export function MatchMarket({
   onOpen?: () => void;
   press?: { available: boolean; onToggle: () => void };
   divider?: boolean;
+  /** the lead fixture on a screen: a full-bleed split kit field with the score bug, names set big */
+  featured?: boolean;
+  /** hide "SAT 31 OCT" when the list is already grouped by day */
+  showDay?: boolean;
 }) {
   const isLocked = locked(m);
   const done = isFinished(m);
@@ -103,10 +109,13 @@ export function MatchMarket({
   const lead = p ? leadOf(p) : null;
   const when = isLive(m) ? statusLabel(m) : `${shortDate(m.utcDate)}, ${clock(m.utcDate)}`;
   const meta = [competition, when].filter(Boolean).join(' · ');
+  const [th, ta] = fixtureTones(homeColors, awayColors);
+  const code = (t: Match['homeTeam']) => (t.tla ?? teamName(t).slice(0, 3)).toUpperCase();
   const row = (o: Outcome, label: string, kit: ClubColors | null | undefined, pct: number | null) => (
     <OutcomeRow
       key={o}
       kit={kit}
+      tone={o === 'H' ? th : o === 'A' ? ta : undefined}
       label={label}
       pct={pct}
       picked={pick?.outcome === o}
@@ -117,14 +126,16 @@ export function MatchMarket({
     />
   );
   const pressed = !!pick?.snapped;
+  // "Your pick · Arsenal" in Arsenal's colour (text-safe); a draw pick in chalk
+  const pickInk = pick ? (pick.outcome === 'D' ? color.text : toneText(pick.outcome === 'H' ? th : ta)) : color.accentText;
   let left: React.ReactNode;
   let right: string;
   if (done && pick) {
     const pts = points(pick.outcome === result, pick.snapped);
-    left = <Text style={[styles.footText, { color: color.accentText }]} numberOfLines={1}>Your pick · {outcomeName(m, pick.outcome)}{pressed ? ' · Pressed' : ''}</Text>;
+    left = <Text style={[styles.footText, { color: pickInk, fontFamily: font.semibold }]} numberOfLines={1}>Your pick · {outcomeName(m, pick.outcome)}{pressed ? ' · Pressed' : ''}</Text>;
     right = pts > 0 ? `+${pts} points` : pts < 0 ? `−${-pts} points` : 'No points';
   } else if (pick) {
-    left = <Text style={[styles.footText, { color: color.accentText }]} numberOfLines={1}>Your pick · {outcomeName(m, pick.outcome)}</Text>;
+    left = <Text style={[styles.footText, { color: pickInk, fontFamily: font.semibold }]} numberOfLines={1}>Your pick · {outcomeName(m, pick.outcome)}</Text>;
     right = isLocked ? (pressed ? 'Pressed · +4 if right' : '+2 points if right') : pressed ? '+4 if right, −2 if wrong' : '+2 points if right';
   } else {
     left = <Text style={styles.footText} numberOfLines={1}>{isLocked ? (done ? 'Full time' : 'Picks locked at kick-off') : 'Tap an outcome to pick'}</Text>;
@@ -133,7 +144,34 @@ export function MatchMarket({
   const showPress = !!press && !!pick && !isLocked && (press.available || pressed);
 
   return (
-    <View style={[styles.market, divider && styles.divider]}>
+    <View style={[styles.market, divider && { marginBottom: 8 }]}>
+      {featured ? (
+        <Pressable onPress={onOpen} disabled={!onOpen} accessibilityRole="button" accessibilityLabel={`${m.homeTeam.name} against ${m.awayTeam.name}. Open match`}>
+          <Bleed>
+            <KitField colors={homeColors} away={awayColors} tones={[th, ta]} height={150} fade={0.62}>
+              <View style={styles.featBug} pointerEvents="none">
+                <ScoreBug
+                  home={{ code: code(m.homeTeam), tone: th }}
+                  away={{ code: code(m.awayTeam), tone: ta }}
+                  center={isLive(m) || isFinished(m) ? `${m.score.fullTime.home ?? 0}–${m.score.fullTime.away ?? 0}` : clock(m.utcDate)}
+                  live={isLive(m)}
+                />
+              </View>
+            </KitField>
+          </Bleed>
+          <View style={styles.featNames}>
+            <Text style={[styles.featName, { textAlign: 'left' }]} numberOfLines={2}>{teamName(m.homeTeam)}</Text>
+            <Text style={styles.featV}>v</Text>
+            <Text style={[styles.featName, { textAlign: 'right' }]} numberOfLines={2}>{teamName(m.awayTeam)}</Text>
+          </View>
+        </Pressable>
+      ) : (
+        /* the fixture's colours, as a programme rule: home kit | away kit */
+        <View style={styles.rule} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <View style={{ flex: 1, backgroundColor: th }} />
+          <View style={{ flex: 1, backgroundColor: ta }} />
+        </View>
+      )}
       <Pressable
         onPress={onOpen}
         disabled={!onOpen}
@@ -142,9 +180,21 @@ export function MatchMarket({
         accessibilityRole={onOpen ? 'button' : undefined}
         accessibilityLabel={`${m.homeTeam.name} against ${m.awayTeam.name}, ${meta}. Open match`}
       >
-        <Text style={[styles.metaText, isLive(m) && { color: color.live }]} numberOfLines={1}>{meta}</Text>
+        <View style={styles.when}>
+          {isLive(m) ? (
+            <>
+              <LiveDot size={7} />
+              <Text style={[styles.whenTime, { color: color.live }]}>{statusLabel(m)}</Text>
+            </>
+          ) : (
+            <>
+              {showDay ? <Text style={styles.whenDay} numberOfLines={1}>{shortDate(m.utcDate)}</Text> : null}
+              {featured ? null : <Text style={styles.whenTime}>{clock(m.utcDate)}</Text>}
+            </>
+          )}
+        </View>
         <View style={styles.metaRight}>
-          {venue ? <Text style={[styles.metaText, { flexShrink: 1 }]} numberOfLines={1}>{venue}</Text> : null}
+          {venue || competition ? <Text style={[styles.metaText, { flexShrink: 1 }]} numberOfLines={1}>{featured && competition ? competition : venue ?? competition}</Text> : null}
           {onOpen ? <Ionicons name="chevron-forward" size={14} color={color.text3} /> : null}
         </View>
       </Pressable>
@@ -207,15 +257,17 @@ export function CompactMatchRow({
   const lead = p ? leadOf(p) : null;
   const label = time ?? (live ? statusLabel(m) : done ? 'FT' : kickoff(m.utcDate));
   const pts = done && pick ? points(pick.outcome === resultOf(m), pick.snapped) : null;
-  const tile = (pct: number, sym: string, top: boolean) => (
-    <View style={[styles.tile, top && { backgroundColor: color.raised }]}>
-      <Text style={[styles.tilePct, top && { color: color.text }]}>{pctText(pct, false)}</Text>
+  const [th, ta] = fixtureTones(homeColors, awayColors);
+  // the model's favourite: its tile wears that club's colour (draw: chalk)
+  const tile = (pct: number, sym: string, top: boolean, tone: string) => (
+    <View style={[styles.tile, top && { backgroundColor: alpha(tone, 0.2), borderColor: alpha(tone, 0.75) }]}>
+      <Text style={[styles.tilePct, top && { color: color.text, fontFamily: font.bold }]}>{pctText(pct, false)}</Text>
       <Text style={styles.tileSym}>{sym}</Text>
     </View>
   );
-  const team = (t: Match['homeTeam'], c: ClubColors | undefined, dim: boolean) => (
+  const team = (t: Match['homeTeam'], c: ClubColors | undefined, dim: boolean, tone: string) => (
     <View style={styles.cteam}>
-      <KitChip colors={c} size={16} />
+      <KitStripe colors={c} tone={tone} height={18} width={3} />
       <Text style={[styles.cname, dim && { color: color.text2 }]} numberOfLines={1}>{teamName(t)}</Text>
     </View>
   );
@@ -227,8 +279,8 @@ export function CompactMatchRow({
       {({ pressed }) => (
         <View style={[styles.crow, divider && styles.divider, pressed && { opacity: 0.7 }]}>
           <View style={{ flex: 1, minWidth: 0, gap: 7 }}>
-            {team(m.homeTeam, homeColors, done && w === 'AWAY_TEAM')}
-            {team(m.awayTeam, awayColors, done && w === 'HOME_TEAM')}
+            {team(m.homeTeam, homeColors, done && w === 'AWAY_TEAM', th)}
+            {team(m.awayTeam, awayColors, done && w === 'HOME_TEAM', ta)}
           </View>
           <View style={{ alignItems: 'flex-end', gap: 2 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -244,9 +296,9 @@ export function CompactMatchRow({
             </View>
           ) : p ? (
             <View style={styles.tiles}>
-              {tile(p.home, '1', lead === 'H')}
-              {tile(p.draw, 'X', lead === 'D')}
-              {tile(p.away, '2', lead === 'A')}
+              {tile(p.home, '1', lead === 'H', th)}
+              {tile(p.draw, 'X', lead === 'D', color.chalk)}
+              {tile(p.away, '2', lead === 'A', ta)}
             </View>
           ) : null}
         </View>
@@ -259,6 +311,8 @@ export function CompactMatchRow({
 export function LiveRow({ match: m, homeColors, awayColors, onPress, competition, divider = true }: { match: Match; homeColors?: ClubColors; awayColors?: ClubColors; onPress?: () => void; competition?: string; divider?: boolean }) {
   const h = m.score.fullTime.home ?? 0;
   const a = m.score.fullTime.away ?? 0;
+  const [th, ta] = fixtureTones(homeColors, awayColors);
+  const code = (t: Match['homeTeam']) => (t.tla ?? teamName(t).slice(0, 3)).toUpperCase();
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole="button" accessibilityLabel={`${statusLabel(m)}: ${m.homeTeam.name} ${h}, ${m.awayTeam.name} ${a}`}>
       {({ pressed }) => (
@@ -270,15 +324,15 @@ export function LiveRow({ match: m, homeColors, awayColors, onPress, competition
               {competition ? <Text style={styles.metaText} numberOfLines={1}>· {competition}</Text> : null}
             </View>
             <View style={styles.cteam}>
-              <KitChip colors={homeColors} size={16} />
+              <KitStripe colors={homeColors} tone={th} height={18} width={3} />
               <Text style={styles.cname} numberOfLines={1}>{teamName(m.homeTeam)}</Text>
             </View>
             <View style={styles.cteam}>
-              <KitChip colors={awayColors} size={16} />
+              <KitStripe colors={awayColors} tone={ta} height={18} width={3} />
               <Text style={styles.cname} numberOfLines={1}>{teamName(m.awayTeam)}</Text>
             </View>
           </View>
-          <Text style={type.numLarge}>{h}–{a}</Text>
+          <ScoreBug small home={{ code: code(m.homeTeam), tone: th }} away={{ code: code(m.awayTeam), tone: ta }} center={`${h}–${a}`} />
         </View>
       )}
     </Pressable>
@@ -287,7 +341,15 @@ export function LiveRow({ match: m, homeColors, awayColors, onPress, competition
 
 const styles = StyleSheet.create({
   divider: { borderBottomWidth: 1, borderBottomColor: color.hairline },
-  market: { paddingTop: 10, paddingBottom: 12 },
+  market: { paddingTop: 0, paddingBottom: 14, marginTop: 6 },
+  featBug: { position: 'absolute', left: 0, right: 0, top: 46, alignItems: 'center' },
+  featNames: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm, marginTop: -40, marginBottom: 12 },
+  featName: { flex: 1, ...type.clubName, fontSize: 20, lineHeight: 22 },
+  featV: { ...type.strap, color: color.text2, fontSize: 12 },
+  rule: { flexDirection: 'row', height: 3, borderRadius: 2, overflow: 'hidden', marginBottom: 10, gap: 2 },
+  when: { flexDirection: 'row', alignItems: 'baseline', gap: 8, flexShrink: 0 },
+  whenDay: { ...type.strap, fontSize: 12, color: color.text2 },
+  whenTime: { fontFamily: font.cardHeavy, fontSize: 16, lineHeight: 20, color: color.text, fontVariant: ['tabular-nums'] },
   meta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space.md, marginBottom: 6, minHeight: 22 },
   metaRight: { flexDirection: 'row', alignItems: 'center', gap: 2, flexShrink: 1, justifyContent: 'flex-end' },
   metaText: { fontFamily: font.medium, fontSize: 13, lineHeight: 18, color: color.text3, flexShrink: 1 },
@@ -300,10 +362,10 @@ const styles = StyleSheet.create({
   cname: { fontFamily: font.medium, fontSize: 15, lineHeight: 20, color: color.text, flexShrink: 1 },
   ctime: { fontFamily: font.medium, fontSize: 13, color: color.text3, fontVariant: ['tabular-nums'] },
   tiles: { flexDirection: 'row', gap: 6 },
-  tile: { width: 44, height: 46, borderRadius: radius.sm, backgroundColor: color.surface, alignItems: 'center', justifyContent: 'center' },
+  tile: { width: 44, height: 46, borderRadius: radius.sm, backgroundColor: color.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'transparent' },
   tilePct: { fontFamily: font.semibold, fontSize: 15, color: color.text2, fontVariant: ['tabular-nums'] },
   tileSym: { fontFamily: font.semibold, fontSize: 10.5, color: color.text3, marginTop: 1 },
   cscore: { width: 44, alignItems: 'center', gap: 7 },
-  cscoreNum: { fontFamily: font.semibold, fontSize: 17, lineHeight: 20, color: color.text, fontVariant: ['tabular-nums'] },
+  cscoreNum: { fontFamily: font.cardHeavy, fontSize: 18, lineHeight: 20, color: color.text, fontVariant: ['tabular-nums'] },
   lrow: { flexDirection: 'row', alignItems: 'center', gap: space.lg, paddingVertical: space.md },
 });
