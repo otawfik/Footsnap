@@ -41,17 +41,21 @@ store release guide: [`docs/app-store.md`](docs/app-store.md)
   badly cropped photos are rejected automatically. The App Store build ships with photos and crests switched off
   (a build flag), for image rights.
 
-### In progress: the 2.0 redesign
+### FootSnap 2.0
 
-A full visual redesign is underway: a calm, Kalshi-clean dark interface with predictions shown as market-style
-probability rows, and FIFA Ultimate Team-grade cards with metal tiers and tilt-reactive foil. The spec is in
-[`docs/redesign/SPEC.md`](docs/redesign/SPEC.md), and work happens on the `redesign-wip` branch.
+A calm, Kalshi-clean dark interface: forecasts are shown as market-style probability rows with one-tap free picks,
+and the cards are FIFA Ultimate Team-grade collectibles with metal rarity rims, real stat lines and tilt-reactive
+foil. Design spec: [`docs/redesign/SPEC.md`](docs/redesign/SPEC.md).
 
 <p>
-  <img src="docs/screenshots/1-legend-card.jpg" width="190" alt="A Legend-tier card for Erling Haaland: the player cut out and breaking the frame, with a Starfield finish">
-  <img src="docs/screenshots/2-duel.jpg" width="190" alt="A Duel in progress: cards played into three zones with their Power totals">
-  <img src="docs/screenshots/3-collection.jpg" width="190" alt="The collection grid: Elite and Rare cards at different upgrade tiers">
-  <img src="docs/screenshots/5-what-if.jpg" width="190" alt="What if: a pinned result moves the clubs' odds">
+  <img src="docs/screenshots/v2/1-home.jpg" width="200" alt="Home: your teams' next games as home / draw / away probability rows with an inline pick">
+  <img src="docs/screenshots/v2/2-card.jpg" width="200" alt="Erling Haaland's card: silver rim, Power 12, position, nation and club, and his real goals, goals per game, appearances and age">
+  <img src="docs/screenshots/v2/3-collection.jpg" width="200" alt="The collection grid of Silver and Gold cards; players without a photo get an engraved monogram">
+</p>
+<p>
+  <img src="docs/screenshots/v2/4-pack.jpg" width="200" alt="Pack opening: a new Gold card revealed">
+  <img src="docs/screenshots/v2/5-duel.jpg" width="200" alt="A duel mid-match: three zones with conditions and Power totals, cards queued, energy gauge">
+  <img src="docs/screenshots/v2/6-match.jpg" width="200" alt="A match page: the model's chances, your pick and the likeliest scores">
 </p>
 
 ## What's in it
