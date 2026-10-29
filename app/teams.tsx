@@ -66,7 +66,7 @@ export default function Teams() {
       ) : (
         list.map((t, i) => {
           const on = isFavorite(favorites, t.id);
-          const colors = clubColors(t.clubColors);
+          const colors = clubColors(t.clubColors, t.id);
           const name = t.shortName ?? t.name;
           return (
             <Row

@@ -20,7 +20,7 @@ export function EnergyGem({ value, d = 40, spent }: { value: number; d?: number;
     <View style={{ width: o, height: o }} accessible accessibilityLabel={`${value} energy left`}>
       <Svg width={o} height={o}>
         <Defs>
-          <RadialGradient id={id} cx="34%" cy="28%" r="75%" fx="34%" fy="28%">
+          <RadialGradient id={id} cx="30%" cy="22%" r="80%" fx="30%" fy="22%">
             {(spent
               ? [
                   [0, '#6A6F7A'],
@@ -28,8 +28,9 @@ export function EnergyGem({ value, d = 40, spent }: { value: number; d?: number;
                   [1, '#25282E'],
                 ]
               : [
+                  // the highlight stays small and up in the corner, so the number always sits on mid (5.1:1)
                   [0, gem.hi],
-                  [0.4, gem.mid],
+                  [0.22, gem.mid],
                   [0.74, gem.low],
                   [1, gem.edge],
                 ]
@@ -130,8 +131,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
     fontVariant: ['tabular-nums'],
-    textShadowColor: 'rgba(0,0,0,0.35)',
+    textShadowColor: 'rgba(0,0,0,0.55)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadowRadius: 3,
   },
 });

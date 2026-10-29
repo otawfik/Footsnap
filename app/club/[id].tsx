@@ -80,7 +80,7 @@ export default function Club() {
     const t = team ?? row?.team;
     if (!t) return;
     setFavorites((f) =>
-      toggleFavorite(f, { competitionId: league.id, teamId, name: t.shortName ?? t.name, tla: t.tla, colors: team ? clubColors(team.clubColors) : cc ?? clubColors(null) })
+      toggleFavorite(f, { competitionId: league.id, teamId, name: t.shortName ?? t.name, tla: t.tla, colors: team ? clubColors(team.clubColors, team.id) : cc ?? clubColors(null, teamId) })
     );
   };
 

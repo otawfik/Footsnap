@@ -15,6 +15,37 @@ const NAMED: [string, string][] = [
   ['gray', '#8A8D91'], ['silver', '#B9BEC4'], ['brown', '#7B4B2A'], ['cherry', '#B11E3A'],
 ];
 
+
+/**
+ * The colours each club actually wears, by football-data.org team id, for every club in the six competitions.
+ * The free-text clubColors only says "Red / White", which gave Arsenal, Liverpool, Man United and Sunderland
+ * the same red. Clubs not listed fall back to parsing that text. [shirt, second colour]
+ */
+const KITS: Record<number, [string, string]> = {
+  57: ['#EF0107', '#F3F1E7'], 58: ['#670E36', '#95BFE5'], 61: ['#034694', '#F3F1E7'], 62: ['#003399', '#F3F1E7'], 63: ['#F3F1E7', '#141414'],
+  64: ['#C8102E', '#F3F1E7'], 65: ['#6CABDD', '#F3F1E7'], 66: ['#DA291C', '#141414'], 67: ['#241F20', '#F3F1E7'], 71: ['#EB172B', '#F3F1E7'],
+  73: ['#132257', '#F3F1E7'], 322: ['#F5A12D', '#141414'], 341: ['#F3F1E7', '#1D428A'], 349: ['#3A64A3', '#F3F1E7'], 351: ['#E53233', '#F3F1E7'],
+  354: ['#1B458F', '#C4122E'], 397: ['#0057B8', '#F3F1E7'], 402: ['#E30613', '#F3F1E7'], 1044: ['#B50E12', '#141414'], 1076: ['#59CBE8', '#F3F1E7'],
+  77: ['#EE2523', '#F3F1E7'], 78: ['#CB3524', '#272E61'], 79: ['#D91A21', '#0A346F'], 80: ['#007FC8', '#F3F1E7'], 81: ['#A50044', '#004D98'],
+  82: ['#005999', '#F3F1E7'], 84: ['#0D5EAF', '#F3F1E7'], 86: ['#F3F1E7', '#3D195B'], 87: ['#F3F1E7', '#E53027'], 88: ['#B4053F', '#004D98'],
+  90: ['#00954C', '#F3F1E7'], 92: ['#0067B1', '#F3F1E7'], 94: ['#FFE667', '#005187'], 95: ['#F3F1E7', '#F18E00'], 263: ['#0761AF', '#F3F1E7'],
+  285: ['#F3F1E7', '#05642C'], 558: ['#8AC3EE', '#F3F1E7'], 559: ['#F3F1E7', '#D71920'], 560: ['#0A4B9B', '#F3F1E7'], 5335: ['#F3F1E7', '#007A3D'],
+  1: ['#ED1C24', '#F3F1E7'], 2: ['#1C63B7', '#F3F1E7'], 3: ['#E32221', '#141414'], 4: ['#FDE100', '#141414'], 5: ['#DC052D', '#F3F1E7'],
+  6: ['#004D9D', '#F3F1E7'], 7: ['#F3F1E7', '#0A3F86'], 10: ['#F3F1E7', '#E32219'], 12: ['#1D9053', '#F3F1E7'], 15: ['#C3141E', '#F3F1E7'],
+  16: ['#BA3733', '#46714D'], 17: ['#D3112D', '#141414'], 18: ['#F3F1E7', '#00A650'], 19: ['#E1000F', '#141414'], 28: ['#EB1923', '#F3F1E7'],
+  29: ['#141414', '#0055A4'], 719: ['#141414', '#F3F1E7'], 721: ['#F3F1E7', '#DD0741'], 98: ['#FB090B', '#141414'], 99: ['#482E92', '#F3F1E7'],
+  100: ['#8E1F2F', '#F0BC42'], 102: ['#1E71B8', '#141414'], 103: ['#A21C26', '#1A2F48'], 104: ['#A0002C', '#002350'], 107: ['#A81830', '#002B5C'],
+  108: ['#010E80', '#141414'], 109: ['#F3F1E7', '#141414'], 110: ['#85C4E8', '#F3F1E7'], 112: ['#F3F1E7', '#141414'], 113: ['#12A0D7', '#F3F1E7'],
+  115: ['#F3F1E7', '#141414'], 454: ['#F37021', '#141414'], 470: ['#FFDD00', '#0047AB'], 471: ['#00A752', '#141414'], 586: ['#8A1E03', '#F3F1E7'],
+  5890: ['#FFD100', '#D2001F'], 5911: ['#E30613', '#F3F1E7'], 7397: ['#5B9BD5', '#F3F1E7'], 511: ['#3E2C7E', '#F3F1E7'], 512: ['#E30613', '#F3F1E7'],
+  516: ['#F3F1E7', '#2FAEE0'], 519: ['#F3F1E7', '#0D5EAF'], 521: ['#D2112A', '#1A2C55'], 522: ['#E2001A', '#141414'], 523: ['#F3F1E7', '#DA0812'],
+  524: ['#004170', '#DA291C'], 525: ['#F58113', '#141414'], 529: ['#E13327', '#141414'], 531: ['#005BAC', '#F3F1E7'], 532: ['#141414', '#F3F1E7'],
+  533: ['#76B5E4', '#0E2A4E'], 535: ['#DA291C', '#FFD200'], 546: ['#E01E13', '#FFD100'], 548: ['#E51B22', '#F3F1E7'], 576: ['#009FE3', '#F3F1E7'],
+  1045: ['#0E2A4E', '#5BC2E7'], 498: ['#008057', '#F3F1E7'], 503: ['#00428C', '#F3F1E7'], 610: ['#A90432', '#FDB912'], 613: ['#FFED00', '#00237A'],
+  674: ['#ED1C24', '#F3F1E7'], 675: ['#E30613', '#F3F1E7'], 851: ['#0067B1', '#141414'], 930: ['#E30613', '#F3F1E7'], 1887: ['#F26522', '#141414'],
+  1899: ['#FFD200', '#141414'], 2016: ['#141414', '#F3F1E7'], 5720: ['#003E7E', '#F3F1E7'], 5721: ['#FFE500', '#141414'], 7509: ['#6CB4EE', '#F3F1E7'],
+};
+
 export interface ClubColors {
   primary: string;
   secondary: string;
@@ -44,9 +75,9 @@ export function contrast(a: string, b: string): number {
 
 const NIGHT = '#0A0E0B';
 
-export function clubColors(raw: string | null | undefined): ClubColors {
-  if (!raw) return FALLBACK;
-  const parts = raw.split(/[\/,&]| and /i).map(parseColor).filter((c): c is string => !!c);
+export function clubColors(raw: string | null | undefined, teamId?: number): ClubColors {
+  const kit = teamId != null ? KITS[teamId] : undefined;
+  const parts = kit ? [...kit] : (raw ?? '').split(/[\/,&]| and /i).map(parseColor).filter((c): c is string => !!c);
   if (!parts.length) return FALLBACK;
   const primary = parts[0];
   const secondary = parts.find((c) => c !== primary) ?? '#F3F1E7';
