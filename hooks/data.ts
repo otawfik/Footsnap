@@ -31,7 +31,7 @@ export function useScorers(league: League) {
 /** Club colours by team id for the selected competition (from the squads request). */
 export function useClubColors(league: League): Map<number, ClubColors> {
   const { data } = useTeams(league);
-  return useMemo(() => new Map((data?.teams ?? []).map((t) => [t.id, clubColors(t.clubColors)])), [data]);
+  return useMemo(() => new Map((data?.teams ?? []).map((t) => [t.id, clubColors(t.clubColors, t.id)])), [data]);
 }
 
 export function useRatings(league: League) {
@@ -131,7 +131,7 @@ export function useHomeFixtures(favorites: Favorite[], limit = 3) {
         matches: c.matches,
         teams: c.teams,
         ratings: fit(c.matches),
-        colors: new Map(c.teams.map((t) => [t.id, clubColors(t.clubColors)])),
+        colors: new Map(c.teams.map((t) => [t.id, clubColors(t.clubColors, t.id)])),
         venues: new Map(c.teams.filter((t) => t.venue).map((t) => [t.id, t.venue as string])),
       })),
     [q.data]

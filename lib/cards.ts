@@ -336,13 +336,13 @@ export function buildCards(
       u21: ages.filter((x) => x <= 20).length,
       over33: ages.filter((x) => x >= 33).length,
     };
-    const t: CardTeam = { id: team.id, name: team.name, shortName: team.shortName ?? team.name, tla: teamCode(team), crest: team.crest, colors: clubColors(team.clubColors) };
+    const t: CardTeam = { id: team.id, name: team.name, shortName: team.shortName ?? team.name, tla: teamCode(team), crest: team.crest, colors: clubColors(team.clubColors, team.id) };
     for (const p of squad) add(p, t, facts);
   }
   // scorers missing from the published squad lists still get a card
   for (const s of scorers) {
     if (cards.has(s.player.id)) continue;
-    const t: CardTeam = { id: s.team.id, name: s.team.name, shortName: s.team.shortName ?? s.team.name, tla: teamCode(s.team), crest: s.team.crest, colors: clubColors(null) };
+    const t: CardTeam = { id: s.team.id, name: s.team.name, shortName: s.team.shortName ?? s.team.name, tla: teamCode(s.team), crest: s.team.crest, colors: clubColors(null, s.team.id) };
     add(s.player, t, { club: t.shortName, ages: [], keepers: 0, fromNation: 0, u21: 0, over33: 0 });
   }
   return cards;

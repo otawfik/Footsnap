@@ -5,7 +5,7 @@ import type { Scorer, TeamDetail } from '../lib/types';
 const now = new Date('2026-10-20T12:00:00Z');
 const teams: TeamDetail[] = [
   {
-    id: 1, name: 'Alpha FC', shortName: 'Alpha', clubColors: 'Red / White',
+    id: 9001, name: 'Alpha FC', shortName: 'Alpha', clubColors: 'Red / White',
     squad: [
       { id: 11, name: 'Kid Striker', position: 'Centre-Forward', dateOfBirth: '2007-01-01', nationality: 'England' },
       { id: 12, name: 'Old Keeper', position: 'Goalkeeper', dateOfBirth: '1990-01-01', nationality: 'Japan' },
@@ -13,7 +13,7 @@ const teams: TeamDetail[] = [
     ],
   },
   {
-    id: 2, name: 'Beta United', shortName: 'Beta', clubColors: 'Sky Blue / White',
+    id: 9002, name: 'Beta United', shortName: 'Beta', clubColors: 'Sky Blue / White',
     squad: [
       { id: 21, name: 'Top Scorer', position: 'Centre-Forward', dateOfBirth: '2000-06-01', nationality: 'Norway' },
       { id: 22, name: 'Back Four', position: 'Left-Back', dateOfBirth: '1998-02-02', nationality: 'England' },
@@ -21,8 +21,8 @@ const teams: TeamDetail[] = [
   },
 ];
 const scorers: Scorer[] = [
-  { player: { id: 21, name: 'Top Scorer' }, team: { id: 2, name: 'Beta United' }, goals: 9, assists: 1, penalties: 3, playedMatches: 8 },
-  { player: { id: 11, name: 'Kid Striker' }, team: { id: 1, name: 'Alpha FC' }, goals: 4, assists: 4, penalties: 0, playedMatches: 8 },
+  { player: { id: 21, name: 'Top Scorer' }, team: { id: 9002, name: 'Beta United' }, goals: 9, assists: 1, penalties: 3, playedMatches: 8 },
+  { player: { id: 11, name: 'Kid Striker' }, team: { id: 9001, name: 'Alpha FC' }, goals: 4, assists: 4, penalties: 0, playedMatches: 8 },
 ];
 
 describe('rarity', () => {
