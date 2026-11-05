@@ -21,12 +21,12 @@ export type TwistId = 'cauldron' | 'fortress' | 'floodlights' | 'heavy' | 'roar'
 
 /** `short` fits the zone plate; `text` is the full rule. */
 export const TWISTS: Record<TwistId, { name: string; short: string; text: string }> = {
-  cauldron: { name: 'Cauldron', short: 'First card each turn +2', text: 'The first card each side plays here each turn gets +2 Power.' },
+  cauldron: { name: 'Cauldron', short: 'First card here +2', text: 'The first card each side plays here each turn gets +2 Power.' },
   fortress: { name: 'Fortress', short: 'Behind here: +1 energy', text: 'After each turn, the side behind here gets +1 energy next turn.' },
   floodlights: { name: 'Floodlights', short: 'Every card +1', text: 'Every card here has +1 Power.' },
   heavy: { name: 'Heavy pitch', short: 'Costs 1 more here', text: 'Cards cost 1 more to play here.' },
   roar: { name: 'Wall of sound', short: 'Home crowd +6', text: 'The home crowd boost here is +6, not +4.' },
-  counter: { name: 'Late drama', short: '4+ behind: +3 (turn 5+)', text: 'From turn 5, a side 4 or more behind here gets +3 Power.' },
+  counter: { name: 'Late drama', short: '4+ behind: +3 late', text: 'From turn 5, a side 4 or more behind here gets +3 Power.' },
   tight: { name: 'Tight pitch', short: '3 cards a side', text: 'Only 3 cards a side fit here.' },
   tactics: { name: 'Tactics board', short: 'No card abilities', text: "Card abilities don't work here. The crowd still does." },
   spotlight: { name: 'Big stage', short: 'Strongest card +2', text: 'The strongest card here, either side, gets +2 Power.' },

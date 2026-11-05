@@ -389,7 +389,7 @@ describe('stadiums', () => {
   });
 
   it('every twist has a plate-length summary', () => {
-    for (const t of Object.values(TWISTS)) expect(t.short.length).toBeLessThanOrEqual(24);
+    for (const t of Object.values(TWISTS)) expect(t.short.length).toBeLessThanOrEqual(22);
   });
 });
 

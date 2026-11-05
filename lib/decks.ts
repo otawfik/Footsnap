@@ -15,6 +15,7 @@
 import type { PlayerCard } from './cards';
 import { cardStats, DECK_SIZE } from './game';
 import { rng } from './rng';
+import type { Stadium } from './stadiums';
 
 export interface Deck {
   cards: PlayerCard[];
@@ -103,7 +104,7 @@ export function opponentDeck(yours: PlayerCard[], pool: PlayerCard[], seed: numb
 }
 
 /** The match being set up: the lobby writes it, the arena reads it. */
-let next: { you: PlayerCard[]; opponent: PlayerCard[]; seed: number; loans: Set<number> } | null = null;
+let next: { you: PlayerCard[]; opponent: PlayerCard[]; seed: number; loans: Set<number>; stadiums?: Stadium[] } | null = null;
 export const setMatch = (m: typeof next) => {
   next = m;
 };
