@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { UserPick } from './picks';
 import type { CardState } from './collection';
 import type { ClubColors } from './colors';
+import { DeckSaves, migrateDeckSaves, NO_SAVES } from './decks';
 
 const KEY = {
   collection: 'fs.collection.v3',
@@ -15,12 +16,16 @@ const KEY = {
   profile: 'fs.profile.v1',
   favorites: 'fs.favorites.v1',
   seen: 'fs.seen.v1',
+  // the version lives inside the value (DeckSaves.version), so old saves are migrated, not dropped
+  decks: 'fs.decks',
 };
 
-async function read<T>(key: string, fallback: T): Promise<T> {
+async function read<T>(key: string, fallback: T, migrate?: (raw: unknown) => T): Promise<T> {
   try {
     const raw = await AsyncStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
+    if (!raw) return fallback;
+    const v = JSON.parse(raw);
+    return migrate ? migrate(v) : (v as T);
   } catch {
     return fallback;
   }
@@ -35,11 +40,11 @@ async function write(key: string, value: unknown) {
 }
 
 /** A tiny shared store per key, so every screen sees the same state. */
-function makeStore<T>(key: string, initial: T) {
+function makeStore<T>(key: string, initial: T, migrate?: (raw: unknown) => T) {
   let value = initial;
   let loaded = false;
   const subs = new Set<(v: T) => void>();
-  const load = read<T>(key, initial).then((v) => {
+  const load = read<T>(key, initial, migrate).then((v) => {
     value = v;
     loaded = true;
     subs.forEach((s) => s(value));
@@ -127,3 +132,9 @@ export const toggleFavorite = (favs: Favorite[], f: Favorite): Favorite[] =>
 
 /** One-off UI hints already shown ("Drag to tilt · Tap to flip"…): hint id → true. */
 export const useSeen = makeStore<Record<string, boolean>>(KEY.seen, {});
+
+/** The saved decks as stored, migrated to the current version: what useDeckSaves starts from. */
+export const loadDeckSaves = () => read<DeckSaves>(KEY.decks, NO_SAVES, migrateDeckSaves);
+
+/** Your Duel decks, per competition (lib/decks DeckSaves). */
+export const useDeckSaves = makeStore<DeckSaves>(KEY.decks, NO_SAVES, migrateDeckSaves);
