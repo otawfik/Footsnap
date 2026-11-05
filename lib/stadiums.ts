@@ -7,7 +7,7 @@
  * so both get the home crowd there. Nothing else about a ground is stated: no
  * capacities, no histories, because the data doesn't hold them.
  *
- * Every stadium gives a HOME CROWD boost (lib/game.ts CROWD_BOOST) to cards of its
+ * Every stadium gives a HOME CROWD boost (lib/game.ts CROWD_BOOST) to the first card each side plays there from one of its
  * clubs, and one TWIST from TWIST_POOL, chosen by the venue's name, so a ground always
  * plays the same way. The twist reveals on turn 1, 2 or 3 like a Snap location.
  */
@@ -25,7 +25,7 @@ export const TWISTS: Record<TwistId, { name: string; short: string; text: string
   fortress: { name: 'Fortress', short: 'Behind here: +1 energy', text: 'After each turn, the side behind here gets +1 energy next turn.' },
   floodlights: { name: 'Floodlights', short: 'Every card +1', text: 'Every card here has +1 Power.' },
   heavy: { name: 'Heavy pitch', short: 'Costs 1 more here', text: 'Cards cost 1 more to play here.' },
-  roar: { name: 'Wall of sound', short: 'Home crowd +6', text: 'The home crowd boost here is +6, not +4.' },
+  roar: { name: 'Wall of sound', short: 'Home crowd +3', text: 'The home crowd boost here is +3, not +2.' },
   counter: { name: 'Late drama', short: '4+ behind: +3 late', text: 'From turn 5, a side 4 or more behind here gets +3 Power.' },
   tight: { name: 'Tight pitch', short: '3 cards a side', text: 'Only 3 cards a side fit here.' },
   tactics: { name: 'Tactics board', short: 'No card abilities', text: "Card abilities don't work here. The crowd still does." },

@@ -267,7 +267,8 @@ describe('parts', () => {
     put(s, 'you', 0, fw(3));
     put(s, 'you', 1, fw(4));
     expect([powerOf(s, 'you', 1), powerOf(s, 'you', 2)]).toEqual([3 + CROWD_BOOST + 3, 3]);
-    expect([powerOf(s, 'you', 3), powerOf(s, 'you', 4)]).toEqual([3 + CROWD_BOOST, 5]);
+    // P3 is the second home player there: the crowd has already had its man
+    expect([powerOf(s, 'you', 3), powerOf(s, 'you', 4)]).toEqual([3, 5]);
   });
 
   it('spread, clubmates (max 3) and countrymen count the right cards', () => {
@@ -301,9 +302,24 @@ describe('stadiums', () => {
     put(s, 'opponent', 0, fw(50));
     put(s, 'opponent', 1, fw(51));
     put(s, 'you', 1, fw(52, { team: 2 }));
-    expect([powerOf(s, 'you', 1), powerOf(s, 'opponent', 50), powerOf(s, 'opponent', 51), powerOf(s, 'you', 52)]).toEqual([7, 7, 3, 7]);
+    const h = 3 + CROWD_BOOST;
+    expect([powerOf(s, 'you', 1), powerOf(s, 'opponent', 50), powerOf(s, 'opponent', 51), powerOf(s, 'you', 52)]).toEqual([h, h, 3, h]);
     expect([isHome(s, 0, fw(1)), isHome(s, 2, fw(1))]).toEqual([true, false]);
     expect(zoneName(s, 1)).toBe('Away Road');
+  });
+
+  it('the crowd lifts only the first home player each side brings on there, in reveal order', () => {
+    const stadiums = [ground('Home Park'), ground('B', 'neutral', []), ground('C', 'neutral', [])];
+    let s = turn(setup([df(1), df(2), df(3, { team: 9 })], [df(50)], { stadiums, turn: 3 }), [['you', 3, 0], ['you', 1, 0], ['you', 2, 0], ['opponent', 50, 0]]);
+    // P3 isn't from the club, P1 is the first home player, P2 the second; the AI's first gets its own
+    expect([powerOf(s, 'you', 3), powerOf(s, 'you', 1), powerOf(s, 'you', 2), powerOf(s, 'opponent', 50)]).toEqual([2, 2 + CROWD_BOOST, 2, 2 + CROWD_BOOST]);
+    expect(s.log).toContain('P2 revealed at Home Park.');
+    // later turns don't bring it back
+    s.hands.you.push(df(4));
+    s = turn(s, [['you', 4, 1]]);
+    s.hands.you.push(df(5));
+    expect(() => turn(s, [['you', 5, 0]])).not.toThrow();
+    expect(powerOf(turn(s, [['you', 5, 0]]), 'you', 5)).toBe(2);
   });
 
   it('the landing step says when the crowd fired', () => {

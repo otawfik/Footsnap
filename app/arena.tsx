@@ -1,7 +1,8 @@
 /**
  * The Duel board (SPEC.md §7). Three lanes, one per stadium: the AI's slots, the
  * stadium plate, your slots. The plate carries the ground's name on a band in its
- * home club's kit colours, who the home crowd cheers (+4, +6 under Wall of sound)
+ * home club's kit colours, who the home crowd cheers (+2 for the first home player
+ * each side brings on, +3 under Wall of sound)
  * and the twist once it shows. Tap a card in your hand, then a lane to queue it; tap
  * a queued card to take it back; tap any revealed card to read it. End the turn and
  * the engine's own reveal order plays out: the AI's cards appear face down, then
@@ -811,7 +812,7 @@ function CardLine({ s, card, side, power }: { s: GameState; card: PlayerCard; si
         ) : (
           'No ability.'
         )}
-        {homes.length ? ` Home crowd +${crowdBoost(s, homes[0])} at ${zoneName(s, homes[0])}.` : ''}
+        {homes.length ? ` Home crowd +${crowdBoost(s, homes[0])} at ${zoneName(s, homes[0])} if he's your first home player there.` : ''}
       </Text>
     </View>
   );
@@ -923,7 +924,7 @@ function defaultHint(s: GameState, canPlay: boolean, energy: number): string {
     if (s.turn !== 1 || s.pending.you.length) return 'Tap a card, then a stadium.';
     // turn 1: point at a home crowd if the hand has one, else at the first twist
     for (const c of s.hands.you)
-      for (const z of ZONES) if (isHome(s, z, c)) return `Tap a card, then a stadium to play it. ${c.banner} gets +${crowdBoost(s, z)} from the home crowd at ${zoneName(s, z)}.`;
+      for (const z of ZONES) if (isHome(s, z, c)) return `Tap a card, then a stadium to play it. Bring ${c.banner} on at ${zoneName(s, z)}: the home crowd gives your first home player there +${crowdBoost(s, z)}.`;
     const t = TWISTS[s.stadiums[0].twist];
     return `Tap a card, then a stadium to play it. ${zoneName(s, 0)}: ${t.text}`;
   }

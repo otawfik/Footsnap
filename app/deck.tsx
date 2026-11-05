@@ -21,7 +21,7 @@ import { useDuelSetup } from '../hooks/duel';
 import { useCollection } from '../lib/storage';
 import { deckSummary, toggleInDeck, validateDeck } from '../lib/decks';
 import { lookOf } from '../lib/collection';
-import { cardStats, DECK_SIZE } from '../lib/game';
+import { cardStats, CROWD_BOOST, DECK_SIZE } from '../lib/game';
 import type { PlayerCard } from '../lib/cards';
 import type { Line } from '../lib/football';
 import { color, font, gem, radius, space } from '../constants/design';
@@ -156,7 +156,7 @@ export default function DeckEditor() {
         contentContainerStyle={{ paddingBottom: space.x4 }}
         ListHeaderComponent={
           <View style={{ gap: space.md, paddingBottom: space.sm }}>
-            {grounds && deck ? <GroundsPreview grounds={grounds} deck={deck.cards} title="Next duel's grounds: home cards get +4 there" /> : null}
+            {grounds && deck ? <GroundsPreview grounds={grounds} deck={deck.cards} title={`Next duel's grounds: your first home card at each gets +${CROWD_BOOST}`} /> : null}
             {grounds && homeCount ? (
               <Pressable
                 onPress={() => {
