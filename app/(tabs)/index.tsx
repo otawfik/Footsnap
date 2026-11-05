@@ -6,7 +6,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, LargeHeader, SectionHeader, Credits, Avatar, Button, Skeleton, Failed, Empty, useMounted, PressScale, MiniPack } from '../../components/ui';
+import { Screen, LargeHeader, SectionHeader, Credits, Avatar, Button, Skeleton, Failed, Empty, useMounted, PressScale, MiniPack, ButtonLook } from '../../components/ui';
 import { MatchMarket, CompactMatchRow, LiveRow, longDate } from '../../components/Match';
 import { useLeague } from '../../context/league';
 import { LEAGUE_MAP } from '../../constants/leagues';
@@ -164,7 +164,7 @@ export default function Home() {
           <Text style={styles.packTitle}>{packReady ? (opened ? 'Bonus pack is ready' : 'Daily pack is ready') : mounted ? `Next pack in ${hoursToMidnight()} h` : 'Daily pack opened'}</Text>
           <Text style={type.footnote}>{league.name} · 5 cards</Text>
         </View>
-        {packReady ? <Button label="Open" size="sm" onPress={() => router.push('/pack')} /> : <Ionicons name="chevron-forward" size={18} color={color.text3} />}
+        {packReady ? <ButtonLook label="Open" size="sm" /> : <Ionicons name="chevron-forward" size={18} color={color.text3} />}
       </PressScale>
 
       <View style={styles.sec}>
