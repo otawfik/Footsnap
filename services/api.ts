@@ -138,6 +138,10 @@ async function request<T>(path: string, ttlMs: number, force = false): Promise<T
 export const fetchSeasonMatches = (leagueId: number, force = false) =>
   request<MatchesResponse>(`competitions/${leagueId}/matches`, 25_000, force);
 
+/** A finished season's results (for the model's prior); they never change, so they're kept for a day. */
+export const fetchPastSeason = (leagueId: number, season: number, force = false) =>
+  request<MatchesResponse>(`competitions/${leagueId}/matches?season=${season}&status=FINISHED`, 86_400_000, force);
+
 export const fetchStandings = (leagueId: number, force = false) =>
   request<StandingsResponse>(`competitions/${leagueId}/standings`, 60_000, force);
 

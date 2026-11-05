@@ -1,14 +1,14 @@
 /** Shared data hooks: one place that knows which request feeds which view. */
 import { useMemo, useState, useEffect } from 'react';
 import { useApi } from './useApi';
-import { fetchScorers, fetchSeasonMatches, fetchStandings, fetchTeams } from '../services/api';
-import { totalTable, splitMatches, isLive, isUpcoming, isFinished } from '../lib/football';
-import { fit, outcome, predict, Prediction, Ratings } from '../lib/model';
+import { fetchPastSeason, fetchScorers, fetchSeasonMatches, fetchStandings, fetchTeams } from '../services/api';
+import { totalTable, splitMatches, isLive, isUpcoming, isFinished, seasonStartYear } from '../lib/football';
+import { fitSeason, outcome, predict, seasonPrior, Prediction, Prior, Ratings } from '../lib/model';
 import { buildCards, PlayerCard } from '../lib/cards';
 import { clubColors, ClubColors } from '../lib/colors';
 import { REWARDS } from '../lib/collection';
 import { usePicks, useProfile, type Favorite } from '../lib/storage';
-import type { League } from '../constants/leagues';
+import { LEAGUE_MAP, type League } from '../constants/leagues';
 import type { Match, TeamDetail } from '../lib/types';
 
 export function useSeason(league: League, pollMs: number | null = null) {
@@ -34,10 +34,21 @@ export function useClubColors(league: League): Map<number, ClubColors> {
   return useMemo(() => new Map((data?.teams ?? []).map((t) => [t.id, clubColors(t.clubColors, t.id)])), [data]);
 }
 
+/**
+ * Last season's results as the model's starting point (lib/model seasonPrior). Domestic leagues
+ * only: a Champions League field changes every year, so it keeps the league-average prior.
+ */
+export function usePrior(league: League, thisSeason: Match[] | null | undefined): Prior | null {
+  const start = league.nation ? seasonStartYear(thisSeason) : null;
+  const last = useApi((force) => (start ? fetchPastSeason(league.id, start - 1, force) : Promise.resolve(null)), [league.id, start]);
+  return useMemo(() => (thisSeason ? seasonPrior(last.data?.matches, thisSeason) : null), [last.data, thisSeason]);
+}
+
 export function useRatings(league: League) {
   const season = useSeason(league);
-  const ratings = useMemo(() => fit(season.data?.matches ?? []), [season.data]);
-  return { ...season, ratings };
+  const prior = usePrior(league, season.data?.matches);
+  const ratings = useMemo(() => fitSeason(season.data?.matches ?? [], prior), [season.data, prior]);
+  return { ...season, ratings, prior };
 }
 
 /** Live polling for the matchday screen: every 30s only while something is live or about to start. */
@@ -118,7 +129,10 @@ export function useHomeFixtures(favorites: Favorite[], limit = 3) {
       Promise.all(
         comps.map(async (id) => {
           const [season, teams] = await Promise.all([fetchSeasonMatches(id, force), fetchTeams(id, force).catch(() => null)]);
-          return { id, matches: season.matches, teams: teams?.teams ?? [] };
+          // last season's results for the model's prior (cached for a day; leagues only, see usePrior)
+          const start = LEAGUE_MAP[id]?.nation ? seasonStartYear(season.matches) : null;
+          const last = start ? await fetchPastSeason(id, start - 1, force).catch(() => null) : null;
+          return { id, matches: season.matches, teams: teams?.teams ?? [], prior: seasonPrior(last?.matches, season.matches) };
         })
       ),
     [comps.join(',')],
@@ -130,7 +144,7 @@ export function useHomeFixtures(favorites: Favorite[], limit = 3) {
         competitionId: c.id,
         matches: c.matches,
         teams: c.teams,
-        ratings: fit(c.matches),
+        ratings: fitSeason(c.matches, c.prior),
         colors: new Map(c.teams.map((t) => [t.id, clubColors(t.clubColors, t.id)])),
         venues: new Map(c.teams.filter((t) => t.venue).map((t) => [t.id, t.venue as string])),
       })),

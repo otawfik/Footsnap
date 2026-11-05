@@ -10,8 +10,8 @@ import { Screen, LargeHeader, SectionHeader, Credits, Avatar, Button, Skeleton, 
 import { MatchMarket, CompactMatchRow, LiveRow, longDate } from '../../components/Match';
 import { useLeague } from '../../context/league';
 import { LEAGUE_MAP } from '../../constants/leagues';
-import { currentMatchday, useClubColors, useHomeFixtures, useLiveSeason, useSettlePicks, useTable, useTeams } from '../../hooks/data';
-import { fit, predict } from '../../lib/model';
+import { currentMatchday, useClubColors, useHomeFixtures, useLiveSeason, usePrior, useSettlePicks, useTable, useTeams } from '../../hooks/data';
+import { fitSeason, predict } from '../../lib/model';
 import { isFinished, isLive, isUpcoming } from '../../lib/football';
 import { applyPick, applyPress, tally } from '../../lib/picks';
 import { useFavorites, usePacks, usePicks, useProfile, today } from '../../lib/storage';
@@ -41,13 +41,14 @@ export default function Home() {
   const mounted = useMounted();
 
   const matches = useMemo(() => season.data?.matches ?? [], [season.data]);
-  const ratings = useMemo(() => fit(matches), [matches]);
+  const prior = usePrior(league, season.data?.matches);
+  const ratings = useMemo(() => fitSeason(matches, prior), [matches, prior]);
   const allMatches = useMemo(() => [...matches, ...home.data.flatMap((c) => c.matches)], [matches, home.data]);
   useSettlePicks(allMatches);
 
   const md = useMemo(() => currentMatchday(matches), [matches]);
   const mdFixtures = useMemo(() => (md ? matches.filter((m) => m.matchday === md) : []), [matches, md]);
-  const mdScore = useMemo(() => tally(Object.values(picks).filter((p) => mdFixtures.some((m) => m.id === p.matchId)), matches), [picks, mdFixtures, matches]);
+  const mdScore = useMemo(() => tally(Object.values(picks).filter((p) => mdFixtures.some((m) => m.id === p.matchId)), matches, prior), [picks, mdFixtures, matches, prior]);
   const picked = mdFixtures.filter((m) => picks[String(m.id)]).length;
   const venues = useMemo(() => new Map((teams.data?.teams ?? []).filter((t) => t.venue).map((t) => [t.id, t.venue as string])), [teams.data]);
 

@@ -114,3 +114,11 @@ export function byLine(squad: SquadPlayer[]) {
   for (const p of squad) groups[line(p.position) ?? 'Other'].push(p);
   return groups;
 }
+
+/** The year a season started (2026 for 2026-27), from its earliest fixture; seasons start Jun-Aug. */
+export function seasonStartYear(matches: Match[] | null | undefined): number | null {
+  if (!matches?.length) return null;
+  const first = matches.reduce((a, m) => (m.utcDate < a ? m.utcDate : a), matches[0].utcDate);
+  const [y, mo] = [Number(first.slice(0, 4)), Number(first.slice(5, 7))];
+  return mo >= 6 ? y : y - 1;
+}

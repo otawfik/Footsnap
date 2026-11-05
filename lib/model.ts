@@ -7,9 +7,15 @@
  * where mu_home / mu_away are the league's average home and away goals, so home
  * advantage is whatever this season's results say it is. Strengths are fitted by
  * iterative scaling, which converges to the maximum-likelihood fit while
- * accounting for who each team played. A prior of PRIOR_GAMES league-average
- * games keeps early-season strengths from swinging on a handful of results
- * (at 4, seven games of a +18 goal difference made one side a 76% title pick).
+ * accounting for who each team played. A prior keeps early-season strengths from
+ * swinging on a handful of results: PRIOR_GAMES_LAST virtual games at each team's
+ * last-season strength, pulled toward average by PRIOR_CARRY (promoted clubs start
+ * where the relegated ones were). Without last season's results it falls back to
+ * PRIOR_GAMES league-average games. Backtested on 2,105 matches in five leagues
+ * (2025-26 and 2026-27, each predicted from games before its day), the last-season
+ * prior cut the Brier score from 0.613 to 0.599, and from 0.628 to 0.597 in the
+ * first ten rounds: with only an average prior, Brighton's +17 goal difference
+ * after nine games made them a 43% title pick.
  *
  * Scorelines are independent Poissons, so P(home win), P(draw), P(away win)
  * and the most likely score come from summing the score grid.
@@ -18,6 +24,9 @@ import type { Match } from './types';
 import { isFinished } from './football';
 
 export const PRIOR_GAMES = 8;
+/** virtual games at last season's strength, and how much of that strength carries over (backtested) */
+export const PRIOR_GAMES_LAST = 16;
+export const PRIOR_CARRY = 0.85;
 const MAX_GOALS = 10;
 
 export interface Ratings {
@@ -40,7 +49,35 @@ export interface Prediction {
 const played = (m: Match) =>
   isFinished(m) && m.score.fullTime.home !== null && m.score.fullTime.away !== null;
 
-export function fit(matches: Match[], iterations = 60): Ratings | null {
+/** Where each team starts before this season's results: a strength per team (1 = league average). */
+export interface Prior {
+  attack: Map<number, number>;
+  defence: Map<number, number>;
+}
+
+/**
+ * A prior from last season's fitted ratings, pulled toward average by `carry` (0 = everyone average,
+ * 1 = last season exactly; applied in log space, since strengths multiply). Clubs that weren't in the
+ * league last season (promoted) start where the clubs that left it (relegated) were.
+ */
+export function priorFrom(last: Ratings, teams: Iterable<number>, carry = PRIOR_CARRY): Prior {
+  const pull = (v: number) => Math.exp(carry * Math.log(v));
+  const now = new Set(teams);
+  const gone = [...last.attack.keys()].filter((t) => !now.has(t));
+  const avg = (m: Map<number, number>, ids: number[]) =>
+    ids.length ? Math.exp(ids.reduce((s, t) => s + Math.log(m.get(t)!), 0) / ids.length) : 1;
+  const promotedAttack = avg(last.attack, gone);
+  const promotedDefence = avg(last.defence, gone);
+  const attack = new Map<number, number>();
+  const defence = new Map<number, number>();
+  for (const t of now) {
+    attack.set(t, pull(last.attack.get(t) ?? promotedAttack));
+    defence.set(t, pull(last.defence.get(t) ?? promotedDefence));
+  }
+  return { attack, defence };
+}
+
+export function fit(matches: Match[], iterations = 60, prior?: Prior, priorGames = PRIOR_GAMES): Ratings | null {
   const games = matches.filter(played);
   if (games.length < 6) return null;
   const hg = games.reduce((s, m) => s + (m.score.fullTime.home as number), 0);
@@ -54,15 +91,18 @@ export function fit(matches: Match[], iterations = 60): Ratings | null {
   const defence = new Map<number, number>();
   for (const t of teams) { attack.set(t, 1); defence.set(t, 1); }
 
-  // the prior: PRIOR_GAMES virtual games against an average side, scoring the average
-  const priorGoals = PRIOR_GAMES * (muHome + muAway) / 2;
+  // the prior: priorGames virtual games against an average side, scoring (and conceding) at the
+  // prior strength — league average without a prior, last season's (pulled toward average) with one
+  const priorGoals = priorGames * (muHome + muAway) / 2;
+  const pa = (t: number) => prior?.attack.get(t) ?? 1;
+  const pd = (t: number) => prior?.defence.get(t) ?? 1;
 
   for (let it = 0; it < iterations; it++) {
     const scored = new Map<number, number>();
     const expScored = new Map<number, number>();
     const conceded = new Map<number, number>();
     const expConceded = new Map<number, number>();
-    for (const t of teams) { scored.set(t, priorGoals); expScored.set(t, priorGoals); conceded.set(t, priorGoals); expConceded.set(t, priorGoals); }
+    for (const t of teams) { scored.set(t, priorGoals * pa(t)); expScored.set(t, priorGoals); conceded.set(t, priorGoals * pd(t)); expConceded.set(t, priorGoals); }
     for (const m of games) {
       const h = m.homeTeam.id;
       const a = m.awayTeam.id;
@@ -89,6 +129,20 @@ export function fit(matches: Match[], iterations = 60): Ratings | null {
   }
   return { attack, defence, muHome, muAway, games: games.length };
 }
+
+/** The prior for this season from last season's results; null when they aren't available. */
+export function seasonPrior(lastSeason: Match[] | null | undefined, thisSeason: Match[]): Prior | null {
+  if (!lastSeason?.length) return null;
+  const last = fit(lastSeason, 120);
+  if (!last) return null;
+  const teams = new Set<number>();
+  for (const m of thisSeason) { teams.add(m.homeTeam.id); teams.add(m.awayTeam.id); }
+  return teams.size ? priorFrom(last, teams) : null;
+}
+
+/** Fit this season's results, starting from `prior` when there is one. */
+export const fitSeason = (matches: Match[], prior?: Prior | null) =>
+  prior ? fit(matches, 60, prior, PRIOR_GAMES_LAST) : fit(matches);
 
 function poisson(lambda: number): number[] {
   const p = [Math.exp(-lambda)];
@@ -145,7 +199,7 @@ export interface Backtest {
  * predicted it at the time. Compared against always picking the home side, and
  * against forecasting every match with the season's H/D/A rates so far.
  */
-export function backtest(matches: Match[], minPrior = 30): Backtest | null {
+export function backtest(matches: Match[], minPrior = 30, seasonStart?: Prior | null): Backtest | null {
   const games = matches.filter(played).sort((a, b) => a.utcDate.localeCompare(b.utcDate));
   let n = 0, correct = 0, brierSum = 0, homeCorrect = 0, rateBrier = 0;
   let cache: { day: string; r: Ratings | null } | null = null;
@@ -154,7 +208,7 @@ export function backtest(matches: Match[], minPrior = 30): Backtest | null {
     const day = m.utcDate.slice(0, 10);
     const prior = games.filter((g) => g.utcDate.slice(0, 10) < day);
     if (prior.length < minPrior) continue;
-    if (!cache || cache.day !== day) cache = { day, r: fit(prior) };
+    if (!cache || cache.day !== day) cache = { day, r: fitSeason(prior, seasonStart) };
     if (!cache.r) continue;
     const p = predict(cache.r, m.homeTeam.id, m.awayTeam.id);
     const o = outcome(m);

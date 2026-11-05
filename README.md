@@ -20,13 +20,14 @@ store release guide: [`docs/app-store.md`](docs/app-store.md)
 | **Model** | Poisson goals model (Maher 1982, the base of Dixon & Coles 1997) fitted by maximum likelihood, plus a Monte Carlo season simulator with parameter uncertainty and common random numbers |
 | **Game** | ~3,000 auto-generated cards, a daily-pack economy, 7 upgrade tiers, and a turn-based duel engine with an AI opponent |
 | **Computer vision** | An automated art pipeline: Wikipedia / Wikidata photo matching verified by date of birth, background removal (U²-Net), face alignment (YuNet) and quality gates, giving 774 licence-credited player cut-outs |
-| **Quality** | 137 unit tests (Vitest); CI runs typecheck, tests, `expo-doctor`, a native-compat check and a full web build on every push |
+| **Quality** | 144 unit tests (Vitest); CI runs typecheck, tests, `expo-doctor`, a native-compat check and a full web build on every push |
 | **Cost to run** | $0: free data tier, free hosting; the API key never leaves the server |
 
 ### Engineering highlights
 
 - **A forecast that shows its work.** Team attack and defence strengths are fitted by iterative scaling to the
-  maximum-likelihood solution, with a prior that stops early-season results from swinging the ratings. Each match
+  maximum-likelihood solution, starting from last season's strengths so a few early results can't swing the ratings
+  (backtested on 2,105 matches). Each match
   page shows the full scoreline probability grid the forecast comes from.
 - **"What if?" that only moves what it should.** The season simulator pins any results you set and re-runs the
   rest. Common random numbers mean only the clubs your result actually affects change, not noise from re-rolling.
@@ -113,8 +114,16 @@ away goals ~ Poisson( mu_away · attack[away] · defence[home] )
 
 `mu_home` and `mu_away` are the season's average home and away goals, so home advantage is learned rather than
 assumed. Attack and defence are fitted by iterative scaling, which converges to the maximum-likelihood fit while
-accounting for who each team has played. A prior of eight league-average games keeps early-season ratings from
-swinging on a handful of results. Outcome probabilities come from summing the 11 × 11 scoreline grid.
+accounting for who each team has played. Outcome probabilities come from summing the 11 × 11 scoreline grid.
+
+**Starting from last season.** Each league season starts every team at its strength from last season, pulled 15%
+of the way back toward average (in log space), worth 16 games of evidence; promoted clubs start where the relegated
+clubs were. Both numbers were tuned by a walk-forward backtest on 2,105 matches across the five leagues (2025-26 and
+2026-27, each predicted only from games before its day): against the old prior of eight league-average games, the
+Brier score fell from 0.613 to 0.598 overall and from 0.628 to 0.597 in the first ten rounds. The difference shows in
+the title race: nine games into 2026-27, the old prior made Brighton (+17 goal difference, 5 points off the top) a
+43.7% title pick; starting from last season, Arsenal lead at 49%, Man City 23%, Brighton 21%. The Champions League
+keeps the league-average prior, since its field changes every year.
 
 The record shown in the app is honest by construction: each finished match is predicted from a fit on matches
 before its day, and scored on accuracy and multi-class Brier score against two baselines. Code:
