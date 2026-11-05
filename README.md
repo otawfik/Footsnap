@@ -56,7 +56,7 @@ stat lines and tilt-reactive foil. Design spec: [`docs/redesign/SPEC.md`](docs/r
 </p>
 <p>
   <img src="docs/screenshots/v2/4-pack.jpg" width="200" alt="Pack opening: a new Bronze card revealed, with its true-of-the-data ability">
-  <img src="docs/screenshots/v2/5-duel.jpg" width="200" alt="The duel board: a floodlit pitch with three zones, their conditions and Power totals, and the hand">
+  <img src="docs/screenshots/v2/5-duel.jpg" width="200" alt="The duel board: three real stadiums (Selhurst Park, Hull's Kingston Communications Stadium, the Etihad) in their home clubs' kits, each with its home-crowd boost and twist, Power totals and the hand">
   <img src="docs/screenshots/v2/6-match.jpg" width="200" alt="A match page split between the two kits: the model's chances, expected goals, your pick and the likeliest scores">
 </p>
 

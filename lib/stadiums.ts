@@ -94,3 +94,18 @@ export function pickStadiums(pool: Stadium[], decks: PlayerCard[][], seed: numbe
 /** Stand-in grounds when a competition lists no venues (and for tests): no home club. */
 export const PLAIN_STADIUMS = (twists: TwistId[] = ['neutral', 'neutral', 'neutral']): Stadium[] =>
   ['Left wing', 'Centre', 'Right wing'].map((name, i) => ({ name, clubs: [], codes: [], colors: [], twist: twists[i] }));
+
+/**
+ * The name a ground goes by, to fit the ~110 pt plate band (two lines): long official names drop a
+ * " - …" suffix, a trailing "Stadium" and a leading "Estadio" / "Stadio" / "Stade" / "Stadion"
+ * (only before a proper name: "Santiago Bernabéu", not "de la Cerámica"). Screen readers get the full name.
+ */
+export function groundLabel(name: string): string {
+  // each step only while the name is still too long, so "Mapei Stadium - …" stays "Mapei Stadium"
+  let v = name;
+  if (v.length > 18) v = v.split(/\s+-\s+/)[0];
+  if (v.length > 18) v = v.replace(/\s+Stadium$/i, '');
+  const m = v.length > 18 ? v.match(/^(?:Estadio|Estádio|Stadio|Stade|Stadion)\s+(.*)$/) : null;
+  if (m && /^\p{Lu}/u.test(m[1])) v = m[1];
+  return v;
+}
