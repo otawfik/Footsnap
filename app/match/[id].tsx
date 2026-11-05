@@ -13,8 +13,8 @@ import { SnapCard } from '../../components/SnapCard';
 import { clock, shortDate, statusLabel } from '../../components/Match';
 import { useLeague } from '../../context/league';
 import { LEAGUE_MAP } from '../../constants/leagues';
-import { useCards, useClubColors, useSeason, useSettlePicks, useTable, useTeams } from '../../hooks/data';
-import { backtest, fit, outcome as resultOf, pick as leadOf, predict, scoreGrid, Outcome } from '../../lib/model';
+import { useCards, useClubColors, usePrior, useSeason, useSettlePicks, useTable, useTeams } from '../../hooks/data';
+import { backtest, fitSeason, outcome as resultOf, pick as leadOf, predict, scoreGrid, Outcome } from '../../lib/model';
 import { isFinished, isLive, recentForm } from '../../lib/football';
 import { applyPick, applyPress, locked, points, pressedIn } from '../../lib/picks';
 import { trajectory } from '../../lib/season';
@@ -48,13 +48,14 @@ export default function MatchScreen() {
   const m = matches.find((x) => x.id === Number(id));
   useSettlePicks(matches);
 
+  const prior = usePrior(league, season.data?.matches);
   // finished or live games: the model as it stood before kick-off; otherwise the current fit
   const ratings = useMemo(() => {
     if (!m) return null;
     const day = m.utcDate.slice(0, 10);
-    return fit(isFinished(m) || isLive(m) ? matches.filter((g) => isFinished(g) && g.utcDate.slice(0, 10) < day) : matches);
-  }, [m, matches]);
-  const bt = useMemo(() => backtest(matches), [matches]);
+    return fitSeason(isFinished(m) || isLive(m) ? matches.filter((g) => isFinished(g) && g.utcDate.slice(0, 10) < day) : matches, prior);
+  }, [m, matches, prior]);
+  const bt = useMemo(() => backtest(matches, 30, prior), [matches, prior]);
   const p = m && ratings ? predict(ratings, m.homeTeam.id, m.awayTeam.id) : null;
   const grid = m && ratings ? scoreGrid(ratings, m.homeTeam.id, m.awayTeam.id) : null;
 
