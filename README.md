@@ -120,7 +120,7 @@ accounting for who each team has played. Outcome probabilities come from summing
 of the way back toward average (in log space), worth 16 games of evidence; promoted clubs start where the relegated
 clubs were. Both numbers were tuned by a walk-forward backtest on 2,105 matches across the five leagues (2025-26 and
 2026-27, each predicted only from games before its day): against the old prior of eight league-average games, the
-Brier score fell from 0.613 to 0.598 overall and from 0.628 to 0.597 in the first ten rounds. The difference shows in
+Brier score fell from 0.613 to 0.599 overall and from 0.628 to 0.597 in the first ten rounds. The difference shows in
 the title race: nine games into 2026-27, the old prior made Brighton (+17 goal difference, 5 points off the top) a
 43.7% title pick; starting from last season, Arsenal lead at 49%, Man City 23%, Brighton 21%. The Champions League
 keeps the league-average prior, since its field changes every year.
