@@ -14,25 +14,38 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { SnapCard, PhotoCredit } from '../../components/SnapCard';
 import { Button, Credits, ProgressBar, tap } from '../../components/ui';
 import { useLeague } from '../../context/league';
-import { useCards } from '../../hooks/data';
+import { useCards, useTeams } from '../../hooks/data';
 import { useCollection, useProfile } from '../../lib/storage';
 import { canUpgrade, FINISH_NAME, lookOf, nextTier, upgrade, upgradeSeed } from '../../lib/collection';
-import { cardStats } from '../../lib/game';
+import { cardStats, CROWD_BOOST } from '../../lib/game';
+import { partText, TRIGGER_NAME, PART_TRIGGER } from '../../lib/abilities';
 import type { Rarity } from '../../lib/cards';
 import { color, font, space, type } from '../../constants/design';
 
 const TINT: Record<Rarity, string> = { icon: 'rgba(200,210,255,0.16)', elite: 'rgba(240,200,110,0.14)', rare: 'rgba(220,225,235,0.10)', common: 'rgba(222,150,96,0.12)' };
 const HINT_KEY = 'fs.cardhint.v1';
-const TRIGGER = { reveal: 'On Reveal', ongoing: 'Ongoing', end: 'End of turn' } as const;
 
-function AbilityRow({ label, title, text, accent }: { label: string; title: string; text: string; accent?: boolean }) {
+function AbilityRow({ label, title, text, accent, children }: { label: string; title: string; text?: string; accent?: boolean; children?: React.ReactNode }) {
   return (
     <View style={styles.ability}>
       <Text style={[type.overline, styles.abilityLabel, accent && { color: color.accentText }]}>{label}</Text>
       <View style={{ flex: 1 }}>
         <Text style={styles.abilityTitle}>{title}</Text>
-        <Text style={styles.abilityText}>{text}</Text>
+        {text ? <Text style={styles.abilityText}>{text}</Text> : null}
+        {children}
       </View>
+    </View>
+  );
+}
+
+/** One ability part: its trigger as a small tag, then what it does. */
+function PartLine({ trigger, body }: { trigger: string; body: string }) {
+  return (
+    <View style={styles.part}>
+      <View style={styles.trigger}>
+        <Text style={styles.triggerText}>{trigger}</Text>
+      </View>
+      <Text style={[styles.abilityText, { flex: 1 }]}>{body.replace(/^./, (c) => c.toUpperCase())}</Text>
     </View>
   );
 }
@@ -41,6 +54,7 @@ export default function CardView() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { league } = useLeague();
   const { cards } = useCards(league);
+  const teams = useTeams(league);
   const [collection, setCollection] = useCollection();
   const [profile, setProfile] = useProfile();
   const [flipped, setFlipped] = useState(false);
@@ -92,6 +106,7 @@ export default function CardView() {
   const trait = card?.abilities.find((a) => a.kind === 'trait');
   const meta = card ? [card.team.shortName, card.position, card.nationality, card.age !== null ? String(card.age) : null].filter(Boolean).join(' · ') : '';
   const stage = width;
+  const venue = card ? teams.data?.teams.find((t) => t.id === card.team.id)?.venue?.trim() : undefined;
 
   return (
     <View style={styles.wrap}>
@@ -135,7 +150,15 @@ export default function CardView() {
 
                 <View style={{ marginTop: 14 }}>
                   {g.effect ? (
-                    <AbilityRow label="Duel" accent title={TRIGGER[g.effect.trigger]} text={g.effect.text.replace(/^(On Reveal|Ongoing|End of turn): /, '').replace(/^./, (c) => c.toUpperCase())} />
+                    <AbilityRow label="Duel" accent title={`${g.effect.title}  ·  Cost ${g.cost}  ·  Power ${g.power}`}>
+                      <View style={{ gap: 6, marginTop: 6 }}>
+                        {g.effect.parts.map((p, i) => (
+                          <PartLine key={i} trigger={TRIGGER_NAME[PART_TRIGGER[p.kind]]} body={partText(p, card).replace(/^[^:]+: /, '')} />
+                        ))}
+                      </View>
+                      {g.effect.why ? <Text style={styles.why}>{g.effect.why}</Text> : null}
+                      {venue ? <Text style={styles.why}>{`Home crowd: +${CROWD_BOOST} Power at ${venue}.`}</Text> : null}
+                    </AbilityRow>
                   ) : (
                     <AbilityRow label="Duel" accent title="No ability" text={`Cost ${g.cost} · Power ${g.power}`} />
                   )}
@@ -196,6 +219,10 @@ const styles = StyleSheet.create({
   abilityLabel: { width: 70, paddingTop: 2 },
   abilityTitle: { fontFamily: font.semibold, fontSize: 14, lineHeight: 19, color: color.text },
   abilityText: { fontFamily: font.regular, fontSize: 13.5, lineHeight: 19, color: color.text2 },
+  part: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  trigger: { minWidth: 74, height: 20, paddingHorizontal: 7, borderRadius: 10, backgroundColor: color.accentSoft, alignItems: 'center', justifyContent: 'center', marginTop: -0.5 },
+  triggerText: { fontFamily: font.semibold, fontSize: 11, lineHeight: 14, color: color.accentText },
+  why: { fontFamily: font.regular, fontSize: 12.5, lineHeight: 17, color: color.text3, marginTop: 6 },
   upgrade: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 44 },
 });

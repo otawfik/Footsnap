@@ -10,23 +10,27 @@ import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { Button, Credits, LargeHeader, Pitch, Row, Screen, tap } from '../../components/ui';
 import { DuelCard } from '../../components/duel/DuelCard';
 import { useLeague } from '../../context/league';
-import { useCards } from '../../hooks/data';
+import { useCards, useTeams } from '../../hooks/data';
 import { today, useCollection, useProfile } from '../../lib/storage';
 import { buildDeck, opponentDeck, recordLine, setMatch } from '../../lib/decks';
 import { lookOf } from '../../lib/collection';
 import { GUESSES_PER_DAY } from '../../lib/guess';
-import { CREDITS_PER_PRIZE, TURNS } from '../../lib/game';
+import { CREDITS_PER_PRIZE, CROWD_BOOST, TURNS } from '../../lib/game';
+import { pickStadiums, stadiumPool } from '../../lib/stadiums';
 import { hash } from '../../lib/rng';
 import { color, font, radius, space, type } from '../../constants/design';
 
 const RULES: [string, string][] = [
   [
-    'Three zones',
-    'Left wing, Centre and Right wing. Each reveals a condition that bends the rules there: one on turn 1, the next on turn 2, the last on turn 3.',
+    'Three stadiums',
+    `Three real grounds from the league. A club's players get +${CROWD_BOOST} Power from the home crowd at their own ground. Each ground also has a twist that bends the rules there: the first shows on turn 1, the next on turn 2, the last on turn 3.`,
   ],
-  ['Six turns', 'You get as much energy as the turn number. Cards cost energy; play them into a zone, up to four a side.'],
-  ['Win two zones', 'After turn 6, more Power in a zone wins it. Win two of three to win the duel.'],
-  ['Real abilities', "Every card's ability comes from the player's real season: top scorers, playmakers, penalty takers, wonderkids, keepers."],
+  ['Six turns', 'You get as much energy as the turn number. Cards cost energy; play them into a stadium, up to four a side.'],
+  ['Win two stadiums', 'After turn 6, more Power at a stadium wins it. Win two of three to win the duel.'],
+  [
+    'Real abilities',
+    "Every card's ability is built from the player's real season, age and passport. Kick-off fires as it lands, While here lasts, Every turn adds up, Full time fires once at the end.",
+  ],
   [
     'Press',
     `Confident? Press to double the prize, like a high press. The prize doubles again at full time, and a win pays ${CREDITS_PER_PRIZE} credits for every ×1. Retreat any time; losing never costs credits.`,
@@ -38,6 +42,8 @@ const HAND_W = 74;
 export default function Play() {
   const { league } = useLeague();
   const { cards, list, loading, error, refetch } = useCards(league);
+  const teams = useTeams(league);
+  const pool = useMemo(() => stadiumPool(teams.data?.teams ?? []), [teams.data]);
   const [collection] = useCollection();
   const [profile] = useProfile();
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -55,12 +61,10 @@ export default function Play() {
   const start = () => {
     if (!deck) return;
     const seed = hash(`${Date.now()}:${league.id}`);
-    setMatch({
-      you: deck.cards,
-      opponent: opponentDeck(deck.cards, list, seed),
-      seed,
-      loans: deck.loans,
-    });
+    const opponent = opponentDeck(deck.cards, list, seed);
+    // three real grounds when the competition lists venues; plain zones otherwise
+    const stadiums = pool.length >= 3 ? pickStadiums(pool, [deck.cards, opponent], seed) : undefined;
+    setMatch({ you: deck.cards, opponent, seed, loans: deck.loans, stadiums });
     router.push('/arena');
   };
 
@@ -77,7 +81,7 @@ export default function Play() {
             <Text style={type.title} accessibilityRole="header">
               Duel
             </Text>
-            <Text style={type.body}>Win 2 of 3 zones in {TURNS} turns against the AI Manager</Text>
+            <Text style={type.body}>Win 2 of 3 stadiums in {TURNS} turns against the AI Manager</Text>
           </View>
         </View>
 
@@ -176,7 +180,7 @@ export default function Play() {
         {/* how it works */}
         <Row
           title="How to play"
-          subtitle={rulesOpen ? undefined : 'Zones, energy, Press and the prize'}
+          subtitle={rulesOpen ? undefined : 'Stadiums, energy, Press and the prize'}
           right={<Ionicons name={rulesOpen ? 'chevron-up' : 'chevron-down'} size={18} color={color.text3} />}
           onPress={() => {
             tap('select');

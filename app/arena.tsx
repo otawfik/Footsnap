@@ -1,9 +1,14 @@
 /**
- * The Duel board (SPEC.md §7). Three lanes: the AI's slots, the zone plate, your
- * slots. Tap a card in your hand, then a lane to queue it; tap a queued card to take
- * it back; tap any revealed card to read it. End the turn and the engine's own
- * reveal order plays out: the AI's cards appear face down, then every card lands
- * one at a time (260 ms apart) and the zone numbers tick to their new values.
+ * The Duel board (SPEC.md §7). Three lanes, one per stadium: the AI's slots, the
+ * stadium plate, your slots. The plate carries the ground's name on a band in its
+ * home club's kit colours, who the home crowd cheers (+4, +6 under Wall of sound)
+ * and the twist once it shows. Tap a card in your hand, then a lane to queue it; tap
+ * a queued card to take it back; tap any revealed card to read it. End the turn and
+ * the engine's own reveal order plays out: the AI's cards appear face down, then
+ * every card lands one at a time (260 ms apart) and the numbers tick to their new
+ * values. A home player landing at his own ground is the CROWD MOMENT: the band
+ * flashes, the boost rises off the plate in kit colours and the phone buzzes. Under
+ * reduced motion the turn lands at once and the plates that roared stay lit instead.
  * All the rules live in lib/game.ts; this screen only shows them.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -11,7 +16,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView, useWindowDimensions } fr
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { Easing, FadeIn, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Line, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Sheet, tap } from '../components/ui';
@@ -25,12 +30,14 @@ import {
   canSnap,
   cardPower,
   cardStats,
-  CONDITIONS,
   CREDITS_PER_PRIZE,
+  crowdBoost,
   energyLeft,
+  energyOf,
   GameState,
+  isHome,
   legalPlays,
-  MAX_PER_ZONE,
+  maxHere,
   newGame,
   playCost,
   play,
@@ -43,11 +50,13 @@ import {
   TURNS,
   unplay,
   Zone,
-  ZONE_NAME,
+  zoneName,
   ZONES,
-  zoneCondition,
+  zoneTwist,
   zonePower,
 } from '../lib/game';
+import { TWISTS } from '../lib/stadiums';
+import { ClubColors, contrast } from '../lib/colors';
 import type { PlayerCard } from '../lib/cards';
 import { color, CARD_RATIO, font, motion, radius, space } from '../constants/design';
 
@@ -55,15 +64,17 @@ const easeOut = Easing.bezier(...motion.easeOut);
 const GUTTER = 16;
 const LANE_GAP = 8;
 const SLOT_GAP = 6;
-const PLATE_H = 112;
+const PLATE_H = 134;
 const LANE_PAD = 6;
 const HAND_W = 74;
 const TOP_H = 48;
 const OPP_H = 36;
-const HINT_H = 44;
+const HINT_H = 62;
 const ABAR_H = 16 + 50 + 12;
 const REVEAL_MS = 260;
 const QUEUED_MS = 520;
+/** extra time a crowd moment holds the reveal */
+const CROWD_MS = 520;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type Mode = 'revealed' | 'pending' | 'down';
@@ -73,7 +84,24 @@ interface Item {
   power: number;
   mode: Mode;
   side: Side;
+  /** his club's kit when this is his home ground */
+  home?: ClubColors;
 }
+/** a home crowd firing at a stadium: `key` restarts the moment */
+interface Roar {
+  zone: Zone;
+  side: Side;
+  n: number;
+  key: number;
+}
+
+/** black or white, whichever reads better on a kit colour: one of them always clears 4.5:1 */
+const inkOn = (bg: string) => (contrast(bg, '#FFFFFF') >= contrast(bg, '#000000') ? '#FFFFFF' : '#000000');
+const homeKit = (s: GameState, zone: Zone, card: PlayerCard): ClubColors | undefined => {
+  const st = s.stadiums[zone];
+  const i = st.clubs.indexOf(card.team.id);
+  return i < 0 ? undefined : st.colors[i];
+};
 type Inspect = { card: PlayerCard; side: Side; power?: number } | null;
 
 function itemsFor(s: GameState, zone: Zone, side: Side): Item[] {
@@ -84,6 +112,7 @@ function itemsFor(s: GameState, zone: Zone, side: Side): Item[] {
       power: cardPower(s, p),
       mode: 'revealed' as Mode,
       side,
+      home: homeKit(s, zone, p.card),
     })),
     ...s.pending[side]
       .filter((p) => p.zone === zone)
@@ -124,7 +153,7 @@ function Piece({ item, w, tier, onPress }: { item: Item; w: number; tier: number
   const label =
     item.mode === 'down'
       ? 'A face-down card, revealing now'
-      : `${item.side === 'you' ? '' : "AI Manager's "}${item.card.name}, ${item.power} Power${item.power !== base ? ` (printed ${base})` : ''}${item.mode === 'pending' ? '. Queued: tap to take it back' : ''}`;
+      : `${item.side === 'you' ? '' : "AI Manager's "}${item.card.name}, ${item.power} Power${item.power !== base ? ` (printed ${base})` : ''}${item.home ? ', with the home crowd' : ''}${item.mode === 'pending' ? '. Queued: tap to take it back' : ''}`;
   return (
     <Animated.View entering={reduced ? undefined : FadeIn.duration(160)}>
       <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : 'image'} accessibilityLabel={label} hitSlop={2}>
@@ -138,6 +167,9 @@ function Piece({ item, w, tier, onPress }: { item: Item; w: number; tier: number
             faceDown={item.mode === 'down'}
             tier={tier}
           />
+          {item.home && item.mode === 'revealed' ? (
+            <View pointerEvents="none" style={[styles.homeDot, { backgroundColor: item.home.primary, borderColor: item.home.secondary }]} />
+          ) : null}
         </Animated.View>
       </Pressable>
     </Animated.View>
@@ -180,56 +212,94 @@ function Slots({
   );
 }
 
-// ---------------------------------------------------------------- zone plate
+// ---------------------------------------------------------------- stadium plate
 
-function ZonePlate({ s, zone }: { s: GameState; zone: Zone }) {
+function ZonePlate({ s, zone, roar }: { s: GameState; zone: Zone; roar: Roar | null }) {
   const reduced = useReducedMotion();
-  const cond = zoneCondition(s, zone);
+  const st = s.stadiums[zone];
+  const twist = zoneTwist(s, zone);
+  const t = twist ? TWISTS[twist] : null;
   const mine = zonePower(s, zone, 'you');
   const theirs = zonePower(s, zone, 'opponent');
   const lead = mine > theirs ? 'you' : theirs > mine ? 'opponent' : 'tie';
   const plus = s.pending.you.some((p) => p.zone === zone) ? projectedPower(s, zone, 'you') - mine : 0;
-  // a condition flips in (rotateY, 320) when it reveals; a crossfade under reduced motion
-  const flip = useSharedValue(cond ? 1 : 0);
+  const kit = st.colors[0];
+  const band = kit?.primary ?? color.raised;
+  const bandInk = kit ? inkOn(band) : color.text2;
+  const boost = crowdBoost(s, zone);
+
+  // the twist flips in (rotateY, 320) when it shows; a crossfade under reduced motion
+  const flip = useSharedValue(t ? 1 : 0);
   useEffect(() => {
-    if (!cond) {
+    if (!t) {
       flip.value = 0;
       return;
     }
     flip.value = reduced ? withTiming(1, { duration: motion.base }) : withTiming(1, { duration: motion.slow, easing: easeOut });
-  }, [cond, reduced, flip]);
+  }, [t, reduced, flip]);
   const flipStyle = useAnimatedStyle(() =>
-    reduced
-      ? { opacity: cond ? flip.value : 1 }
-      : {
-          transform: [{ perspective: 600 }, { rotateY: `${(1 - (cond ? flip.value : 1)) * 90}deg` }],
-        }
+    reduced ? { opacity: t ? flip.value : 1 } : { transform: [{ perspective: 600 }, { rotateY: `${(1 - (t ? flip.value : 1)) * 90}deg` }] }
   );
+
+  // the crowd moment: the band flashes and the boost rises off the plate toward the side that played
+  const pulse = useSharedValue(0);
+  const rise = useSharedValue(1);
+  const dir = roar?.side === 'you' ? 1 : -1;
+  useEffect(() => {
+    if (!roar || reduced) return;
+    pulse.value = withSequence(withTiming(1, { duration: 140 }), withTiming(0, { duration: 640 }));
+    rise.value = 0;
+    rise.value = withTiming(1, { duration: 820, easing: easeOut });
+  }, [roar?.key, reduced, pulse, rise]); // eslint-disable-line react-hooks/exhaustive-deps
+  const flashStyle = useAnimatedStyle(() => ({ opacity: pulse.value * 0.6 }));
+  const crowdStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + pulse.value * 0.2 }] }));
+  const riseStyle = useAnimatedStyle(() => ({ opacity: rise.value < 1 ? 1 - rise.value * rise.value * rise.value : 0, transform: [{ translateY: dir * rise.value * 46 }, { scale: 1.25 - rise.value * 0.25 }] }));
+
   const theirColor = lead === 'opponent' ? color.loss : lead === 'tie' ? color.text2 : color.text3;
   const myColor = lead === 'you' ? color.text : lead === 'tie' ? color.text2 : color.text3;
-  const c = cond ? CONDITIONS[cond] : null;
+  const lit = !!roar && reduced; // reduced motion: the crowd line just stays lit for the step
   return (
     <View
-      style={styles.plate}
+      style={[styles.plate, roar && !reduced ? { zIndex: 5 } : null]}
       accessible
-      accessibilityLabel={`${ZONE_NAME[zone]}. AI Manager ${theirs}, you ${mine}${plus > 0 ? `, plus ${plus} queued` : ''}. ${c ? `${c.name}: ${c.text}` : `Hidden, reveals turn ${zone + 1}`}`}
+      accessibilityLabel={`${st.name}. ${st.codes.length ? `Home crowd for ${st.codes.join(' and ')}, plus ${boost}.` : 'No home side.'} AI Manager ${theirs}, you ${mine}${plus > 0 ? `, plus ${plus} queued` : ''}. ${t ? `${t.name}: ${t.text}` : `Twist shows on turn ${zone + 1}`}`}
     >
       <TickNumber value={theirs} style={[styles.plateNum, { color: theirColor }]} />
+      <View style={[styles.band, { backgroundColor: band, borderColor: kit?.secondary ?? color.hairlineStrong }]}>
+        <Text style={[styles.stadium, { color: bandInk }]} numberOfLines={2}>
+          {st.name}
+        </Text>
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#FFFFFF' }, flashStyle]} />
+      </View>
+      <Animated.View style={[styles.crowd, lit && { backgroundColor: color.accentSoft }, crowdStyle]}>
+        {st.codes.length ? (
+          <Text style={styles.crowdText} numberOfLines={1}>
+            {st.codes.join(' · ')}
+            <Text style={{ color: color.accentText }}>{` +${boost}`}</Text>
+          </Text>
+        ) : (
+          <Text style={[styles.crowdText, { color: color.text2, fontFamily: font.medium }]}>No home side</Text>
+        )}
+      </Animated.View>
       <Animated.View style={[styles.cond, flipStyle]}>
-        <Text style={styles.zoneName} numberOfLines={1}>
-          {ZONE_NAME[zone]}
+        <Text style={[styles.condName, !t && { color: color.text2, fontFamily: font.medium }]} numberOfLines={1}>
+          {t ? t.name : 'Twist'}
         </Text>
-        <Text style={[styles.condName, !c && { color: color.text2 }]} numberOfLines={1}>
-          {c ? c.name : 'Hidden'}
-        </Text>
-        <Text style={[styles.condText, !c && { color: color.text3 }]} numberOfLines={2}>
-          {c ? c.short : `Reveals turn ${zone + 1}`}
+        <Text style={styles.condText} numberOfLines={2}>
+          {t ? t.short : `Shows on turn ${zone + 1}`}
         </Text>
       </Animated.View>
       <View style={styles.mineRow}>
         <TickNumber value={mine} style={[styles.plateNum, { color: myColor }]} />
         {plus > 0 ? <Text style={styles.plus}>+{plus}</Text> : null}
       </View>
+      {roar && !reduced ? (
+        <Animated.View pointerEvents="none" style={[styles.riser, dir > 0 ? { bottom: -16 } : { top: -16 }, riseStyle]}>
+          <View style={[styles.riserChip, { backgroundColor: band, borderColor: kit?.secondary ?? color.text }]}>
+            <Text style={[styles.riserText, { color: bandInk }]}>{`+${roar.n}`}</Text>
+          </View>
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
@@ -286,7 +356,8 @@ export default function Arena() {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
-  const [s, setS] = useState<GameState | null>(() => (match ? newGame({ you: match.you, opponent: match.opponent, seed: match.seed }) : null));
+  const [s, setS] = useState<GameState | null>(() => (match ? newGame({ you: match.you, opponent: match.opponent, seed: match.seed, stadiums: match.stadiums }) : null));
+  const [roars, setRoars] = useState<Roar[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [inspect, setInspect] = useState<Inspect>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -359,6 +430,7 @@ export default function Arena() {
 
   const onCard = (c: PlayerCard) => {
     if (busy) return;
+    setRoars([]);
     setInspect(null);
     setNote(null);
     if (selected === c.id) {
@@ -381,8 +453,8 @@ export default function Arena() {
     if (busy || selected === null || !selectedCard) return;
     if (!targets.has(zone)) {
       tap('light');
-      const full = s.zones[zone].you.length + s.pending.you.filter((p) => p.zone === zone).length >= MAX_PER_ZONE;
-      setNote(full ? `${ZONE_NAME[zone]} is full.` : `${selectedCard.banner} costs ${playCost(s, selectedCard, zone)} on the ${ZONE_NAME[zone]} (Wet pitch).`);
+      const full = s.zones[zone].you.length + s.pending.you.filter((p) => p.zone === zone).length >= maxHere(s, zone);
+      setNote(full ? `${zoneName(s, zone)} is full.` : `${selectedCard.banner} costs ${playCost(s, selectedCard, zone)} at ${zoneName(s, zone)} (Heavy pitch).`);
       return;
     }
     tap('light');
@@ -415,7 +487,9 @@ export default function Arena() {
     setSelected(null);
     setInspect(null);
     setNote(null);
+    setRoars([]);
     const { steps, final } = resolveTurn(s);
+    const crowds = steps.filter((x) => x.kind === 'reveal' && x.crowd && x.card);
     if (!reduced && steps.length) {
       setRevealing(true);
       for (const st of steps) {
@@ -435,8 +509,16 @@ export default function Arena() {
           await sleep(QUEUED_MS);
         } else {
           setS(st.state);
-          if (st.kind === 'reveal') tap('light');
           setNote(niceLog(st.state.log[st.state.log.length - 1]));
+          if (st.kind === 'reveal' && st.crowd && st.card) {
+            // the crowd moment
+            tap('medium');
+            setRoars([{ zone: st.card.zone, side: st.card.side, n: crowdBoost(st.state, st.card.zone), key: Date.now() }]);
+            await sleep(REVEAL_MS + CROWD_MS);
+            if (alive.current) setRoars([]);
+            continue;
+          }
+          if (st.kind === 'reveal') tap('light');
           await sleep(st.kind === 'grow' ? REVEAL_MS + 120 : REVEAL_MS);
         }
       }
@@ -445,6 +527,13 @@ export default function Arena() {
     }
     setS(final);
     setRevealing(false);
+    if (reduced && crowds.length) {
+      // no sequence to watch: light the plates where a crowd fired and say who it cheered
+      setRoars(crowds.map((x, i) => ({ zone: x.card!.zone, side: x.card!.side, n: crowdBoost(x.state, x.card!.zone), key: i })));
+      // the twist that just showed is on its plate; the strip has room for one thing, the crowd
+      setNote(crowdNote(final, crowds.map((x) => x.card!)));
+      return;
+    }
     setNote(final.over ? null : turnNote(final));
   };
 
@@ -468,11 +557,13 @@ export default function Arena() {
     setSelected(null);
     setInspect(null);
     setNote(null);
+    setRoars([]);
     setS(
       newGame({
         you: match.you,
         opponent: match.opponent,
         seed: (s.seed * 31 + 7) >>> 0,
+        stadiums: match.stadiums,
       })
     );
   };
@@ -588,7 +679,7 @@ export default function Arena() {
                   disabled={selected === null}
                   style={[styles.lane, { width: laneW }, dim && { opacity: 0.45 }]}
                   accessibilityRole="button"
-                  accessibilityLabel={selected !== null ? `Play into ${ZONE_NAME[z]}${target ? '' : ', not possible'}` : ZONE_NAME[z]}
+                  accessibilityLabel={selected !== null ? `Play at ${zoneName(s, z)}${target ? '' : ', not possible'}` : zoneName(s, z)}
                   accessibilityState={{
                     disabled: selected === null || !target,
                   }}
@@ -601,7 +692,7 @@ export default function Arena() {
                   <View style={{ height: slotsH, justifyContent: 'flex-end' }}>
                     <Slots items={itemsFor(s, z, 'opponent')} w={pw} side="opponent" tierOf={tierOf} onPiece={onPiece} />
                   </View>
-                  <ZonePlate s={s} zone={z} />
+                  <ZonePlate s={s} zone={z} roar={roars.find((r) => r.zone === z) ?? null} />
                   <View style={{ height: slotsH }}>
                     <Slots items={itemsFor(s, z, 'you')} w={pw} side="you" tierOf={tierOf} onPiece={onPiece} />
                   </View>
@@ -616,9 +707,9 @@ export default function Arena() {
         {/* what you're holding, what just happened, or what to do */}
         <View style={styles.hint} accessibilityLiveRegion="polite">
           {shownCard ? (
-            <CardLine card={shownCard.card} side={shownCard.side} power={shownCard.power} />
+            <CardLine s={s} card={shownCard.card} side={shownCard.side} power={shownCard.power} />
           ) : (
-            <Text style={styles.hintText} numberOfLines={2}>
+            <Text style={styles.hintText} numberOfLines={3}>
               {hint}
             </Text>
           )}
@@ -658,7 +749,7 @@ export default function Arena() {
             <View>
               <Text style={styles.energyTitle}>Energy</Text>
               <Text style={styles.energySub}>
-                {energy} of {s.turn} left
+                {energy} of {energyOf(s, 'you')} left
               </Text>
             </View>
           </View>
@@ -692,9 +783,10 @@ export default function Arena() {
 
 // ---------------------------------------------------------------- strip and sheets
 
-function CardLine({ card, side, power }: { card: PlayerCard; side: Side; power?: number }) {
+function CardLine({ s, card, side, power }: { s: GameState; card: PlayerCard; side: Side; power?: number }) {
   const st = cardStats(card);
   const p = power ?? st.power;
+  const homes = ZONES.filter((z) => isHome(s, z, card));
   return (
     <View style={{ alignItems: 'center', gap: 2 }}>
       <Text style={styles.cardLineTop} numberOfLines={1}>
@@ -709,8 +801,16 @@ function CardLine({ card, side, power }: { card: PlayerCard; side: Side; power?:
           {p}
         </Text>
       </Text>
-      <Text style={styles.cardLineEffect} numberOfLines={2}>
-        {st.effect ? st.effect.text : 'No ability.'}
+      <Text style={styles.cardLineEffect} numberOfLines={3}>
+        {st.effect ? (
+          <>
+            <Text style={{ color: color.accentText, fontFamily: font.semibold }}>{st.effect.title}</Text>
+            {`  ${st.effect.text}`}
+          </>
+        ) : (
+          'No ability.'
+        )}
+        {homes.length ? ` Home crowd +${crowdBoost(s, homes[0])} at ${zoneName(s, homes[0])}.` : ''}
       </Text>
     </View>
   );
@@ -720,7 +820,7 @@ function EndSheet({ s, visible, onAgain, onDone }: { s: GameState; visible: bool
   const r = result(s);
   const won = r.winner === 'you';
   const credits = won ? r.prize * CREDITS_PER_PRIZE : 0;
-  const zones = (n: number) => `${n} ${n === 1 ? 'zone' : 'zones'}`;
+  const zones = (n: number) => `${n} ${n === 1 ? 'stadium' : 'stadiums'}`;
   const title =
     r.retreated === 'you'
       ? 'You retreated'
@@ -734,7 +834,7 @@ function EndSheet({ s, visible, onAgain, onDone }: { s: GameState; visible: bool
   const sub = r.retreated
     ? `Prize ×${r.prize}`
     : r.zonesWon.you === r.zonesWon.opponent
-      ? `Level on zones · Power ${r.power.you}–${r.power.opponent} · Prize ×${r.prize}`
+      ? `Level on stadiums · Power ${r.power.you}–${r.power.opponent} · Prize ×${r.prize}`
       : `Power ${r.power.you}–${r.power.opponent} · Prize ×${r.prize}`;
   return (
     <Sheet visible={visible} onClose={onDone} title={title}>
@@ -750,9 +850,11 @@ function EndSheet({ s, visible, onAgain, onDone }: { s: GameState; visible: bool
               key={z}
               style={styles.mini}
               accessible
-              accessibilityLabel={`${ZONE_NAME[z]}: you ${mine}, AI Manager ${theirs}. ${lead === 'you' ? 'Won' : lead === 'opponent' ? 'Lost' : 'Level'}`}
+              accessibilityLabel={`${zoneName(s, z)}: you ${mine}, AI Manager ${theirs}. ${lead === 'you' ? 'Won' : lead === 'opponent' ? 'Lost' : 'Level'}`}
             >
-              <Text style={styles.zoneName}>{ZONE_NAME[z]}</Text>
+              <Text style={styles.zoneName} numberOfLines={2}>
+                {zoneName(s, z)}
+              </Text>
               <Text style={[styles.miniScore, { color: color.text }]}>
                 {mine}
                 <Text style={{ color: color.text3 }}>–</Text>
@@ -794,23 +896,36 @@ function niceLog(line: string | undefined): string {
   return line.replace(/^Opponent's /, 'AI · ').replace(/^Opponent /, 'AI Manager ');
 }
 
-/** What the strip says when a new turn starts: the zone that just revealed, else the energy. */
+/** What the strip says when a new turn starts: the twist that just showed, else the energy. */
 function turnNote(s: GameState): string {
   const z = (s.turn - 1) as Zone;
   if (z <= 2) {
-    const c = CONDITIONS[s.conditions[z]];
-    return `${ZONE_NAME[z]} revealed: ${c.name}.${s.conditions[z] === 'neutral' ? '' : ` ${c.text}`}`;
+    const t = TWISTS[s.stadiums[z].twist];
+    return `${zoneName(s, z)}: ${t.name}.${s.stadiums[z].twist === 'neutral' ? '' : ` ${t.text}`}`;
   }
-  return `Turn ${s.turn}. ${s.turn} energy to spend.`;
+  return `Turn ${s.turn}. ${energyOf(s, 'you')} energy to spend.`;
+}
+
+/** Who the crowds cheered this turn (reduced motion, where there's no sequence to watch). */
+function crowdNote(s: GameState, cards: { side: Side; zone: Zone; id: number }[]): string {
+  const name = (c: { side: Side; zone: Zone; id: number }) => {
+    const p = s.zones[c.zone][c.side].find((x) => x.card.id === c.id);
+    return p ? (c.side === 'you' ? p.card.banner : `AI · ${p.card.banner}`) : 'a home player';
+  };
+  return `Home crowd: ${cards.map((c) => `${name(c)} +${crowdBoost(s, c.zone)} at ${zoneName(s, c.zone)}`).join(', ')}.`;
 }
 
 function defaultHint(s: GameState, canPlay: boolean, energy: number): string {
   if (s.over) return 'Full time.';
   if (s.pending.you.length && !canPlay) return 'Tap a queued card to take it back, or end the turn.';
-  if (canPlay)
-    return s.turn === 1 && !s.pending.you.length
-      ? `Tap a card, then a lane to play it. ${ZONE_NAME[0]}: ${CONDITIONS[s.conditions[0]].text}`
-      : 'Tap a card, then a lane.';
+  if (canPlay) {
+    if (s.turn !== 1 || s.pending.you.length) return 'Tap a card, then a stadium.';
+    // turn 1: point at a home crowd if the hand has one, else at the first twist
+    for (const c of s.hands.you)
+      for (const z of ZONES) if (isHome(s, z, c)) return `Tap a card, then a stadium to play it. ${c.banner} gets +${crowdBoost(s, z)} from the home crowd at ${zoneName(s, z)}.`;
+    const t = TWISTS[s.stadiums[0].twist];
+    return `Tap a card, then a stadium to play it. ${zoneName(s, 0)}: ${t.text}`;
+  }
   return energy ? 'Nothing fits this turn. End it when you are ready.' : 'Out of energy. End the turn.';
 }
 
@@ -928,6 +1043,7 @@ const styles = StyleSheet.create({
   plate: {
     alignSelf: 'stretch',
     height: PLATE_H,
+    overflow: 'visible',
     borderRadius: radius.md,
     backgroundColor: 'rgba(11,18,32,0.82)',
     borderWidth: 1,
@@ -938,6 +1054,44 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   plateNum: { fontFamily: font.bold, fontSize: 18, lineHeight: 20 },
+  band: {
+    alignSelf: 'stretch',
+    height: 32,
+    marginHorizontal: -5,
+    borderTopWidth: 2,
+    borderBottomWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+    overflow: 'hidden',
+  },
+  stadium: {
+    fontFamily: font.bold,
+    fontSize: 9.5,
+    lineHeight: 11.5,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+  },
+  crowd: { height: 17, paddingHorizontal: 6, borderRadius: 9, justifyContent: 'center' },
+  crowdText: { fontFamily: font.semibold, fontSize: 11, lineHeight: 14, color: color.text, fontVariant: ['tabular-nums'] },
+  riser: { position: 'absolute', left: 0, right: 0, alignItems: 'center', zIndex: 5 },
+  riserChip: {
+    height: 30,
+    minWidth: 48,
+    paddingHorizontal: 10,
+    borderRadius: 15,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 6,
+  },
+  riserText: { fontFamily: font.bold, fontSize: 16, lineHeight: 20, fontVariant: ['tabular-nums'] },
+  homeDot: { position: 'absolute', top: -3, right: -3, width: 11, height: 11, borderRadius: 6, borderWidth: 2 },
   mineRow: { flexDirection: 'row', alignItems: 'baseline', gap: 3 },
   plus: {
     fontFamily: font.semibold,
@@ -945,7 +1099,7 @@ const styles = StyleSheet.create({
     color: color.accentText,
     fontVariant: ['tabular-nums'],
   },
-  cond: { alignItems: 'center', gap: 1 },
+  cond: { alignItems: 'center', gap: 0, alignSelf: 'stretch' },
   zoneName: {
     fontFamily: font.semibold,
     fontSize: 10,
@@ -956,16 +1110,17 @@ const styles = StyleSheet.create({
   },
   condName: {
     fontFamily: font.semibold,
-    fontSize: 13,
-    lineHeight: 17,
+    fontSize: 12.5,
+    lineHeight: 16,
     color: color.text,
   },
   condText: {
     fontFamily: font.regular,
-    fontSize: 11,
-    lineHeight: 13.5,
+    fontSize: 10.5,
+    lineHeight: 12.5,
     color: color.text2,
     textAlign: 'center',
+    minHeight: 25,
   },
   hint: {
     height: HINT_H,

@@ -78,13 +78,15 @@ Starfield finish. A Collection Level with milestone rewards ties it together.
 silhouette and the name hidden. Name the player from four options to unlock their **Premium** variant: the
 player with a white sticker outline, a deeper club-colour backdrop and a gold name. Five a day.
 
-**Duel, a card game with the cards you've collected.** Twelve-card decks, six turns, three zones of the pitch, each
-with a condition revealed as the match goes on (Floodlights, Wet pitch, Derby, Counter-attack...). Both sides play
-face down and reveal together. Win two zones to win. Every card's cost and Power come from the player's real
-season, and abilities turn into effects (a top scorer gets stronger as your best card in a zone; a defender marks
-the enemy's). Press to double the stakes when you think you're winning, or retreat to cut your losses. Decks are
-built from your collection on a curve, topped up with loan players. The AI manager plays the same rules with a
-deck of the same costs.
+**Duel, a card game with the cards you've collected.** Twelve-card decks, six turns, three real stadiums from the
+league (football-data's own venue names). A club's players get +4 Power from the home crowd at their ground, and
+each ground has a twist that shows as the match goes on (Cauldron, Heavy pitch, Wall of sound, Tactics board...).
+Both sides play face down and reveal together. Win two stadiums to win. Every card's cost, Power and ability come
+from the player's real data: a signature for the 30 biggest stars, a role from the season (top scorer, penalty
+taker, playmaker...), age or passport, or a mechanic for his position, each with the fact it's built from. Press to
+double the prize when you think you're winning, or retreat. Decks are built from your collection on a curve, topped
+up with loan players. The AI manager plays the same rules with a deck of the same costs; `scripts/duel-sim.ts`
+plays it against itself on the five leagues to keep the balance honest.
 
 **The table, three ways.** The official standings; a **time machine** that replays the season matchday by matchday,
 with rows gliding to their new places; and **odds** from 3,000 simulated seasons. The **what-if machine** lets you
