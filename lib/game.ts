@@ -14,8 +14,8 @@
  *           Full time)
  *
  * STADIUMS (lib/stadiums.ts): the three zones are real grounds from the competition.
- *   HOME CROWD: the first card a side reveals there from a club that plays there has
- *   +CROWD_BOOST Power there, for good (later home cards on that side don't). TWIST: each ground's twist reveals at the start of turn zone + 1 and
+ *   HOME CROWD: a card of a club that plays there has +CROWD_BOOST Power there,
+ *   always. TWIST: each ground's twist reveals at the start of turn zone + 1 and
  *   does nothing before that.
  *
  * FLOW: 6 turns, energy = turn number (+1 from a Fortress). 12-card decks are
@@ -54,16 +54,9 @@ export const DECK_SIZE = 12;
 export const START_HAND = 3;
 export const MAX_PER_ZONE = 4;
 export const TIGHT_MAX = 3;
-/**
- * home crowd: +2 for the first home player a side brings on at a ground (+3 under Wall of
- * sound). Once decks could be built for the next duel's known grounds, an uncapped +4 let a
- * deck of home players beat Auto-fill 83% of the time (scripts/deck-sim.ts); one +2 a ground
- * keeps that within 58%.
- */
-export const CROWD_BOOST = 2;
-export const ROAR_BOOST = 3;
-/** how many home cards a side's crowd lifts at one ground: the first to arrive (reveal order) */
-export const CROWD_CARDS = 1;
+/** home crowd: +4 for a card of a club that plays at the ground (+6 under Wall of sound) */
+export const CROWD_BOOST = 4;
+export const ROAR_BOOST = 6;
 /** credits a win pays per ×1 of prize (a ×4 win pays 40); a loss or a retreat costs nothing */
 export const CREDITS_PER_PRIZE = 10;
 
@@ -198,16 +191,6 @@ export const zoneName = (s: GameState, z: Zone) => s.stadiums[z].name;
 export const zoneTwist = (s: GameState, zone: Zone): TwistId | null => (s.turn >= zone + 1 ? s.stadiums[zone].twist : null);
 /** Is this card a home player at this ground? */
 export const isHome = (s: GameState, zone: Zone, card: PlayerCard) => s.stadiums[zone].clubs.includes(card.team.id);
-/** Does the crowd lift this card? A home player among the first CROWD_CARDS home players its side has revealed here. */
-export function cheered(s: GameState, c: Placed): boolean {
-  if (!isHome(s, c.zone, c.card)) return false;
-  let before = 0;
-  for (const o of s.zones[c.zone][c.side]) {
-    if (o === c) return before < CROWD_CARDS;
-    if (isHome(s, c.zone, o.card)) before++;
-  }
-  return false;
-}
 /** The crowd boost a home card gets here right now. */
 export const crowdBoost = (s: GameState, zone: Zone) => (zoneTwist(s, zone) === 'roar' ? ROAR_BOOST : CROWD_BOOST);
 const effectsWork = (s: GameState, zone: Zone) => zoneTwist(s, zone) !== 'tactics';
@@ -302,7 +285,7 @@ export function cardPower(s: GameState, c: Placed): number {
   const foe = s.zones[z][other(c.side)];
   const twist = zoneTwist(s, z);
   let p = pre(c);
-  if (cheered(s, c)) p += crowdBoost(s, z);
+  if (isHome(s, z, c.card)) p += crowdBoost(s, z);
   if (twist === 'floodlights') p += 1;
   if (twist === 'spotlight') {
     const top = Math.max(...own.map(pre), ...foe.map(pre));
@@ -464,7 +447,7 @@ function reveal(s: GameState, side: Side, p: Pending): string[] {
   const firstThisTurn = !s.zones[z][side].some((o) => o.turn === s.turn);
   s.zones[z][side].push(c);
   const notes: string[] = [];
-  if (cheered(s, c)) notes.push(`home crowd +${crowdBoost(s, z)}`);
+  if (isHome(s, z, c.card)) notes.push(`home crowd +${crowdBoost(s, z)}`);
   if (zoneTwist(s, z) === 'cauldron' && firstThisTurn) {
     c.bonus += 2;
     notes.push('Cauldron +2');
@@ -592,7 +575,7 @@ export function resolveTurn(state: GameState, opts: EndTurnOptions = {}): TurnRe
     while (s.pending[side].length) {
       const p = s.pending[side].shift()!;
       const notes = reveal(s, side, p);
-      const crowd = cheered(s, s.zones[p.zone][side][s.zones[p.zone][side].length - 1]);
+      const crowd = isHome(s, p.zone, p.card);
       steps.push({ kind: 'reveal', state: clone(s), card: { side, zone: p.zone, id: p.card.id }, crowd, ability: notes.length > (crowd ? 1 : 0) });
     }
   }

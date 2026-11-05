@@ -14,7 +14,11 @@
  *
  * The opponent's: for every card in your deck, a different player from the
  * same competition at the same cost, so its curve matches yours card for card
- * (the same player only when nobody else at that cost is left).
+ * (the same player only when nobody else at that cost is left). It mirrors your home
+ * players too: a home player at the duel's grounds for each of yours, an away player
+ * for each of your others, where the league has one at that cost. The crowd is +4 a
+ * card, so a deck stacked for the grounds would otherwise beat an AI that never plays
+ * to them 93% of the time (scripts/deck-sim.ts).
  */
 import type { PlayerCard } from './cards';
 import { cardStats, DECK_SIZE } from './game';
@@ -94,9 +98,10 @@ export function buildDeck(owned: PlayerCard[], pool: PlayerCard[], seed: number)
   return { cards: picked, loans };
 }
 
-export function opponentDeck(yours: PlayerCard[], pool: PlayerCard[], seed: number): PlayerCard[] {
+export function opponentDeck(yours: PlayerCard[], pool: PlayerCard[], seed: number, grounds?: Stadium[] | null): PlayerCard[] {
   const r = rng(seed ^ 0x5bd1e995);
   const used = new Set(yours.map((c) => c.id));
+  const home = (c: PlayerCard) => !!grounds?.some((g) => g.clubs.includes(c.team.id));
   const out: PlayerCard[] = [];
   const taken = new Set<number>();
   for (const c of yours) {
@@ -105,7 +110,10 @@ export function opponentDeck(yours: PlayerCard[], pool: PlayerCard[], seed: numb
     // each league has only three Icons: when they're all yours, the opponent may field the same
     // player at that cost, as Snap lets both sides run the same card
     const mirror = pool.filter((p) => !taken.has(p.id) && cardStats(p).cost === cost);
-    const options = fresh.length ? fresh : mirror;
+    const any = fresh.length ? fresh : mirror;
+    // home for home, away for away, so it brings exactly as many crowd cards as you do
+    const alike = any.filter((p) => home(p) === home(c));
+    const options = alike.length ? alike : any;
     const pick = options.length ? options[Math.floor(r() * options.length)] : pool.find((p) => !taken.has(p.id));
     if (pick) {
       taken.add(pick.id);

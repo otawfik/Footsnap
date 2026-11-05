@@ -157,7 +157,7 @@ export default function CardView() {
                         ))}
                       </View>
                       {g.effect.why ? <Text style={styles.why}>{g.effect.why}</Text> : null}
-                      {venue ? <Text style={styles.why}>{`Home crowd: +${CROWD_BOOST} Power at ${venue} when he's the first home player you bring on there.`}</Text> : null}
+                      {venue ? <Text style={styles.why}>{`Home crowd: +${CROWD_BOOST} Power at ${venue}.`}</Text> : null}
                     </AbilityRow>
                   ) : (
                     <AbilityRow label="Duel" accent title="No ability" text={`Cost ${g.cost} · Power ${g.power}`} />
