@@ -83,7 +83,7 @@ silhouette and the name hidden. Name the player from four options to unlock thei
 player with a white sticker outline, a deeper club-colour backdrop and a gold name. Five a day.
 
 **Duel, a card game with the cards you've collected.** Twelve-card decks, six turns, three real stadiums from the
-league (football-data's own venue names). The first player you bring on at his own club's ground gets +2 from the home crowd, and
+league (football-data's own venue names). A club's players get +4 Power from the home crowd at their ground, and
 each ground has a twist that shows as the match goes on (Cauldron, Heavy pitch, Wall of sound, Tactics board...).
 Both sides play face down and reveal together. Win two stadiums to win. Every card's cost, Power and ability come
 from the player's real data: a signature for the 30 biggest stars, a role from the season (top scorer, penalty

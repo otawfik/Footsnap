@@ -102,7 +102,7 @@ for (const [id, name, nation] of COMPS) {
     for (const k of KINDS) {
       homeCards[k] += decks[k].filter(isHome).length;
       power[k] += decks[k].reduce((t, c) => t + cardStats(c).power, 0);
-      const opp = opponentDeck(decks[k], list, seed);
+      const opp = opponentDeck(decks[k], list, seed, grounds);
       vsAi[k].w += pair(decks[k], opp, seed, grounds);
       vsAi[k].n += 2;
       if (k !== 'auto') {

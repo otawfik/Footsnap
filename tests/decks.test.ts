@@ -57,6 +57,16 @@ describe('opponentDeck', () => {
     const curve = (cs: PlayerCard[]) => cs.map((c) => cardStats(c).cost).sort().join();
     expect(curve(theirs)).toBe(curve(yours));
   });
+
+  it('brings as many home players to the grounds as you do', () => {
+    // commons: the league has more of them at every cost than one deck holds
+    const yours = pool.filter((c) => c.rarity === 'common').slice(0, 12);
+    const clubs = [0, 1];
+    const grounds = [{ name: 'G', clubs, codes: [], colors: [], twist: 'neutral' as const }];
+    const home = (c: PlayerCard) => clubs.includes(c.team.id);
+    const theirs = opponentDeck(yours, pool, 3, grounds);
+    expect(theirs.filter(home).length).toBe(yours.filter(home).length);
+  });
 });
 
 describe('recordLine', () => {

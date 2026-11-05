@@ -22,7 +22,7 @@ import { color, font, radius, space, type } from '../../constants/design';
 const RULES: [string, string][] = [
   [
     'Three stadiums',
-    `Three real grounds from the league. The first player you bring on at his own club's ground gets +${CROWD_BOOST} Power from the home crowd. Each ground also has a twist that bends the rules there: the first shows on turn 1, the next on turn 2, the last on turn 3.`,
+    `Three real grounds from the league. A club's players get +${CROWD_BOOST} Power from the home crowd at their own ground. Each ground also has a twist that bends the rules there: the first shows on turn 1, the next on turn 2, the last on turn 3.`,
   ],
   ['Six turns', 'You get as much energy as the turn number. Cards cost energy; play them into a stadium, up to four a side.'],
   ['Win two stadiums', 'After turn 6, more Power at a stadium wins it. Win two of three to win the duel.'],
@@ -54,7 +54,7 @@ export default function Play() {
   const start = () => {
     if (!deck || !seed || invalid) return;
     // the opponent mirrors your deck's costs, so it's drawn from the deck you actually take in
-    const opponent = opponentDeck(deck.cards, list, seed);
+    const opponent = opponentDeck(deck.cards, list, seed, grounds);
     setMatch({ you: deck.cards, opponent, seed, loans: deck.loans, stadiums: grounds });
     usedDuelSeed(league.id);
     router.push('/arena');
