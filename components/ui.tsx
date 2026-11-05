@@ -11,7 +11,7 @@
  * Crest, KitStripe, LiveLamp, Num, Coin, Wallet…) are kept and restyled, so screens that
  * haven't moved to the new components keep compiling and look at home.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import {
   View,
   Text,
@@ -476,8 +476,11 @@ export function Toggle({ value, onValueChange, disabled, label }: { value: boole
  * The kit chip: a circle split at 135° (primary top-left, secondary bottom-right). It replaces
  * crests in every list row. `colors={null}` draws the empty "draw" ring.
  */
+/** React's useId, stripped to characters an SVG url(#id) accepts; stable across static render and hydration. */
+const useSvgId = (prefix: string) => prefix + useId().replace(/[^a-zA-Z0-9]/g, '');
+
 export function KitChip({ colors, size: s = size.kit, style }: { colors?: ClubColors | null; size?: number; style?: StyleProp<ViewStyle> }) {
-  const id = useRef(`k${Math.random().toString(36).slice(2, 9)}`).current;
+  const id = useSvgId('k');
   if (colors === null) {
     return <View style={[{ width: s, height: s, borderRadius: s / 2, borderWidth: 1.5, borderColor: color.hairlineStrong }, style]} />;
   }
@@ -574,7 +577,7 @@ export function ScoreBug({
  */
 export function KitField({ colors, away, tones, height, fade = 0.55, children, style }: { colors?: ClubColors | null; away?: ClubColors | null; tones?: [string, string]; height: number; fade?: number; children?: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const { width: W } = useWindowDimensions();
-  const id = useRef(`f${Math.random().toString(36).slice(2, 9)}`).current;
+  const id = useSvgId('f');
   const w = Math.min(W, 600);
   const c1 = tones?.[0] ?? clubTone(colors);
   const c2 = tones?.[1] ?? (away ? clubTone(away) : c1);
@@ -641,7 +644,7 @@ export const teamName = (t: Pick<Team, 'name' | 'shortName'>) => t.shortName ?? 
 
 /** The credits coin: a round gold coin (radial #FFF0B8 → #E9C46A → #A9822F). */
 export function Coin({ size: s = 15 }: { size?: number }) {
-  const id = useRef(`c${Math.random().toString(36).slice(2, 9)}`).current;
+  const id = useSvgId('c');
   return (
     <Svg width={s} height={s} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <Defs>
@@ -801,6 +804,16 @@ export function Button({
       {icon ? <Ionicons name={icon} size={sz === 'sm' ? 16 : 18} color={fg} /> : null}
       <Text style={[styles.btnText, sz === 'sm' && { fontSize: 14 }, { color: fg }]} numberOfLines={1}>{label}</Text>
     </PressScale>
+  );
+}
+
+/** Button's look without being a button: for a row that is already pressable (HTML can't nest buttons). */
+export function ButtonLook({ label, kind = 'primary', size: sz = 'md' }: { label: string; kind?: 'primary' | 'secondary'; size?: 'md' | 'sm' }) {
+  const fg = kind === 'primary' ? color.onChalk : color.text;
+  return (
+    <View style={[styles.btn, sz === 'sm' && styles.btnSm, kind === 'secondary' && { backgroundColor: color.raised }]} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+      <Text style={[styles.btnText, sz === 'sm' && { fontSize: 14 }, { color: fg }]} numberOfLines={1}>{label}</Text>
+    </View>
   );
 }
 
