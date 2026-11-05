@@ -49,7 +49,7 @@ import { LEAGUES, League } from '../constants/leagues';
 import { useLeague } from '../context/league';
 import type { Team } from '../lib/types';
 import type { Result } from '../lib/football';
-import { alpha, ClubColors, contrast, mix } from '../lib/colors';
+import { alpha, ClubColors, contrast, luminance, mix } from '../lib/colors';
 import { subscribeOffline } from '../services/api';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -111,7 +111,9 @@ export function fixtureTones(h?: ClubColors | null, a?: ClubColors | null, groun
   if (near(th, ta)) {
     // the away side's other colour, lifted until it shows on the ground (Spurs navy → a visible navy)
     let pick: string | null = null;
-    for (const alt of [a?.secondary, a?.primary]) {
+    // a near-black second colour would only lift to grey; kits pair it with white (shorts, trim)
+    const deBlack = (c?: string) => (c && luminance(c) < 0.03 ? '#F3F1E7' : c);
+    for (const alt of [deBlack(a?.secondary), a?.primary]) {
       if (!alt || near(th, alt) || pick) continue;
       for (let t = 0; t <= 0.8 && !pick; t += 0.1) {
         const x = t ? mix(alt, '#FFFFFF', t) : alt;
@@ -134,6 +136,53 @@ export function solidFill(tone: string): string {
     if (Math.max(contrast(color.chalk, f), contrast(color.onChalk, f)) >= 4.5) return f;
   }
   return mix(tone, '#000000', 0.7);
+}
+
+/**
+ * A kit tone deep enough to carry chalk text (≥ 4.5:1) while keeping its hue: saturated colours
+ * darken toward black; light kits (white, sky, yellow) toward a slate, so a white kit becomes a
+ * cool silver rather than mud. Used for whole surfaces: fixture tiles, market header bands.
+ */
+export function deepTone(tone: string): string {
+  const toward = luminance(tone) > 0.45 ? '#26365C' : '#000000';
+  for (let t = 0; t <= 0.9; t += 0.05) {
+    const f = t ? mix(tone, toward, t) : tone;
+    if (contrast(color.chalk, f) >= 4.6) return f;
+  }
+  return mix(tone, '#000000', 0.9);
+}
+
+/**
+ * Kit colours for whole surfaces (fixture bands). Unlike clubTone, a dark kit is fine here (a navy
+ * band still carries chalk text), so each club wears its strongest colour: a white-shirted club
+ * (Leeds, Spurs, Fulham, Real Madrid) wears its second colour instead of a washed-out slate. If the
+ * two sides would match (two reds), the away side takes its other colour.
+ */
+export function bandTones(h?: ClubColors | null, a?: ClubColors | null): [string, string] {
+  const strong = (c?: ClubColors | null) => {
+    if (!c) return color.hairlineStrong;
+    if (luminance(c.primary) > 0.6 && c.secondary && luminance(c.secondary) < 0.6) return c.secondary;
+    return c.primary;
+  };
+  const th = strong(h);
+  let ta = strong(a);
+  if (near(deepTone(th), deepTone(ta)) && a) {
+    const other = ta === a.primary ? a.secondary : a.primary;
+    ta = other && !near(deepTone(th), deepTone(other)) ? other : mix(ta, '#26365C', 0.5);
+  }
+  return [th, ta];
+}
+
+/**
+ * A fixture as a surface: a horizontal gradient from the home kit to the away kit (both through
+ * deepTone, so chalk text reads anywhere on it), like a broadcast lower-third.
+ */
+export function FixtureBand({ tones, children, style }: { tones: [string, string]; children?: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  return (
+    <LinearGradient colors={[deepTone(tones[0]), deepTone(tones[1])]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={style}>
+      {children}
+    </LinearGradient>
+  );
 }
 
 /** Any tone made safe as text on `ground` (≥ 4.5:1), lifted toward chalk until it reads. */
@@ -165,6 +214,7 @@ export function Screen({
   gutter = true,
   tabBar = true,
   style,
+  tint,
 }: {
   children: React.ReactNode;
   refreshing?: boolean;
@@ -177,11 +227,16 @@ export function Screen({
   /** @deprecated v1 prop, ignored */
   motif?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** the tab's colour, washed across the top of the screen (color.tabTint) */
+  tint?: string;
 }) {
   const bar = useTabBarHeight();
   const pad = { paddingHorizontal: gutter ? space.gutter : 0 };
   return (
     <SafeAreaView style={[styles.safe, style]} edges={['top']}>
+      {tint ? (
+        <LinearGradient colors={[alpha(tint, 0.26), alpha(tint, 0.1), alpha(tint, 0)]} locations={[0, 0.45, 1]} style={styles.tint} pointerEvents="none" />
+      ) : null}
       <OfflineNote />
       {scroll ? (
         <ScrollView
@@ -749,7 +804,7 @@ export function Pitch({ children, style, lanes = true, radius: r = radius.lg }: 
     >
       {w ? (
         <Svg width={w} height={h} style={StyleSheet.absoluteFill} pointerEvents="none">
-          {Array.from({ length: stripes }, (_, i) => (i % 2 ? <Rect key={i} x={0} y={(i * h) / stripes} width={w} height={h / stripes} fill="#0F2C21" /> : null))}
+          {Array.from({ length: stripes }, (_, i) => (i % 2 ? <Rect key={i} x={0} y={(i * h) / stripes} width={w} height={h / stripes} fill={color.pitchStripe} /> : null))}
           <Rect x={10} y={10} width={w - 20} height={h - 20} rx={4} stroke={color.pitchLine} strokeWidth={1.5} fill="none" />
           <Path d={`M10 ${h / 2} H${w - 10}`} stroke={color.pitchLine} strokeWidth={1.5} />
           <Circle cx={w / 2} cy={h / 2} r={Math.min(w, h) * 0.16} stroke={color.pitchLine} strokeWidth={1.5} fill="none" />
@@ -1260,12 +1315,13 @@ export function Pill({ label, active, onPress }: { label: string; active?: boole
 
 export const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.bg },
+  tint: { position: 'absolute', left: 0, right: 0, top: 0, height: 340 },
   offline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: color.raised, paddingVertical: 6, paddingHorizontal: space.md },
   offlineText: { ...type.caption, color: color.text2 },
 
   large: { flexDirection: 'row', alignItems: 'flex-end', paddingTop: 10, paddingBottom: space.xl, gap: space.md },
   largeRight: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingBottom: 4 },
-  eyebrow: { fontFamily: font.medium, fontSize: 13, lineHeight: 18, color: color.text3, marginBottom: 2 },
+  eyebrow: { fontFamily: font.medium, fontSize: 13, lineHeight: 18, color: color.text2, marginBottom: 2 },
   eyebrowBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
 
   nav: { height: 44, flexDirection: 'row', alignItems: 'center' },

@@ -23,7 +23,7 @@ function Bar({ state, navigation }: BottomTabBarProps) {
   return (
     <View style={[styles.bar, { height: size.tabBar + Math.max(insets.bottom, 8), paddingBottom: Math.max(insets.bottom, 8) }]}>
       {Platform.OS === 'ios' ? <BlurView tint="dark" intensity={40} style={StyleSheet.absoluteFill} /> : null}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: Platform.OS === 'ios' ? 'rgba(13,21,37,0.92)' : 'rgba(13,21,37,0.97)' }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: Platform.OS === 'ios' ? 'rgba(23,43,82,0.92)' : 'rgba(23,43,82,0.98)' }]} />
       {TABS.map((t) => {
         const route = state.routes.find((r) => r.name === t.name);
         if (!route) return null;
@@ -43,9 +43,10 @@ function Bar({ state, navigation }: BottomTabBarProps) {
             }}
             style={styles.item}
           >
-            <View style={[styles.mark, on && { backgroundColor: color.accent }]} />
-            <Ionicons name={on ? t.icon[1] : t.icon[0]} size={24} color={on ? color.text : color.text3} />
-            <Text style={[styles.label, { color: on ? color.text : color.text3 }]}>{t.title}</Text>
+            <View style={[styles.pill, on && { backgroundColor: 'rgba(246,241,230,0.14)' }]}>
+              <Ionicons name={on ? t.icon[1] : t.icon[0]} size={22} color={on ? color.text : color.text2} />
+            </View>
+            <Text style={[styles.label, { color: on ? color.text : color.text2 }, on && { fontFamily: font.semibold }]}>{t.title}</Text>
           </Pressable>
         );
       })}
@@ -77,7 +78,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   item: { flex: 1, alignItems: 'center', gap: 3 },
-  /** a short pitch-green mark over the active tab, like a touchline */
-  mark: { position: 'absolute', top: -7, width: 22, height: 2, borderRadius: 1, backgroundColor: 'transparent' },
+  /** a soft chalk pill behind the active tab's icon */
+  pill: { width: 52, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   label: { fontFamily: font.medium, fontSize: 10.5, lineHeight: 13, letterSpacing: 0.1 },
 });

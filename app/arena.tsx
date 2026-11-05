@@ -585,7 +585,7 @@ export default function Arena() {
     <View style={[styles.wrap, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 8) }]}>
       {/* the pitch: floodlit green with mowing stripes, a soft centre light, the centre circle and the halfway line */}
       <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
-        {Array.from({ length: 12 }, (_, i) => (i % 2 ? <Rect key={`mow${i}`} x={0} y={(i * height) / 12} width={width} height={height / 12} fill="#0F2C21" /> : null))}
+        {Array.from({ length: 12 }, (_, i) => (i % 2 ? <Rect key={`mow${i}`} x={0} y={(i * height) / 12} width={width} height={height / 12} fill={color.pitchStripe} /> : null))}
         <Defs>
           <RadialGradient
             id="arenaLight"
