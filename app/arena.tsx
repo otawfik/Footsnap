@@ -55,7 +55,7 @@ import {
   zoneTwist,
   zonePower,
 } from '../lib/game';
-import { TWISTS } from '../lib/stadiums';
+import { TWISTS, groundLabel } from '../lib/stadiums';
 import { ClubColors, contrast } from '../lib/colors';
 import type { PlayerCard } from '../lib/cards';
 import { color, CARD_RATIO, font, motion, radius, space } from '../constants/design';
@@ -258,6 +258,7 @@ function ZonePlate({ s, zone, roar }: { s: GameState; zone: Zone; roar: Roar | n
   const theirColor = lead === 'opponent' ? color.loss : lead === 'tie' ? color.text2 : color.text3;
   const myColor = lead === 'you' ? color.text : lead === 'tie' ? color.text2 : color.text3;
   const lit = !!roar && reduced; // reduced motion: the crowd line just stays lit for the step
+  const plateName = groundLabel(st.name);
   return (
     <View
       style={[styles.plate, roar && !reduced ? { zIndex: 5 } : null]}
@@ -266,8 +267,8 @@ function ZonePlate({ s, zone, roar }: { s: GameState; zone: Zone; roar: Roar | n
     >
       <TickNumber value={theirs} style={[styles.plateNum, { color: theirColor }]} />
       <View style={[styles.band, { backgroundColor: band, borderColor: kit?.secondary ?? color.hairlineStrong }]}>
-        <Text style={[styles.stadium, { color: bandInk }]} numberOfLines={2}>
-          {st.name}
+        <Text style={[styles.stadium, plateName.length > 18 && styles.stadiumLong, plateName.length > 26 && styles.stadiumLonger, { color: bandInk }]} numberOfLines={2}>
+          {plateName}
         </Text>
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#FFFFFF' }, flashStyle]} />
       </View>
@@ -1073,6 +1074,8 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     textAlign: 'center',
   },
+  stadiumLong: { fontSize: 8.5, lineHeight: 10.5 },
+  stadiumLonger: { fontSize: 7.5, lineHeight: 9.5 },
   crowd: { height: 17, paddingHorizontal: 6, borderRadius: 9, justifyContent: 'center' },
   crowdText: { fontFamily: font.semibold, fontSize: 11, lineHeight: 14, color: color.text, fontVariant: ['tabular-nums'] },
   riser: { position: 'absolute', left: 0, right: 0, alignItems: 'center', zIndex: 5 },
