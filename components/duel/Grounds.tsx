@@ -52,7 +52,7 @@ export function GroundsPreview({ grounds, deck, title = "Next duel's grounds" }:
   );
 }
 
-/** "Home · Anfield +4" in the ground's kit. */
+/** "Home · Anfield +2" in the ground's kit: the crowd lifts the first home card a side brings on there. */
 export function HomeBadge({ ground }: { ground: Stadium }) {
   const fill = kitFill(ground);
   const ink = ground.colors[0] ? onFill(fill) : color.text;
