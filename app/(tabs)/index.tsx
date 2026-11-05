@@ -17,6 +17,8 @@ import { applyPick, applyPress, tally } from '../../lib/picks';
 import { useFavorites, usePacks, usePicks, useProfile, today } from '../../lib/storage';
 import type { Match } from '../../lib/types';
 import { color, font, radius, space, type } from '../../constants/design';
+import { LinearGradient } from 'expo-linear-gradient';
+import { alpha } from '../../lib/colors';
 
 const openMatch = (m: Match, c: number) => router.push({ pathname: '/match/[id]', params: { id: String(m.id), c: String(c) } });
 
@@ -90,7 +92,7 @@ export default function Home() {
   };
 
   return (
-    <Screen refreshing={refreshing} onRefresh={onRefresh}>
+    <Screen tint={color.tabTint.home} refreshing={refreshing} onRefresh={onRefresh}>
       <LargeHeader
         eyebrow={date}
         title="Today"
@@ -159,10 +161,12 @@ export default function Home() {
         pressedStyle={{ backgroundColor: color.raised }}
         accessibilityLabel={packReady ? 'Open your daily pack' : `Next pack in ${hoursToMidnight()} hours`}
       >
+        {/* packs are the gold moment */}
+        <LinearGradient colors={[alpha(color.gold, 0.26), alpha(color.gold, 0.06)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} pointerEvents="none" />
         <MiniPack />
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={styles.packTitle}>{packReady ? (opened ? 'Bonus pack is ready' : 'Daily pack is ready') : mounted ? `Next pack in ${hoursToMidnight()} h` : 'Daily pack opened'}</Text>
-          <Text style={type.footnote}>{league.name} · 5 cards</Text>
+          <Text style={[type.footnote, { color: color.text2 }]}>{league.name} · 5 cards</Text>
         </View>
         {packReady ? <ButtonLook label="Open" size="sm" /> : <Ionicons name="chevron-forward" size={18} color={color.text3} />}
       </PressScale>
@@ -221,7 +225,7 @@ const styles = StyleSheet.create({
   promo: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 16, backgroundColor: color.surface, marginTop: space.sm },
   promoIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: color.accentSoft, alignItems: 'center', justifyContent: 'center' },
   promoTitle: { fontFamily: font.semibold, fontSize: 16, color: color.text },
-  packRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 16, backgroundColor: color.surface, marginTop: space.xs, marginBottom: space.xxl, borderWidth: 1, borderColor: 'rgba(233,196,106,0.42)' },
+  packRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 16, backgroundColor: color.surface, marginTop: space.xs, marginBottom: space.xxl, borderWidth: 1, borderColor: 'rgba(242,195,91,0.5)', overflow: 'hidden' },
   packTitle: { fontFamily: font.semibold, fontSize: 16, color: color.text },
   score3: { flexDirection: 'row', paddingTop: space.sm, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: color.hairline },
   score3Cell: { flex: 1, gap: 2 },

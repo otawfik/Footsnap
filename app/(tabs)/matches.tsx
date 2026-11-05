@@ -446,7 +446,7 @@ export default function Matches() {
   const loading = mode === 0 ? season.loading && !season.data : (standings.loading && !standings.data) || (season.loading && !season.data);
 
   return (
-    <Screen refreshing={refreshing} onRefresh={onRefresh}>
+    <Screen tint={color.tabTint.matches} refreshing={refreshing} onRefresh={onRefresh}>
       <LargeHeader
         leagueMenu
         title="Matches"
