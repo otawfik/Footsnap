@@ -8,13 +8,17 @@
  * Slots your collection can't fill go to "loan" players: cheap commons from
  * the competition, marked as loans in the lobby.
  *
+ * Or your own: the deck editor saves the owned cards you chose (up to 12) per
+ * competition. Loans only ever fill the slots you left empty, and never replace a
+ * card you picked. Auto-fill is the automatic deck above.
+ *
  * The opponent's: for every card in your deck, a different player from the
  * same competition at the same cost, so its curve matches yours card for card
  * (the same player only when nobody else at that cost is left).
  */
 import type { PlayerCard } from './cards';
 import { cardStats, DECK_SIZE } from './game';
-import { rng } from './rng';
+import { hash, rng } from './rng';
 import type { Stadium } from './stadiums';
 
 export interface Deck {
@@ -42,26 +46,34 @@ const fitsCurve = (deck: PlayerCard[], c: PlayerCard) => {
   return CURVE.every(([min, most]) => cost < min || deck.filter((d) => cardStats(d).cost >= min).length < most);
 };
 
+/**
+ * Fill `picked`'s empty slots (in place) with loans: one-drops first while the deck is
+ * short of them, then any cheap common. Returns the loans' ids.
+ */
+function fillLoans(picked: PlayerCard[], pool: PlayerCard[], r: () => number): Set<number> {
+  const loans = new Set<number>();
+  if (picked.length >= DECK_SIZE) return loans;
+  const has = (c: PlayerCard) => picked.some((p) => p.id === c.id);
+  const cheap = shuffle(pool.filter((c) => c.rarity === 'common' && cardStats(c).cost <= 2 && !has(c)), r);
+  const ones = cheap.filter((c) => cardStats(c).cost === 1);
+  const need = Math.max(0, MIN_ONE_DROPS - picked.filter((c) => cardStats(c).cost === 1).length);
+  for (const c of [...ones.slice(0, need), ...cheap]) {
+    if (picked.length >= DECK_SIZE) break;
+    if (has(c)) continue;
+    picked.push(c);
+    loans.add(c.id);
+  }
+  return loans;
+}
+
 export function buildDeck(owned: PlayerCard[], pool: PlayerCard[], seed: number): Deck {
   const byPower = owned.slice().sort((a, b) => cardStats(b).power - cardStats(a).power || a.id - b.id);
   const picked: PlayerCard[] = [];
   for (const c of byPower) if (picked.length < DECK_SIZE && fitsCurve(picked, c)) picked.push(c);
 
-  const loans = new Set<number>();
   const r = rng(seed);
+  const loans = fillLoans(picked, pool, r);
   const has = (c: PlayerCard) => picked.some((p) => p.id === c.id);
-  if (picked.length < DECK_SIZE) {
-    // loans: one-drops first if the deck is short of them, then any cheap common
-    const cheap = shuffle(pool.filter((c) => c.rarity === 'common' && cardStats(c).cost <= 2 && !has(c)), r);
-    const ones = cheap.filter((c) => cardStats(c).cost === 1);
-    const need = Math.max(0, MIN_ONE_DROPS - picked.filter((c) => cardStats(c).cost === 1).length);
-    for (const c of [...ones.slice(0, need), ...cheap]) {
-      if (picked.length >= DECK_SIZE) break;
-      if (has(c)) continue;
-      picked.push(c);
-      loans.add(c.id);
-    }
-  }
   // a full deck of stars and twos: swap the weakest 2-cost cards for one-drops (owned first, then loans)
   const oneDrops = () => picked.filter((c) => cardStats(c).cost === 1).length;
   const spare = [
@@ -102,6 +114,118 @@ export function opponentDeck(yours: PlayerCard[], pool: PlayerCard[], seed: numb
   }
   return out;
 }
+
+// ---------------------------------------------------------------- your own deck
+
+/**
+ * Your deck from the cards you chose: the owned ones you picked, in order (ids you no
+ * longer own, repeats and anything past 12 are dropped), then loans in the empty slots.
+ */
+export function resolveDeck(ids: number[], owned: PlayerCard[], pool: PlayerCard[], seed: number): Deck {
+  const byId = new Map(owned.map((c) => [c.id, c]));
+  const picked: PlayerCard[] = [];
+  for (const id of ids) {
+    const c = byId.get(id);
+    if (c && !picked.includes(c) && picked.length < DECK_SIZE) picked.push(c);
+  }
+  const loans = fillLoans(picked, pool, rng(seed));
+  return { cards: picked, loans };
+}
+
+/** The owned cards Auto-fill picks: the automatic deck, without its loans. */
+export const autoIds = (owned: PlayerCard[], pool: PlayerCard[], seed: number): number[] => {
+  const d = buildDeck(owned, pool, seed);
+  return d.cards.filter((c) => !d.loans.has(c.id)).map((c) => c.id);
+};
+
+/** Why a deck can't be played, or null: exactly 12 cards, each player once. */
+export function validateDeck(cards: PlayerCard[]): string | null {
+  const seen = new Set<number>();
+  for (const c of cards) {
+    if (seen.has(c.id)) return `${c.name} is in the deck twice.`;
+    seen.add(c.id);
+  }
+  if (cards.length !== DECK_SIZE) return `A deck needs ${DECK_SIZE} cards; this one has ${cards.length}.`;
+  return null;
+}
+
+/** Tap a collection card in the editor: in the deck → out; out → in, if there's room. */
+export function toggleInDeck(ids: number[], id: number): { ids: number[]; error: string | null } {
+  if (ids.includes(id)) return { ids: ids.filter((x) => x !== id), error: null };
+  if (ids.length >= DECK_SIZE) return { ids, error: `Your deck is full. Take a card out to make room.` };
+  return { ids: [...ids, id], error: null };
+}
+
+/** Cards per cost 1-6 (index 0 = cost 1) and total Power. */
+export function deckSummary(cards: PlayerCard[]): { curve: number[]; power: number } {
+  const curve = [0, 0, 0, 0, 0, 0];
+  let power = 0;
+  for (const c of cards) {
+    const st = cardStats(c);
+    curve[Math.min(6, Math.max(1, st.cost)) - 1]++;
+    power += st.power;
+  }
+  return { curve, power };
+}
+
+// ---------------------------------------------------------------- saved decks
+
+/** The owned cards you chose for one competition (loans are never saved: they're worked out). */
+export interface SavedDeck {
+  ids: number[];
+}
+export const DECK_SAVE_VERSION = 2;
+/** competition id → your deck; no entry means the automatic deck */
+export interface DeckSaves {
+  version: typeof DECK_SAVE_VERSION;
+  decks: Record<string, SavedDeck>;
+}
+export const NO_SAVES: DeckSaves = { version: DECK_SAVE_VERSION, decks: {} };
+
+const cleanIds = (xs: unknown): number[] => {
+  if (!Array.isArray(xs)) return [];
+  const out: number[] = [];
+  for (const x of xs) if (Number.isInteger(x) && !out.includes(x as number) && out.length < DECK_SIZE) out.push(x as number);
+  return out;
+};
+
+/**
+ * Read whatever is saved into the current shape. Version 1 was a bare
+ * `{ [competition]: number[] }`; anything unreadable becomes "no saved decks"
+ * (so every competition falls back to the automatic deck) rather than an error.
+ */
+export function migrateDeckSaves(raw: unknown): DeckSaves {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...NO_SAVES, decks: {} };
+  const o = raw as Record<string, unknown>;
+  const decks: Record<string, SavedDeck> = {};
+  if (o.version === DECK_SAVE_VERSION && o.decks && typeof o.decks === 'object') {
+    for (const [k, v] of Object.entries(o.decks as Record<string, unknown>)) decks[k] = { ids: cleanIds((v as { ids?: unknown })?.ids) };
+  } else if (o.version === undefined) {
+    for (const [k, v] of Object.entries(o)) if (Array.isArray(v)) decks[k] = { ids: cleanIds(v) };
+  }
+  return { version: DECK_SAVE_VERSION, decks };
+}
+
+// ---------------------------------------------------------------- the next duel
+
+/**
+ * The next duel's seed per competition. It's drawn once and kept until a duel starts,
+ * so the grounds the lobby and the deck editor show are the ones you'll play at, however
+ * often you go back and forth.
+ */
+const nextSeeds = new Map<number, number>();
+export function nextDuelSeed(competition: number, now = Date.now()): number {
+  let s = nextSeeds.get(competition);
+  if (!s) {
+    s = hash(`${now}:${competition}`) || 1;
+    nextSeeds.set(competition, s);
+  }
+  return s;
+}
+/** A duel started: the next visit draws a new one. */
+export const usedDuelSeed = (competition: number) => {
+  nextSeeds.delete(competition);
+};
 
 /** The match being set up: the lobby writes it, the arena reads it. */
 let next: { you: PlayerCard[]; opponent: PlayerCard[]; seed: number; loans: Set<number>; stadiums?: Stadium[] } | null = null;

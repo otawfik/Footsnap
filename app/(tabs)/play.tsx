@@ -2,22 +2,21 @@
  * Play (SPEC.md §5): the Duel hero (your 12-card deck, your record, the button into
  * the arena), Who's this?, and how the Duel works.
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
-import { Button, Credits, LargeHeader, Pitch, Row, Screen, onFill, solidFill, tap } from '../../components/ui';
+import { Button, Credits, LargeHeader, Pitch, Row, Screen, tap } from '../../components/ui';
+import { GroundsPreview } from '../../components/duel/Grounds';
 import { DuelCard } from '../../components/duel/DuelCard';
 import { useLeague } from '../../context/league';
-import { useCards, useTeams } from '../../hooks/data';
+import { useDuelSetup } from '../../hooks/duel';
 import { today, useCollection, useProfile } from '../../lib/storage';
-import { buildDeck, opponentDeck, recordLine, setMatch } from '../../lib/decks';
+import { opponentDeck, recordLine, setMatch, usedDuelSeed, validateDeck } from '../../lib/decks';
 import { lookOf } from '../../lib/collection';
 import { GUESSES_PER_DAY } from '../../lib/guess';
 import { CREDITS_PER_PRIZE, CROWD_BOOST, TURNS } from '../../lib/game';
-import { groundLabel, pickStadiums, stadiumPool } from '../../lib/stadiums';
-import { hash } from '../../lib/rng';
 import { color, font, radius, space, type } from '../../constants/design';
 
 const RULES: [string, string][] = [
@@ -41,38 +40,23 @@ const HAND_W = 74;
 
 export default function Play() {
   const { league } = useLeague();
-  const { cards, list, loading, error, refetch } = useCards(league);
-  const teams = useTeams(league);
-  const pool = useMemo(() => stadiumPool(teams.data?.teams ?? []), [teams.data]);
+  const { list, loading, error, refetch, deck, custom, seed, grounds } = useDuelSetup(league);
   const [collection] = useCollection();
   const [profile] = useProfile();
   const [rulesOpen, setRulesOpen] = useState(false);
   const reduced = useReducedMotion();
   const owned = useMemo(() => collection[String(league.id)] ?? {}, [collection, league.id]);
-  const deck = useMemo(() => {
-    if (!cards) return null;
-    const mine = list.filter((c) => owned[String(c.id)]);
-    return buildDeck(mine, list, hash(`deck:${league.id}`));
-  }, [cards, list, owned, league.id]);
   const rec = profile.duel ?? { played: 0, won: 0, drawn: 0, best: 0 };
   const day = today();
   const guessesLeft = Math.max(0, GUESSES_PER_DAY - (profile.guesses.day === day ? profile.guesses.used : 0));
-
-  // the next duel is drawn when the lobby comes into view, so its grounds can be shown before Play;
-  // coming back after a duel draws a fresh one
-  const [seed, setSeed] = useState(0);
-  useFocusEffect(useCallback(() => setSeed(hash(`${Date.now()}:${league.id}`)), [league.id]));
-  const next = useMemo(() => {
-    if (!deck || !seed) return null;
-    const opponent = opponentDeck(deck.cards, list, seed);
-    // three real grounds when the competition lists venues; plain zones otherwise
-    const stadiums = pool.length >= 3 ? pickStadiums(pool, [deck.cards, opponent], seed) : undefined;
-    return { opponent, stadiums };
-  }, [deck, list, pool, seed]);
+  const invalid = deck ? validateDeck(deck.cards) : null;
 
   const start = () => {
-    if (!deck || !next) return;
-    setMatch({ you: deck.cards, opponent: next.opponent, seed, loans: deck.loans, stadiums: next.stadiums });
+    if (!deck || !seed || invalid) return;
+    // the opponent mirrors your deck's costs, so it's drawn from the deck you actually take in
+    const opponent = opponentDeck(deck.cards, list, seed);
+    setMatch({ you: deck.cards, opponent, seed, loans: deck.loans, stadiums: grounds });
+    usedDuelSeed(league.id);
     router.push('/arena');
   };
 
@@ -137,41 +121,12 @@ export default function Play() {
             </ScrollView>
             <Text style={styles.deckNote}>
               {deck.loans.size
-                ? `${mineCount} of 12 from your collection, ${deck.loans.size} on loan. Collect cards to replace the loans.`
-                : 'All 12 from your collection, the strongest that fit the cost curve.'}
+                ? `${mineCount} of 12 from your collection, ${deck.loans.size} on loan. ${custom ? 'Loans fill the slots you leave empty.' : 'Collect cards to replace the loans.'}`
+                : custom
+                  ? 'Your own deck: all 12 from your collection.'
+                  : 'All 12 from your collection, the strongest that fit the cost curve.'}
             </Text>
-            {next?.stadiums ? (
-              <View style={styles.grounds}>
-                <Text style={styles.groundsTitle}>Next duel's grounds</Text>
-                <View style={styles.groundRow}>
-                  {next.stadiums.map((st) => {
-                    const fill = st.colors[0] ? solidFill(st.colors[0].primary) : color.raised;
-                    const ink = st.colors[0] ? onFill(fill) : color.text2;
-                    const yours = deck.cards.filter((c) => st.clubs.includes(c.team.id)).length;
-                    return (
-                      <View
-                        key={st.name}
-                        style={styles.ground}
-                        accessible
-                        accessibilityLabel={`${st.name}. Home crowd for ${st.codes.join(' and ') || 'nobody'}. ${yours ? `${yours} of your cards play here.` : 'None of your cards play here.'}`}
-                      >
-                        <View style={[styles.groundBand, { backgroundColor: fill }]}>
-                          <Text style={[styles.groundName, { color: ink }]} numberOfLines={2}>
-                            {groundLabel(st.name)}
-                          </Text>
-                        </View>
-                        <Text style={styles.groundCrowd} numberOfLines={1}>
-                          {st.codes.join(' · ')} crowd
-                        </Text>
-                        <Text style={[styles.groundYours, yours > 0 && { color: color.win }]} numberOfLines={1}>
-                          {yours ? `${yours} home card${yours > 1 ? 's' : ''}` : 'No home cards'}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            ) : null}
+            {grounds ? <GroundsPreview grounds={grounds} deck={deck.cards} /> : null}
           </Animated.View>
         ) : null}
 
@@ -198,7 +153,22 @@ export default function Play() {
         </View>
 
         <View style={{ paddingHorizontal: 16 }}>
-          <Button label="Play" onPress={start} disabled={!deck} accessibilityLabel="Play a duel against the AI Manager" />
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Button
+              label="Edit deck"
+              kind="secondary"
+              onPress={() => {
+                tap('select');
+                router.push('/deck');
+              }}
+              disabled={!deck}
+              accessibilityLabel="Edit your deck"
+            />
+            <View style={{ flex: 1 }}>
+              <Button label="Play" onPress={start} disabled={!deck || !!invalid} accessibilityLabel="Play a duel against the AI Manager" />
+            </View>
+          </View>
+          {invalid ? <Text style={[styles.deckNote, { marginTop: 8 }]}>{invalid}</Text> : null}
         </View>
       </Pitch>
 
@@ -286,14 +256,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginTop: 4,
   },
-  grounds: { paddingHorizontal: 16, marginTop: 12, gap: 8 },
-  groundsTitle: { fontFamily: font.semibold, fontSize: 13, lineHeight: 18, color: color.text2 },
-  groundRow: { flexDirection: 'row', gap: 8 },
-  ground: { flex: 1, borderRadius: radius.md, backgroundColor: 'rgba(11,18,32,0.82)', overflow: 'hidden', paddingBottom: 8, gap: 2 },
-  groundBand: { height: 32, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, marginBottom: 4 },
-  groundName: { fontFamily: font.bold, fontSize: 9.5, lineHeight: 11.5, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.4 },
-  groundCrowd: { fontFamily: font.semibold, fontSize: 12, lineHeight: 16, color: color.text, textAlign: 'center', paddingHorizontal: 4 },
-  groundYours: { fontFamily: font.regular, fontSize: 11, lineHeight: 15, color: color.text2, textAlign: 'center', paddingHorizontal: 4 },
   failed: { paddingHorizontal: 16, gap: 10, alignItems: 'flex-start' },
   record: {
     flexDirection: 'row',
