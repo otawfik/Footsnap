@@ -854,7 +854,7 @@ function EndSheet({ s, visible, onAgain, onDone }: { s: GameState; visible: bool
               accessibilityLabel={`${zoneName(s, z)}: you ${mine}, AI Manager ${theirs}. ${lead === 'you' ? 'Won' : lead === 'opponent' ? 'Lost' : 'Level'}`}
             >
               <Text style={styles.zoneName} numberOfLines={2}>
-                {zoneName(s, z)}
+                {groundLabel(zoneName(s, z))}
               </Text>
               <Text style={[styles.miniScore, { color: color.text }]}>
                 {mine}
