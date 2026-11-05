@@ -22,8 +22,8 @@
  *   shuffled, each side draws 3, then 1 more at the start of turns 2-6. During a
  *   turn each side queues plays (hand → zone, at most 4 a side per zone, 3 on a
  *   Tight pitch) within its energy. resolveTurn reveals them: the side winning more
- *   zones reveals all its cards first (tie: you first), each side in the order it
- *   queued them. Kick-off parts resolve as each card lands; then Every turn parts.
+ *   zones reveals all its cards first (level: a seeded coin toss), each side in the order it
+ *   queued them. Kick-off parts resolve as each card lands; then Every turn parts (each card +GROW_CAP at most).
  *   After turn 6, Full time parts resolve once. Card Power never drops below 0.
  *   "Cards here" counts revealed cards plus cards still waiting to reveal this turn.
  *
@@ -40,7 +40,9 @@
  */
 import type { PlayerCard } from './cards';
 import { hash, rng } from './rng';
-import { duelAbility, DuelAbility, Part, PartKind, PART_TRIGGER, Trigger } from './abilities';
+import { duelAbility, DuelAbility, GROW_CAP, Part, PartKind, PART_TRIGGER, Trigger } from './abilities';
+
+export { GROW_CAP };
 import { PLAIN_STADIUMS, Stadium, TwistId, TWISTS } from './stadiums';
 
 export type Side = 'you' | 'opponent';
@@ -112,6 +114,8 @@ export interface Placed {
   turn: number;
   /** permanent Power gained or lost from Kick-off, Every turn and Full time parts */
   bonus: number;
+  /** Power gained from Every turn parts so far (capped at GROW_CAP) */
+  grown?: number;
 }
 
 /** A play queued this turn, waiting to reveal. */
@@ -174,10 +178,11 @@ function shuffle<T>(xs: T[], r: () => number): T[] {
   return a;
 }
 
-/** A card's stats in this game (an override replaces its ability). */
+/** A card's stats in this game (an override replaces its ability; an empty one removes it). */
 export function statsIn(s: GameState, card: PlayerCard): CardStats {
   const o = s.overrides?.[card.id];
-  return o ? withParts(cardStats(card), o) : cardStats(card);
+  if (!o) return cardStats(card);
+  return o.length ? withParts(cardStats(card), o) : { ...cardStats(card), effect: null };
 }
 
 /** The stadium's name. */
@@ -564,8 +569,7 @@ export function resolveTurn(state: GameState, opts: EndTurnOptions = {}): TurnRe
   }
   steps.push({ kind: 'queued', state: clone(s) });
 
-  const won = (side: Side) => ZONES.filter((z) => zoneLeader(s, z) === side).length;
-  const first: Side = won('opponent') > won('you') ? 'opponent' : 'you';
+  const first = firstToReveal(s);
   const order: Side[] = [first, other(first)];
   for (const side of order) {
     while (s.pending[side].length) {
@@ -582,9 +586,10 @@ export function resolveTurn(state: GameState, opts: EndTurnOptions = {}): TurnRe
     if (!effectsWork(s, z)) continue;
     for (const side of order) {
       for (const c of s.zones[z][side]) {
-        const n = sumN(c, 'grow');
-        if (!n) continue;
+        const n = Math.min(sumN(c, 'grow'), GROW_CAP - (c.grown ?? 0));
+        if (n <= 0) continue;
         c.bonus += n;
+        c.grown = (c.grown ?? 0) + n;
         grew = true;
         s.log.push(`${label(side, c.card)} grew to ${cardPower(s, c)} Power.`);
       }
@@ -638,6 +643,19 @@ export function resolveTurn(state: GameState, opts: EndTurnOptions = {}): TurnRe
   logDraw(s, 'you', draw(s, 'you'));
   logDraw(s, 'opponent', draw(s, 'opponent'));
   return { steps, final: s };
+}
+
+/**
+ * Who reveals first this turn: the side winning more zones; level → a coin toss from the
+ * seed, so neither seat always shows its hand first (revealing second sees what Tackles
+ * and Shot-stoppers can hit). Queued plays don't count: only revealed cards decide it.
+ */
+export function firstToReveal(s: GameState): Side {
+  const won = (side: Side) => ZONES.filter((z) => zoneLeader(s, z) === side).length;
+  const a = won('you');
+  const b = won('opponent');
+  if (a !== b) return a > b ? 'you' : 'opponent';
+  return hash(`${s.seed}:first:${s.turn}`) & 1 ? 'opponent' : 'you';
 }
 
 /** Resolve the turn and return the state after it (see resolveTurn for the steps). */
@@ -719,7 +737,7 @@ function laterWorth(s: GameState, st: CardStats, zone: Zone, who: Side): number 
   if (zoneTwist(s, zone) === 'tactics') return 0;
   let v = 0;
   for (const p of st.effect?.parts ?? []) {
-    if (p.kind === 'grow') v += p.n * (TURNS - s.turn) * 0.8;
+    if (p.kind === 'grow') v += Math.min(GROW_CAP, p.n * (TURNS - s.turn + 1)) * 0.8;
     if (p.kind === 'pens') v += p.n * 0.9;
     if (p.kind === 'lastDitch') v += p.n * 0.4;
     if (p.kind === 'draw' && s.turn < TURNS) v += 1.5 * p.n;

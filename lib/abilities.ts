@@ -129,7 +129,7 @@ export function partText(p: Part, card: Pick<PlayerCard, 'team' | 'nationality'>
       case 'boostOthers':
         return `+${p.n} Power to your strongest card at each other stadium.`;
       case 'grow':
-        return `+${p.n} Power.`;
+        return `+${p.n} Power, up to +${GROW_CAP}.`;
       case 'late':
         return `+${p.n} Power if played on turn 5 or 6.`;
       case 'draw':
@@ -162,6 +162,9 @@ export function partText(p: Part, card: Pick<PlayerCard, 'team' | 'nationality'>
   })();
   return `${t}: ${body}`;
 }
+
+/** the most an Every turn part can add to a card over a game */
+export const GROW_CAP = 2;
 
 /** the most penalties a Full time bonus counts */
 export const PENS_CAP = 4;
@@ -237,7 +240,7 @@ const VARIANTS: Record<string, { title: string; part: Part }[]> = {
   DF: [
     { title: 'Marker', part: { kind: 'mark', n: 1 } },
     { title: 'Tackler', part: { kind: 'tackle', n: 2 } },
-    { title: 'Partnership', part: { kind: 'pairDef', n: 2 } },
+    { title: 'Partnership', part: { kind: 'pairDef', n: 3 } },
     { title: 'Last ditch', part: { kind: 'lastDitch', n: 3 } },
   ],
   GK: [
@@ -296,7 +299,7 @@ export function duelAbility(card: Card): DuelAbility {
   if (card.age !== null && card.age <= 20) return make('Wonderkid', [{ kind: 'grow', n: 1 }], `${card.age} years old.`, 'trait-young');
   if (card.age !== null && card.age >= 33) return make('Veteran', [{ kind: 'late', n: 3 }], `${card.age} years old.`, 'trait-veteran');
   const rare = key(card, 'one-of-a-kind') ?? key(card, 'rare-passport');
-  if (rare && ln !== 'GK') return make(rare.title, [{ kind: 'draw', n: 1 }], rare.text, 'trait-passport');
+  if (rare && ln !== 'GK') return make(rare.title, [{ kind: 'roamer', n: 2 }], rare.text, 'trait-passport');
   const home = key(card, 'home-nation');
   if (home && ln !== 'GK' && ln !== 'DF') return make('Local hero', [{ kind: 'homeHero', n: 2 }], home.text, 'trait-home');
 
@@ -308,3 +311,38 @@ export function duelAbility(card: Card): DuelAbility {
 
 /** The club code used in stadium copy ("LIV"). */
 export const clubCode = (t: PlayerCard['team']) => teamCode(t);
+
+/**
+ * Is the ability true of the card's data? Returns null when it is, else what's wrong.
+ * Every number in `why` must be one the data holds (season stats, age, or a figure from
+ * the card's own Season/Trait lines, which lib/cards computes from the squad lists), and
+ * every data-driven part must match its source: penalties for Full time pens, age for
+ * Every turn growth (signatures: 21 or under) and late-game Power (33 or over).
+ */
+export function checkWhy(card: Card, a: Pick<DuelAbility, 'why' | 'parts' | 'role'>): string | null {
+  const s = card.stats;
+  const known = new Set<string>();
+  const put = (n: number | null | undefined) => {
+    if (n !== null && n !== undefined) known.add(String(n));
+  };
+  if (s) [s.goals, s.assists, s.penalties, s.played].forEach(put);
+  put(card.age);
+  for (const ab of card.abilities) for (const m of ab.text.match(/\d+(\.\d+)?/g) ?? []) known.add(m);
+  // names are the data's own words, digits and all ("Mainz 05"): only the figures outside them are claims
+  let claims = a.why;
+  for (const name of [card.team.name, card.team.shortName, card.position, card.nationality]) if (name) claims = claims.split(name).join(' ');
+  for (const m of claims.match(/\d+(\.\d+)?/g) ?? []) if (!known.has(m)) return `"${m}" in "${a.why}" isn't in the data`;
+  for (const p of a.parts) {
+    if (p.kind === 'pens' && (!s?.penalties || p.n !== Math.min(PENS_CAP, s.penalties))) return `pens +${p.n} but penalties ${s?.penalties ?? 'unknown'}`;
+    if (p.kind === 'grow' && a.role !== 'signature' && !(card.age !== null && card.age <= 20)) return `growth without a real age ≤ 20`;
+    if (p.kind === 'grow' && a.role === 'signature' && !(card.age !== null && card.age <= 21)) return `signature growth without a real age ≤ 21`;
+    if (p.kind === 'late' && !(card.age !== null && card.age >= 33)) return `late-game part without a real age ≥ 33`;
+  }
+  if (a.role === 'season-top' && !card.abilities.some((x) => x.key === 'top-scorer')) return 'top-scorer role without the top-scorer line';
+  if (a.role === 'season-pens' && !(s?.penalties && s.penalties >= 2)) return 'penalty role without 2+ penalties';
+  if (a.role === 'season-assists' && !(s?.assists && s.assists >= 3)) return 'playmaker role without 3+ assists';
+  if (a.role === 'trait-young' && !(card.age !== null && card.age <= 20)) return 'wonderkid without age ≤ 20';
+  if (a.role === 'trait-veteran' && !(card.age !== null && card.age >= 33)) return 'veteran without age ≥ 33';
+  if (a.role === 'signature' && !SIGNATURE_IDS.includes(card.id)) return 'signature on an unlisted card';
+  return null;
+}
