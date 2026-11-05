@@ -20,7 +20,7 @@ store release guide: [`docs/app-store.md`](docs/app-store.md)
 | **Model** | Poisson goals model (Maher 1982, the base of Dixon & Coles 1997) fitted by maximum likelihood, plus a Monte Carlo season simulator with parameter uncertainty and common random numbers |
 | **Game** | ~3,000 auto-generated cards, a daily-pack economy, 7 upgrade tiers, and a turn-based duel engine with an AI opponent |
 | **Computer vision** | An automated art pipeline: Wikipedia / Wikidata photo matching verified by date of birth, background removal (U²-Net), face alignment (YuNet) and quality gates, giving 774 licence-credited player cut-outs |
-| **Quality** | 130 unit tests (Vitest); CI runs typecheck, tests, `expo-doctor`, a native-compat check and a full web build on every push |
+| **Quality** | 137 unit tests (Vitest); CI runs typecheck, tests, `expo-doctor`, a native-compat check and a full web build on every push |
 | **Cost to run** | $0: free data tier, free hosting; the API key never leaves the server |
 
 ### Engineering highlights
@@ -43,30 +43,34 @@ store release guide: [`docs/app-store.md`](docs/app-store.md)
 
 ### FootSnap 2.0
 
-A calm, Kalshi-clean dark interface: forecasts are shown as market-style probability rows with one-tap free picks,
-and the cards are FIFA Ultimate Team-grade collectibles with metal rarity rims, real stat lines and tilt-reactive
-foil. Design spec: [`docs/redesign/SPEC.md`](docs/redesign/SPEC.md).
+A calm dark interface with a sports-broadcast feel. Colour comes from football itself: every fixture opens with a
+TV-style score bug in the two clubs' kits, match pages split diagonally between the two kits, club pages are headed
+in the club's colours, and picks fill in your team's colour. Forecasts read as market-style probability rows with
+one-tap free picks (points only, nothing to buy or bet), and the cards are collectibles with metal rarity rims, real
+stat lines and tilt-reactive foil. Design spec: [`docs/redesign/SPEC.md`](docs/redesign/SPEC.md).
 
 <p>
-  <img src="docs/screenshots/v2/1-home.jpg" width="200" alt="Home: your teams' next games as home / draw / away probability rows with an inline pick">
-  <img src="docs/screenshots/v2/2-card.jpg" width="200" alt="Erling Haaland's card: silver rim, Power 12, position, nation and club, and his real goals, goals per game, appearances and age">
-  <img src="docs/screenshots/v2/3-collection.jpg" width="200" alt="The collection grid of Silver and Gold cards; players without a photo get an engraved monogram">
+  <img src="docs/screenshots/v2/1-home.jpg" width="200" alt="Home: Arsenal v Hull City as a TV-style score bug in both kits, with home / draw / away chances to pick from">
+  <img src="docs/screenshots/v2/2-card.jpg" width="200" alt="Erling Haaland's Icon card in Man City sky blue with a holo rim: Power 12, nation, club and his real season stats">
+  <img src="docs/screenshots/v2/3-collection.jpg" width="200" alt="The collection grid: Gold and Silver cards in their clubs' colours; players without a photo get a club-colour monogram">
 </p>
 <p>
-  <img src="docs/screenshots/v2/4-pack.jpg" width="200" alt="Pack opening: a new Gold card revealed">
-  <img src="docs/screenshots/v2/5-duel.jpg" width="200" alt="A duel mid-match: three zones with conditions and Power totals, cards queued, energy gauge">
-  <img src="docs/screenshots/v2/6-match.jpg" width="200" alt="A match page: the model's chances, your pick and the likeliest scores">
+  <img src="docs/screenshots/v2/4-pack.jpg" width="200" alt="Pack opening: a new Bronze card revealed, with its true-of-the-data ability">
+  <img src="docs/screenshots/v2/5-duel.jpg" width="200" alt="The duel board: a floodlit pitch with three zones, their conditions and Power totals, and the hand">
+  <img src="docs/screenshots/v2/6-match.jpg" width="200" alt="A match page split between the two kits: the model's chances, expected goals, your pick and the likeliest scores">
 </p>
 
 ## What's in it
 
-**Cards, inspired by Marvel Snap.** Every player has a card. Rarity is their rank by goals × 2 + assists (top 3 Icon,
-4–10 Elite, 11–20 Rare). The big number is Power (goals × 2 + assists) or age. Abilities are always true statements
+**Cards.** Every player has a card. Rarity is their rank by goals × 2 + assists: the top 3 in each competition are
+Icon, 4–10 Gold, 11–20 Silver, everyone else Bronze. Each rarity has its own metal rim (copper, chrome, gold, and an
+iridescent holo for Icon). The big number is Power (goals × 2 + assists) or age. Abilities are always true statements
 computed from the data, such as "Leads the Premier League with 8 goals", "3 of 8 goals from the penalty spot", or
-"The only player from Japan in the Premier League". The art is
-the player's own photo, cut out of its background and framed identically on every card (same head size, eyes on
-the same line), in the club's colours and breaking out of the frame on rare cards. Cards tilt with the phone's gyroscope, carry foil on
-Elite and Icon, and flip to show full stats and exactly how each number was worked out.
+"The only player from Japan in the Premier League". The face is lit in the colours that club actually wears, from a
+kit table for every club in the six competitions, with text that darkens automatically until it clears 4.5:1. The
+art is the player's own photo, cut out of its background and framed identically on every card (same head size, eyes
+on the same line); players without a free photo get an engraved monogram in club colours. Cards tilt with the
+phone's gyroscope, carry foil on Gold and Icon, and flip to show full stats and exactly how each number was worked out.
 
 **A collection system modelled on Marvel Snap's.** A free daily pack per league (odds shown, nothing to buy), credits
 from packs, duplicates and correct picks, and boosters per card from duplicates. Spend them to upgrade a card
