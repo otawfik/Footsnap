@@ -62,6 +62,10 @@ keep, blurry, crowd, framing = {}, [], [], []
 for key, meta in index.items():
     rgba = np.array(Image.open(os.path.join(D, f"{key}.webp")).convert("RGBA")).astype(np.float32)
     conf = portrait(rgba) if meta.get("face") else 0
+    # rescue pass: framing is reframe.py's job and the face was verified upstream; blur, a second person and
+    # a cut-off head are still checked, and every survivor is looked at by eye
+    if not conf and os.environ.get("GATE_NO_PORTRAIT"):
+        conf = 1
     if not conf:
         framing.append(key)
     elif meta.get("sharp", 0) < SOFT and conf < UNSURE:

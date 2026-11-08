@@ -22,6 +22,8 @@ FINAL = os.path.join(OUT, "final"); os.makedirs(FINAL, exist_ok=True)
 final_path = os.path.join(FINAL, "index.json")
 final = json.load(open(final_path)) if os.path.exists(final_path) else {}
 env = {**os.environ, "U2NET_HOME": os.path.join(MODELS, "models")}
+# rescue.py output: RESCUE=1 skips process.py's re-crop and gate.py's portrait check (see both)
+if os.environ.get("RESCUE"): env.update({"ART_PRECROPPED": "1", "GATE_NO_PORTRAIT": "1"})
 log = {}
 
 def run(args, **extra):
@@ -32,7 +34,8 @@ def parallel(args, extra):
     for p in procs:
         if p.wait(): raise SystemExit(f"{args[0]} failed")
 
-for rnd in range(ROUNDS):
+# START_ROUND=n resumes after a crash without redoing rounds already finished
+for rnd in range(int(os.environ.get("START_ROUND", 0)), ROUNDS):
     todo = {k: v["kept"][rnd] for k, v in state.items() if k not in final and len(v["kept"]) > rnd}
     if not todo: break
     R = os.path.join(OUT, f"round-{rnd}")

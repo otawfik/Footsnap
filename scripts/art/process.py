@@ -30,6 +30,16 @@ else:
 index = json.load(open(index_path)) if os.path.exists(index_path) else {}
 done_before = set(main) | set(index)
 
+def get(url, **kw):
+    """requests.get that survives a timeout or dropped connection (Commons has slow moments)."""
+    for a in range(5):
+        try:
+            return requests.get(url, **kw)
+        except requests.exceptions.RequestException:
+            time.sleep(10 * (a + 1))
+    return requests.get(url, **kw)
+
+
 def strip(s): return html.unescape(re.sub(r"<[^>]+>", "", s or "")).strip()
 
 # Commons metadata, 50 files a call
@@ -37,7 +47,7 @@ meta = {}
 files = sorted({r["image"] for r in res})
 for i in range(0, len(files), 50):
     for a in range(4):
-        rr = requests.get("https://commons.wikimedia.org/w/api.php", params={"action": "query", "format": "json", "formatversion": 2,
+        rr = get("https://commons.wikimedia.org/w/api.php", params={"action": "query", "format": "json", "formatversion": 2,
             "titles": "|".join("File:" + f for f in files[i:i+50]), "prop": "imageinfo", "iiprop": "url|extmetadata|size", "iiurlwidth": SRC_WIDTH}, headers=UA, timeout=60)
         if rr.status_code == 200: break
         time.sleep(3 + a * 3)
@@ -87,7 +97,7 @@ for r in res:
         else:
             # be polite to Wikimedia: back off when it says we're going too fast
             for attempt in range(4):
-                resp = requests.get(m["url"], headers=UA, timeout=60)
+                resp = get(m["url"], headers=UA, timeout=60)
                 if resp.status_code != 429: break
                 time.sleep(min(120, int(resp.headers.get("Retry-After") or 0) or 15 * (attempt + 1)))
             if resp.status_code != 200 or "image" not in resp.headers.get("Content-Type", ""):
@@ -95,7 +105,8 @@ for r in res:
             img = Image.open(io.BytesIO(resp.content)).convert("RGB")
             time.sleep(0.4)
         if min(img.size) < 200: skipped += 1; continue
-        box, face = crop_box(img)
+        # rescue.py's candidates are already a head-and-shoulders crop around the verified face
+        box, face = ((0, 0, img.width, img.height), True) if os.environ.get("ART_PRECROPPED") else crop_box(img)
         img = img.crop(box).resize((W, H), Image.LANCZOS)
         cut = remove(img, session=session, post_process_mask=True)
         a = np.array(cut)[:, :, 3]

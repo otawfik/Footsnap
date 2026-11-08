@@ -39,20 +39,30 @@ os.environ.setdefault("U2NET_HOME", os.path.join(MODELS, "models"))
 session = new_session("u2net_human_seg")
 
 
+def get(url, **kw):
+    """requests.get that survives a timeout or dropped connection (Commons has slow moments)."""
+    for a in range(5):
+        try:
+            return requests.get(url, **kw)
+        except requests.exceptions.RequestException:
+            time.sleep(10 * (a + 1))
+    return requests.get(url, **kw)
+
+
 def source(key):
     path = os.path.join(CACHE, f"{key}.jpg")
     if os.path.exists(path):
         return Image.open(path).convert("RGB")
     title = "File:" + urllib.parse.unquote(index[key]["page"].split("File:")[1])
     for a in range(5):
-        r = requests.get("https://commons.wikimedia.org/w/api.php", params={"action": "query", "format": "json", "formatversion": 2,
+        r = get("https://commons.wikimedia.org/w/api.php", params={"action": "query", "format": "json", "formatversion": 2,
             "titles": title, "prop": "imageinfo", "iiprop": "url", "iiurlwidth": 1280}, headers=UA, timeout=60)
         if r.status_code == 200: break
         time.sleep(10 * (a + 1))
     ii = r.json()["query"]["pages"][0]["imageinfo"][0]
     url = ii.get("thumburl") or ii["url"]
     for a in range(5):
-        resp = requests.get(url, headers=UA, timeout=60)
+        resp = get(url, headers=UA, timeout=60)
         if resp.status_code != 429: break
         time.sleep(min(120, int(resp.headers.get("Retry-After") or 0) or 15 * (a + 1)))
     resp.raise_for_status()
