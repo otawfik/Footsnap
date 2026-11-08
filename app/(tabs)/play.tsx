@@ -63,7 +63,7 @@ export default function Play() {
   const mineCount = deck ? deck.cards.length - deck.loans.size : 0;
 
   return (
-    <Screen>
+    <Screen tint={color.tabTint.play}>
       <LargeHeader title="Play" leagueMenu right={<Credits credits={profile.credits} />} />
 
       {/* the Duel, on a floodlit pitch */}

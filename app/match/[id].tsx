@@ -7,7 +7,9 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Share, useWindowDimensions } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, NavBar, Overline, ProbabilityBar, Segmented, Toggle, KitStripe, KitField, ScoreBug, Bleed, FormPills, Skeleton, Empty, LiveDot, tap, teamName, pctText, fixtureTones, clubText } from '../../components/ui';
+import { Screen, NavBar, Overline, ProbabilityBar, Segmented, Toggle, KitStripe, KitField, ScoreBug, Bleed, FormPills, Skeleton, Empty, LiveDot, tap, teamName, pctText, fixtureTones, toneText } from '../../components/ui';
+import { LinearGradient } from 'expo-linear-gradient';
+import { alpha, luminance, mix } from '../../lib/colors';
 import { LineChart } from '../../components/Charts';
 import { SnapCard } from '../../components/SnapCard';
 import { clock, shortDate, statusLabel } from '../../components/Match';
@@ -123,6 +125,8 @@ export default function MatchScreen() {
       </Pressable>
     );
   };
+  // the chance card is tinted 20% with both kits along a diagonal: measure label text against the lighter one
+  const chanceGround = mix(color.bg, luminance(th) > luminance(ta) ? th : ta, 0.2);
   const bugCenter = done || live ? `${h}–${a}` : m.status === 'POSTPONED' ? 'TBC' : clock(m.utcDate);
 
   return (
@@ -158,7 +162,7 @@ export default function MatchScreen() {
       </View>
 
       {p ? (
-        <View style={styles.sec}>
+        <LinearGradient colors={[alpha(th, 0.2), alpha(ta, 0.2)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.chance}>
           <Overline>{done || live ? 'What the model said before kick-off' : "Model's chance"}</Overline>
           <View style={styles.big}>
             {OUTCOMES.map((o, i) => {
@@ -170,7 +174,7 @@ export default function MatchScreen() {
                     {txt}
                     <Text style={styles.bigPct}>%</Text>
                   </Text>
-                  <Text style={[styles.bigLabel, o !== 'D' && { color: clubText(o === 'H' ? hc : ac), fontFamily: font.semibold }]} numberOfLines={1}>
+                  <Text style={[styles.bigLabel, o !== 'D' && { color: toneText(o === 'H' ? th : ta, chanceGround), fontFamily: font.semibold }]} numberOfLines={1}>
                     {o === 'H' ? teamName(m.homeTeam) : o === 'D' ? 'Draw' : teamName(m.awayTeam)}
                     {result === o ? '  ✓' : ''}
                   </Text>
@@ -183,7 +187,7 @@ export default function MatchScreen() {
             <Text style={styles.xgLabel}>Expected goals</Text>
             <Text style={styles.xgValue}>{p.xgHome.toFixed(2)} – {p.xgAway.toFixed(2)}</Text>
           </View>
-        </View>
+        </LinearGradient>
       ) : null}
 
       <View style={styles.sec}>
@@ -347,6 +351,7 @@ const styles = StyleSheet.create({
   ko: { width: 120, alignItems: 'center', gap: 2, paddingTop: 6 },
   koTime: { fontFamily: font.bold, fontSize: 26, lineHeight: 32, letterSpacing: -0.5, color: color.text, fontVariant: ['tabular-nums'] },
   koMeta: { fontFamily: font.medium, fontSize: 13, lineHeight: 18, color: color.text3, textAlign: 'center' },
+  chance: { borderRadius: 18, padding: 16, marginBottom: 22 },
   sec: { paddingTop: space.xs, paddingBottom: 22 },
   big: { flexDirection: 'row' },
   bigCol: { flex: 1, gap: 2 },

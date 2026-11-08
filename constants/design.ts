@@ -1,60 +1,64 @@
 import type { TextStyle } from 'react-native';
 
 /**
- * FootSnap design system v2.1: "floodlit ink" (docs/redesign/SPEC.md §2).
+ * FootSnap design system v3: "floodlit royal" (docs/redesign/SPEC.md §2).
  *
- * The ground is deep ink navy (a stadium at night, a matchday programme's cover stock), never
- * neutral black. Type is warm chalk cream, like pitch markings. Colour comes from football
- * itself: every team-specific thing (outcome bars, picked pills, match heroes, club headers,
- * table stripes) is drawn in that club's kit via clubTone() / onFill() in components/ui.tsx,
- * which fall back automatically when a kit colour wouldn't read. The brand accent is pitch
- * green (links, progress, your side, wins). The primary action is chalk on ink.
+ * v2.1 sat on near-black ink with club colour only in thin stripes; the owner found it "too dark,
+ * AI vibes". v3 lifts the ground to a lighter, more saturated royal ink, lets club colour fill
+ * whole surfaces (fixture tiles and market headers are gradients from one kit to the other,
+ * like a broadcast graphic), gives each tab a colour of its own at the top of the screen, and
+ * warms the state colours. Text is still warm chalk. Every kit colour goes through clubTone() /
+ * deepTone() / solidFill() / onFill() in components/ui.tsx, which keep text at 4.5:1.
  *
  * WCAG contrast, computed against bg / surface / raised:
- *   text   16.33 / 15.16 / 13.66     text2  9.38 / 8.71 / 7.85     text3  5.82 / 5.40 / 4.87 (on pitch 5.03, its stripe 4.65)
- *   accent (pitch) 10.07 / 9.35 / 8.43    loss 7.35 / 6.83 / 6.15    live 6.09 / 5.65 / 5.10
- *   gold   11.21 / 10.40 / 9.38
- *   onChalk (ink) on chalk 16.33 · onAccent (ink) on accent 10.07
- *   win on winSoft over raised 6.31 · loss on lossSoft over raised 5.00
- * Every text colour clears 4.5:1 on every ground. Recompute if you change one.
+ *   text   14.31 / 12.40 / 10.29     text2  8.79 / 7.61 / 6.32     text3  6.88 / 5.96 / 4.95
+ *   accent (pitch green) 8.67 / 7.51 / 6.24     loss 6.33 / 5.48 / 4.55     gold 9.77 / 8.47 / 7.03
+ *   live   5.76 / 4.99 (text on bg and surface only; on raised it's 4.14, so never there)
+ *   on the pitch / its stripe: text 13.00 / 11.73 · text2 7.98 / 7.21 · text3 6.25 / 5.64
+ *   onChalk (ink) on chalk 14.31 · onAccent (ink) on accent 8.67
+ * Every text colour clears 4.5:1 where it's used. Recompute if you change one.
  */
 
 export const color = {
-  // grounds: ink navy, lifted in two steps
-  bg: '#0B1220', // app ground
-  surface: '#111A2C', // sheets, promo tiles, tab bar
-  raised: '#18233A', // chips, segmented track, pressed rows, % pills
-  hairline: '#1F2B44', // separators (decorative, 1 px)
-  hairlineStrong: '#2C3A57', // bar tracks, outlines (non-text)
+  // grounds: royal ink, lifted in two steps (no near-black anywhere in the shell)
+  bg: '#102040', // app ground
+  surface: '#172B52', // market bodies, sheets, promo tiles, tab bar
+  raised: '#203864', // chips, segmented track, pressed rows, % pills
+  hairline: '#253C68', // separators (decorative, 1 px)
+  hairlineStrong: '#35507F', // bar tracks, outlines (non-text)
 
   // text: warm chalk
-  text: '#F4EFE4',
-  text2: '#BDB7AA',
-  text3: '#948F85', // captions, metadata; never below 12 pt
+  text: '#F6F1E6',
+  text2: '#C4BFB3',
+  text3: '#AEA99E', // captions, metadata; never below 12 pt
 
   // the primary action: chalk on ink (buttons, selected segment, selected chip)
-  chalk: '#F4EFE4',
-  onChalk: '#0B1220',
+  chalk: '#F6F1E6',
+  onChalk: '#102040',
 
-  // brand accent: pitch green (links, progress, your pick when there's no club, your side in the duel)
+  // brand accent: pitch green (links, progress, your side in the duel)
   accent: '#4BD68C', // fills
   accentText: '#4BD68C', // as text or thin lines
-  accentSoft: 'rgba(75,214,140,0.14)',
-  onAccent: '#0B1220',
+  accentSoft: 'rgba(75,214,140,0.16)',
+  onAccent: '#102040',
 
-  // semantics
+  // states: warm and saturated
   win: '#4BD68C',
-  winSoft: 'rgba(75,214,140,0.14)',
+  winSoft: 'rgba(75,214,140,0.16)',
   loss: '#FF7A6B',
-  lossSoft: 'rgba(255,122,107,0.14)',
-  live: '#FF5A50',
-  gold: '#E9C46A', // credits coin only
+  lossSoft: 'rgba(255,122,107,0.16)',
+  live: '#FF6B5B', // live dot, minute and score-bug centre (text on bg / surface only)
+  gold: '#F2C35B', // credits, packs, the Cards tab's colour
 
-  /** a deep floodlit-pitch green, for game surfaces only (Play hero, duel board) */
-  pitch: '#0C251C',
-  pitchLine: 'rgba(244,239,228,0.07)',
+  /** a floodlit-pitch green, for game surfaces only (Play hero, duel board); stripe #13362A */
+  pitch: '#0F2E22',
+  pitchStripe: '#13362A',
+  pitchLine: 'rgba(246,241,230,0.08)',
 
-  scrim: 'rgba(3,6,12,0.66)',
+  /** each tab's colour, washed across the top of its screen (Screen `tint`) */
+  tabTint: { home: '#1E9E5F', matches: '#2F6FE0', cards: '#D9A43A', play: '#1E9E5F' },
+
+  scrim: 'rgba(6,12,26,0.66)',
 } as const;
 
 /** Card metals. Rim gradients run top-left to bottom-right (start {0,0} end {1,1}). */
