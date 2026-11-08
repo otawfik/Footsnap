@@ -108,7 +108,7 @@ def check(p):
         got.append((c, img, e, why))
     kept, log = [], []
     for n, (c, img, e, why) in enumerate(got):
-        if not why and c["source"] in ("category", "depicts"):
+        if not why and c["source"] in ("category", "depicts", "title"):
             if refs:
                 best = max(similar(e, r) for r in refs)
             else:
