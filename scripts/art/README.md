@@ -48,7 +48,8 @@ description mentions football count, and disambiguation pages are skipped. If th
 the article's Wikidata item image (P18) is used. Players with no English article are matched on Wikidata by
 name **and exact date of birth**, so nobody gets a stranger's face. Finally, other-language Wikipedias, but
 only images hosted on Wikimedia Commons. A last check compares every matched article's Wikidata birth date with
-the squad's date of birth and drops any photo where they differ. About 30% of the ~3,070 players end up with a photo that passes every check below;
+the squad's date of birth and drops any photo where they differ. A second pass (`more.py` → `identity.py` → `rounds.py`, below) looks wider on Wikidata and Commons and checks every
+new face against the player's known photos. About a third of the ~3,070 players end up with a photo that passes every check below;
 everyone else gets a plain shirt in their club's colours.
 
 **What happens to a photo.** A 1280 px version (a standard Wikimedia size) is downloaded, politely: two workers at most, backing off on HTTP 429, the face is found (OpenCV), and the picture is
@@ -75,3 +76,14 @@ to look like the player.
 come from the Commons API and are shown on the card and in the card view, with a link to the original and a
 note that the background was removed. Under CC BY-SA, the edited cut-outs carry the same licence as their
 originals.
+
+**Second pass.** For players still without a cut-out:
+
+```bash
+python scripts/art/more.py public/art more.json squads/   # wider candidates: P18, lead images, Commons depicts + category
+python scripts/art/identity.py more.json art/cands art/models   # SFace: the face must match the player's known photos
+python scripts/art/rounds.py art/cands art/models art/rounds 3  # each player's 1st, 2nd, 3rd verified photo through the pipeline
+```
+
+Then look at every survivor (a contact sheet) before it goes in: the November 2026 pass kept 268 of 300, dropping a
+second person in frame, leftover background, blur and bad crops that the automatic gates let through.

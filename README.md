@@ -19,7 +19,7 @@ store release guide: [`docs/app-store.md`](docs/app-store.md)
 | **Data** | Live fixtures, tables, scorers and squads for 6 competitions, through a serverless edge-cached proxy |
 | **Model** | Poisson goals model (Maher 1982, the base of Dixon & Coles 1997) fitted by maximum likelihood, plus a Monte Carlo season simulator with parameter uncertainty and common random numbers |
 | **Game** | ~3,000 auto-generated cards, a daily-pack economy, 7 upgrade tiers, and a turn-based duel engine with an AI opponent |
-| **Computer vision** | An automated art pipeline: Wikipedia / Wikidata photo matching verified by date of birth, background removal (U²-Net), face alignment (YuNet) and quality gates, giving 774 licence-credited player cut-outs |
+| **Computer vision** | An automated art pipeline: Wikipedia / Wikidata photo matching verified by date of birth, background removal (U²-Net), face alignment (YuNet), face verification (SFace) and quality gates, giving 1,042 licence-credited player cut-outs |
 | **Quality** | 144 unit tests (Vitest); CI runs typecheck, tests, `expo-doctor`, a native-compat check and a full web build on every push |
 | **Cost to run** | $0: free data tier, free hosting; the API key never leaves the server |
 
@@ -220,7 +220,7 @@ Football data from [football-data.org](https://www.football-data.org). Player ph
 Commons via each player's Wikipedia / Wikidata entry, credited on every card with the photographer, the licence and
 a link. They're modified (cropped, background removed), and modified photos keep their original licence. A
 photo is only used when the Wikidata birth date matches the squad's, so a namesake never ends up on someone
-else's card. `scripts/art/` rebuilds the set; about 30% of players have one that passes the quality checks, and the rest get a shirt in their
+else's card. `scripts/art/` rebuilds the set; about a third of players have one that passes the quality checks (and a look by eye), and the rest get a shirt in their
 club's colours. The App Store build leaves photos and crests out (see [`docs/app-store.md`](docs/app-store.md)). FootSnap is an independent app, not affiliated with any league, club or football-data.org.
 
 React Native · Expo SDK 54 · Expo Router · TypeScript · Vercel Functions · Vitest
