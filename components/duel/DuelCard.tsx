@@ -48,6 +48,15 @@ const initial = (card: PlayerCard) => {
   return (words[words.length - 1] ?? card.name).charAt(0).toUpperCase();
 };
 
+/** The name a small card can fit: the surname ("Yamal"), skipping a suffix ("Vinicius Junior" → Vinicius). */
+export function shortName(name: string, max: number): string {
+  const b = bannerName(name, max);
+  if (b.length <= max) return b;
+  const words = name.split(/\s+/).filter(Boolean);
+  const last = words[words.length - 1] ?? name;
+  return /^(junior|júnior|jr\.?|filho|neto|sobrinho)$/i.test(last) && words.length > 1 ? words[words.length - 2] : last;
+}
+
 export function DuelCard({ card, size, width: w, power, state, faceDown, tier, selected }: Props) {
   const raw = useId();
   const id = raw.replace(/[^a-zA-Z0-9]/g, '');
@@ -67,6 +76,9 @@ export function DuelCard({ card, size, width: w, power, state, faceDown, tier, s
   const imgH = (img.w * 800) / 600;
 
   if (faceDown) return <CardBackSmall w={w} h={h} id={id} />;
+  // long names shrink to fit rather than lose letters ("Milosavljević"), down to a floor
+  const nm = shortName(card.name, size === 'board' ? 8 : 11);
+  const nameSize = size === 'board' ? Math.max(6.5, 0.165 * w * Math.min(1, 7 / nm.length)) : Math.max(7.5, 0.135 * w * Math.min(1, 10 / nm.length));
 
   return (
     <View style={{ width: w, height: h }} pointerEvents="none">
@@ -199,6 +211,26 @@ export function DuelCard({ card, size, width: w, power, state, faceDown, tier, s
           {size === 'hand' ? <HandType w={w} id={id} power={base} cost={stats.cost} grey={state === 'unaffordable'} rim={`url(#rim${id})`} /> : null}
         </G>
       </Svg>
+      {/* the name, so you can tell who's who at a glance (hold the card for everything else) */}
+      <View
+        pointerEvents="none"
+        style={[
+          styles.nameStrip,
+          size === 'board'
+            ? { top: 0.07 * w, left: 0.07 * w, right: 0.07 * w, height: Math.max(9, 0.2 * w) }
+            : { bottom: 0.07 * w, left: 0.07 * w, right: 0.07 * w, height: 0.19 * w },
+          pending && { opacity: 0.75 },
+        ]}
+      >
+        <Text
+          style={[styles.name, { fontSize: nameSize }]}
+          numberOfLines={1}
+          ellipsizeMode="clip"
+          allowFontScaling={false}
+        >
+          {nm}
+        </Text>
+      </View>
       {size === 'board' ? (
         <Text
           style={[
@@ -332,6 +364,21 @@ export function EmptySlot({ w }: { w: number }) {
 }
 
 const styles = StyleSheet.create({
+  nameStrip: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(5,10,24,0.62)',
+    borderRadius: 3,
+    paddingHorizontal: 2,
+  },
+  name: {
+    fontFamily: font.bold,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    letterSpacing: 0.1,
+    includeFontPadding: false,
+  },
   boardPower: {
     position: 'absolute',
     left: 0,

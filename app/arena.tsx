@@ -21,6 +21,7 @@ import Svg, { Circle, Defs, Line, RadialGradient, Rect, Stop } from 'react-nativ
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Sheet, tap } from '../components/ui';
 import { DuelCard, EmptySlot } from '../components/duel/DuelCard';
+import { CardPeek, Peek } from '../components/duel/CardPeek';
 import { CoinMark, EnergyGem, TickNumber } from '../components/duel/parts';
 import { useLeague } from '../context/league';
 import { useCollection, useProfile } from '../lib/storage';
@@ -128,7 +129,7 @@ function itemsFor(s: GameState, zone: Zone, side: Side): Item[] {
 
 // ---------------------------------------------------------------- a card on the board
 
-function Piece({ item, w, tier, onPress }: { item: Item; w: number; tier: number; onPress?: () => void }) {
+function Piece({ item, w, tier, onPress, onLongPress }: { item: Item; w: number; tier: number; onPress?: () => void; onLongPress?: () => void }) {
   const reduced = useReducedMotion();
   const prev = useRef(item.mode);
   const sc = useSharedValue(1);
@@ -156,7 +157,18 @@ function Piece({ item, w, tier, onPress }: { item: Item; w: number; tier: number
       : `${item.side === 'you' ? '' : "AI Manager's "}${item.card.name}, ${item.power} Power${item.power !== base ? ` (printed ${base})` : ''}${item.home ? ', with the home crowd' : ''}${item.mode === 'pending' ? '. Queued: tap to take it back' : ''}`;
   return (
     <Animated.View entering={reduced ? undefined : FadeIn.duration(160)}>
-      <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : 'image'} accessibilityLabel={label} hitSlop={2}>
+      <Pressable
+        onPress={onPress}
+        onLongPress={onLongPress}
+        delayLongPress={280}
+        disabled={!onPress && !onLongPress}
+        accessibilityRole={onPress ? 'button' : 'image'}
+        accessibilityLabel={label}
+        accessibilityHint={onLongPress ? 'Hold to see the card up close' : undefined}
+        accessibilityActions={onLongPress ? [{ name: 'longpress', label: 'See the card up close' }] : undefined}
+        onAccessibilityAction={(e) => e.nativeEvent.actionName === 'longpress' && onLongPress?.()}
+        hitSlop={2}
+      >
         <Animated.View style={st}>
           <DuelCard
             card={item.card}
@@ -183,12 +195,14 @@ function Slots({
   side,
   tierOf,
   onPiece,
+  onHold,
 }: {
   items: Item[];
   w: number;
   side: Side;
   tierOf: (id: number) => number;
   onPiece: (it: Item) => (() => void) | undefined;
+  onHold: (it: Item) => (() => void) | undefined;
 }) {
   const order = side === 'you' ? [0, 1, 2, 3] : [2, 3, 0, 1];
   return (
@@ -204,7 +218,7 @@ function Slots({
         const it = items[i];
         return (
           <View key={it ? it.key : `e${i}`}>
-            {it ? <Piece item={it} w={w} tier={it.side === 'you' ? tierOf(it.card.id) : 0} onPress={onPiece(it)} /> : <EmptySlot w={w} />}
+            {it ? <Piece item={it} w={w} tier={it.side === 'you' ? tierOf(it.card.id) : 0} onPress={onPiece(it)} onLongPress={onHold(it)} /> : <EmptySlot w={w} />}
           </View>
         );
       })}
@@ -314,6 +328,7 @@ function HandCard({
   selected,
   playable,
   onPress,
+  onLongPress,
 }: {
   card: PlayerCard;
   w: number;
@@ -321,6 +336,7 @@ function HandCard({
   selected: boolean;
   playable: boolean;
   onPress: () => void;
+  onLongPress: () => void;
 }) {
   const reduced = useReducedMotion();
   const y = useSharedValue(0);
@@ -334,6 +350,11 @@ function HandCard({
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={280}
+      accessibilityHint="Hold to see the card up close"
+      accessibilityActions={[{ name: 'longpress', label: 'See the card up close' }]}
+      onAccessibilityAction={(e) => e.nativeEvent.actionName === 'longpress' && onLongPress()}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
       accessibilityRole="button"
@@ -361,6 +382,7 @@ export default function Arena() {
   const [roars, setRoars] = useState<Roar[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [inspect, setInspect] = useState<Inspect>(null);
+  const [peek, setPeek] = useState<Peek | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [revealing, setRevealing] = useState(false);
   const [retreatOpen, setRetreatOpen] = useState(false);
@@ -463,6 +485,21 @@ export default function Arena() {
     setSelected(null);
     setNote(null);
   };
+
+  // hold any card you can see: it comes up big, with its ability in full
+  const hold = (card: PlayerCard, side: Side, power?: number) => {
+    if (!s) return;
+    tap('select');
+    const z = ZONES.find((zz) => isHome(s, zz, card));
+    setPeek({
+      card,
+      side,
+      power,
+      crowd: z !== undefined ? `Home crowd +${crowdBoost(s, z)} at ${zoneName(s, z)}` : undefined,
+      look: side === 'you' ? lookOf(owned[String(card.id)]) : undefined,
+    });
+  };
+  const onHold = (it: Item): (() => void) | undefined => (it.mode === 'down' ? undefined : () => hold(it.card, it.side, it.mode === 'revealed' ? it.power : undefined));
 
   const onPiece = (it: Item): (() => void) | undefined => {
     if (it.mode === 'down') return undefined;
@@ -691,11 +728,11 @@ export default function Arena() {
                   />
                   {target ? <View style={styles.laneTarget} pointerEvents="none" /> : null}
                   <View style={{ height: slotsH, justifyContent: 'flex-end' }}>
-                    <Slots items={itemsFor(s, z, 'opponent')} w={pw} side="opponent" tierOf={tierOf} onPiece={onPiece} />
+                    <Slots items={itemsFor(s, z, 'opponent')} w={pw} side="opponent" tierOf={tierOf} onPiece={onPiece} onHold={onHold} />
                   </View>
                   <ZonePlate s={s} zone={z} roar={roars.find((r) => r.zone === z) ?? null} />
                   <View style={{ height: slotsH }}>
-                    <Slots items={itemsFor(s, z, 'you')} w={pw} side="you" tierOf={tierOf} onPiece={onPiece} />
+                    <Slots items={itemsFor(s, z, 'you')} w={pw} side="you" tierOf={tierOf} onPiece={onPiece} onHold={onHold} />
                   </View>
                 </Pressable>
               );
@@ -734,6 +771,7 @@ export default function Arena() {
                 selected={selected === c.id}
                 playable={!busy && zonesFor(c.id).size > 0}
                 onPress={() => onCard(c)}
+                onLongPress={() => hold(c, 'you')}
               />
             ))
           ) : (
@@ -778,6 +816,7 @@ export default function Arena() {
 
       {/* full time */}
       {s.over ? <EndSheet s={s} visible={endOpen} onAgain={rematch} onDone={done} /> : null}
+      <CardPeek peek={peek} onClose={() => setPeek(null)} competition={league.name} />
     </View>
   );
 }
