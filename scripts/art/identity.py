@@ -111,6 +111,9 @@ def check(p):
         if not why and c["source"] in ("category", "depicts", "title"):
             if refs:
                 best = max(similar(e, r) for r in refs)
+            elif c["source"] == "title":
+                # two title finds agreeing only proves they show the same person: most such pairs were namesakes
+                best = -1
             else:
                 others = [o[2] for m, o in enumerate(got) if m != n and o[2] is not None and not o[3]]
                 best = max((similar(e, o) for o in others), default=-1)
