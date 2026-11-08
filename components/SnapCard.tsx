@@ -7,8 +7,8 @@
  *     the text needs; every cut-out is framed the same way; not-owned cards stay in full colour
  *   - FUT type top-left (Power, position, nation, club), the Snap cost gem top-right,
  *     a real-stats row along the bottom (never a 0 the data doesn't hold)
- *   - photos off (the store build): the club kit as a diagonal sash and an engraved metal
- *     medallion with the surname's initial, a first-class face, not a fallback
+ *   - no licensed photo: the back of his club shirt, printed (components/card/KitArt), in the
+ *     photo's box; Who's this? mystery cards keep the engraved "?" medallion
  *
  * Everything is drawn in one react-native-svg tree, in card-width percent units (u). The grid
  * card is static (no animation loop per card); only the full card animates its sheen and tilt.
@@ -27,6 +27,7 @@ import { nationCode } from '../lib/nations';
 import { useArt, type Art } from '../lib/art';
 import { CARD, CARD_RATIO, cardPath, color, font, gem, metal, motion, type Metal } from '../constants/design';
 import { cardMetal, clubField } from './card/metals';
+import { KitArt } from './card/KitArt';
 import { luminance, mix } from '../lib/colors';
 
 // retired v1 pieces, re-exported until guess.tsx / arena.tsx stop importing them (SPEC §6)
@@ -202,7 +203,8 @@ function Face({ card, w, size, look, art, collected, competition, season, power,
   const dim = collected === false;
   const photo = mystery ? null : art;
   const bo = full && !dim && !back && !!photo && breaksFrame(card, look);
-  const monoBreak = full && !dim && !back && !photo && look.tier >= 1;
+  // the medallion now only fronts mystery cards; every other photo-less card wears its kit (KitArt)
+  const monoBreak = full && !dim && !back && !photo && !!mystery && look.tier >= 1;
   const { c1, c2 } = { c1: card.team.colors.primary, c2: card.team.colors.secondary };
   const cf = clubField(c1, c2, m);
   const stats = cardStats(card);
@@ -281,6 +283,10 @@ function Face({ card, w, size, look, art, collected, competition, season, power,
         </G>
       ) : null}
       <SvgImage {...imgProps} mask={`url(#${uid}pm)`} />
+    </G>
+  ) : !mystery ? (
+    <G mask={`url(#${uid}pm)`}>
+      <KitArt id={uid} x={u(pl)} y={u(pt)} width={u(pw)} primary={c1} secondary={c2} line={card.line} letter={letter} name={full ? faceName(card.name, card.nationality) : undefined} />
     </G>
   ) : (
     <G>
