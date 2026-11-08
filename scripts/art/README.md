@@ -20,6 +20,28 @@ for i in 0 1 2; do SHARD=$i/3 python scripts/art/reframe.py public/art art/model
 python scripts/art/merge.py public/art
 ```
 
+**Second pass: players still without a photo.** Run after the first build; it only looks at players who have
+no entry in `public/art/index.json`, and never touches the ones that do.
+
+```bash
+python scripts/art/more.py public/art art/more.json          # wider search, strict identity, free licences only
+python scripts/art/identity.py art/more.json art/cands art/models   # download, check the face is the player's
+python scripts/art/rounds.py art/cands art/models art/rounds  # process > clean > gate > reframe, up to 3 tries each
+# look at a contact sheet of art/rounds/final before copying anything into public/art
+```
+
+`more.py` requires a Wikidata item whose birth date is exactly the squad's (no birth date on Wikidata, no
+photo), then gathers every image on the item (P18), the player's Wikipedia lead images in 13 languages, files
+on Commons tagged as depicting him (P180) and files in his Commons category, newest and cropped portraits
+first. Only CC0, public domain, CC BY and CC BY-SA files are kept; uploads credited to governments, press
+offices or news agencies and anything categorised as AI-generated are skipped. A file found on Commons (rather
+than on his Wikidata item or Wikipedia article) must carry his surname in its name and not name a second
+person, and `identity.py` then compares faces (OpenCV YuNet + SFace, `art/models/sface.onnx` from opencv_zoo):
+the framed face must clearly dominate the photo, and must match a photo his Wikidata item or article already
+uses (or, when he has none, another of his files). `rounds.py` runs the same stages and gates as the first
+build on each player's verified photos in turn, so a soft or badly cropped first choice can be replaced by
+the next one.
+
 **Which photos.** For each player in the competitions' squad lists: the English Wikipedia article for
 "<name> (footballer, born <year>)", then "<name> (footballer)", then "<name>". Only articles whose short
 description mentions football count, and disambiguation pages are skipped. If the article has no lead image,

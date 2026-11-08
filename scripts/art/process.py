@@ -13,6 +13,8 @@ W, H = int(os.environ.get("ART_W", 600)), int(os.environ.get("ART_H", 800))
 # 1280 is one of Wikimedia's standard (cached) thumbnail widths; bigger, non-standard widths get rate-limited
 SRC_WIDTH = int(os.environ.get("ART_SRC_WIDTH", 1280))
 CROP_FACES = float(os.environ.get("ART_CROP", 6.0))
+# already-downloaded originals (<dir>/<id>.jpg, e.g. from identity.py): used instead of fetching again
+CACHE = os.environ.get("ART_CACHE")
 
 res = [r for r in json.load(open(SRC)) if r.get("image")]
 if ONLY: res = [r for r in res if r["name"] in ONLY]
@@ -79,15 +81,19 @@ for r in res:
     m = meta.get(r["image"]) or meta.get(r["image"].replace("_", " "))
     if not m or not m["url"]: skipped += 1; continue
     try:
-        # be polite to Wikimedia: back off when it says we're going too fast
-        for attempt in range(4):
-            resp = requests.get(m["url"], headers=UA, timeout=60)
-            if resp.status_code != 429: break
-            time.sleep(min(120, int(resp.headers.get("Retry-After") or 0) or 15 * (attempt + 1)))
-        if resp.status_code != 200 or "image" not in resp.headers.get("Content-Type", ""):
-            skipped += 1; print("skip", r["name"], "HTTP", resp.status_code, flush=True); continue
-        raw = resp.content
-        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        cached = CACHE and os.path.join(CACHE, f"{key}.jpg")
+        if cached and os.path.exists(cached):
+            img = Image.open(cached).convert("RGB")
+        else:
+            # be polite to Wikimedia: back off when it says we're going too fast
+            for attempt in range(4):
+                resp = requests.get(m["url"], headers=UA, timeout=60)
+                if resp.status_code != 429: break
+                time.sleep(min(120, int(resp.headers.get("Retry-After") or 0) or 15 * (attempt + 1)))
+            if resp.status_code != 200 or "image" not in resp.headers.get("Content-Type", ""):
+                skipped += 1; print("skip", r["name"], "HTTP", resp.status_code, flush=True); continue
+            img = Image.open(io.BytesIO(resp.content)).convert("RGB")
+            time.sleep(0.4)
         if min(img.size) < 200: skipped += 1; continue
         box, face = crop_box(img)
         img = img.crop(box).resize((W, H), Image.LANCZOS)
@@ -106,6 +112,5 @@ for r in res:
     except Exception as e:
         skipped += 1
         print("skip", r["name"], type(e).__name__, str(e)[:80], flush=True)
-    time.sleep(0.4)
 json.dump(index, open(index_path, "w"))
 print(f"done {done} skipped {skipped} total {len(index)}")
