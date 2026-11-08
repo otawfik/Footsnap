@@ -333,6 +333,11 @@ export default function MatchScreen() {
         <Text style={styles.fine}>
           From a goals model fitted to this season's {ratings.games} results.
           {bt ? ` Called before each game, it has been right ${Math.round(bt.accuracy * 100)}% of the time (Brier ${bt.brier.toFixed(3)}).` : ''}
+          {bt ? (
+            <Text style={{ color: color.accentText, fontFamily: font.semibold }} onPress={() => router.push('/model')} accessibilityRole="link">
+              {'  How good is the model? ›'}
+            </Text>
+          ) : null}
         </Text>
       ) : (
         <Text style={styles.fine}>The model's chances start once this season has a few results.</Text>

@@ -314,7 +314,12 @@ function Projections({ table, matches, ratings, competitionId, colors }: { table
 
   return (
     <View>
-      <Text style={[type.footnote, { marginBottom: space.sm }]}>{left} fixtures left, each simulated 2,000 times with the goals model.</Text>
+      <Text style={[type.footnote, { marginBottom: space.sm }]}>
+        {left} fixtures left, each simulated 2,000 times with the goals model.{' '}
+        <Text style={{ color: color.accentText, fontFamily: font.semibold }} onPress={() => router.push('/model')} accessibilityRole="link">
+          How good is it? ›
+        </Text>
+      </Text>
       <View style={[styles.trow, styles.thead]}>
         <Text style={[styles.th, { width: 24 }]}>#</Text>
         <Text style={[styles.th, { flex: 1, paddingLeft: 14 }]}>Club</Text>

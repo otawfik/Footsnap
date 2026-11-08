@@ -200,30 +200,80 @@ export interface Backtest {
  * against forecasting every match with the season's H/D/A rates so far.
  */
 export function backtest(matches: Match[], minPrior = 30, seasonStart?: Prior | null): Backtest | null {
+  const calls = backtestCalls(matches, minPrior, seasonStart);
+  if (!calls.length) return null;
+  const n = calls.length;
+  return {
+    n,
+    accuracy: calls.filter((c) => pick(c.p) === c.o).length / n,
+    brier: calls.reduce((t, c) => t + brier(c.p, c.o), 0) / n,
+    homeBaselineAccuracy: calls.filter((c) => c.o === 'H').length / n,
+    rateBaselineBrier: calls.reduce((t, c) => t + brier(c.rates, c.o), 0) / n,
+  };
+}
+
+/** One walk-forward call: the model's prediction before kick-off, the league's H/D/A rates then, and what happened. */
+export interface Call {
+  match: Match;
+  p: Prediction;
+  rates: Prediction;
+  o: Outcome;
+}
+
+/** The walk-forward calls behind `backtest`, one per played match with enough history before it. */
+export function backtestCalls(matches: Match[], minPrior = 30, seasonStart?: Prior | null): Call[] {
   const games = matches.filter(played).sort((a, b) => a.utcDate.localeCompare(b.utcDate));
-  let n = 0, correct = 0, brierSum = 0, homeCorrect = 0, rateBrier = 0;
+  const out: Call[] = [];
   let cache: { day: string; r: Ratings | null } | null = null;
-  for (let i = 0; i < games.length; i++) {
-    const m = games[i];
+  for (const m of games) {
     const day = m.utcDate.slice(0, 10);
     const prior = games.filter((g) => g.utcDate.slice(0, 10) < day);
     if (prior.length < minPrior) continue;
     if (!cache || cache.day !== day) cache = { day, r: fitSeason(prior, seasonStart) };
     if (!cache.r) continue;
-    const p = predict(cache.r, m.homeTeam.id, m.awayTeam.id);
-    const o = outcome(m);
-    n++;
-    if (pick(p) === o) correct++;
-    if (o === 'H') homeCorrect++;
-    brierSum += brier(p, o);
-    const rates = { H: 0, D: 0, A: 0 };
-    for (const g of prior) rates[outcome(g)]++;
-    const base = { home: rates.H / prior.length, draw: rates.D / prior.length, away: rates.A / prior.length, xgHome: 0, xgAway: 0, score: [0, 0] as [number, number] };
-    rateBrier += brier(base, o);
+    const counts = { H: 0, D: 0, A: 0 };
+    for (const g of prior) counts[outcome(g)]++;
+    const rates: Prediction = { home: counts.H / prior.length, draw: counts.D / prior.length, away: counts.A / prior.length, xgHome: 0, xgAway: 0, score: [0, 0] };
+    out.push({ match: m, p: predict(cache.r, m.homeTeam.id, m.awayTeam.id), rates, o: outcome(m) });
   }
-  if (!n) return null;
-  return { n, accuracy: correct / n, brier: brierSum / n, homeBaselineAccuracy: homeCorrect / n, rateBaselineBrier: rateBrier / n };
+  return out;
 }
+
+/** Brier score of saying 1/3 for every outcome: the no-knowledge line (lower is better). */
+export const COIN_BRIER = 2 / 3;
+
+export interface Bin {
+  lo: number;
+  hi: number;
+  /** mean forecast probability in the bin */
+  said: number;
+  /** how often those outcomes happened */
+  happened: number;
+  n: number;
+}
+
+/**
+ * Calibration: every call gives three forecasts (home win, draw, away win); bin them by the
+ * probability the model said and count how often each came true. A calibrated model's 30%s
+ * happen about 30% of the time. Empty bins are left out.
+ */
+export function calibration(calls: Call[], bins = 5): Bin[] {
+  const acc = Array.from({ length: bins }, (_, i) => ({ lo: i / bins, hi: (i + 1) / bins, sum: 0, hits: 0, n: 0 }));
+  for (const c of calls)
+    for (const [q, k] of [[c.p.home, 'H'], [c.p.draw, 'D'], [c.p.away, 'A']] as [number, Outcome][]) {
+      const b = acc[Math.min(bins - 1, Math.floor(q * bins))];
+      b.sum += q;
+      b.n++;
+      if (c.o === k) b.hits++;
+    }
+  return acc.filter((b) => b.n).map((b) => ({ lo: b.lo, hi: b.hi, said: b.sum / b.n, happened: b.hits / b.n, n: b.n }));
+}
+
+/** The chance the model gave to what actually happened. */
+export const chanceOf = (c: Pick<Call, 'p' | 'o'>) => (c.o === 'H' ? c.p.home : c.o === 'D' ? c.p.draw : c.p.away);
+
+/** The results the model saw coming least: lowest chance given to the actual outcome first. */
+export const upsets = (calls: Call[], n = 5): Call[] => calls.slice().sort((a, b) => chanceOf(a) - chanceOf(b) || a.match.id - b.match.id).slice(0, n);
 
 /** P(home scores i, away scores j) for i, j in 0..max (the corner cell holds "max or more"). */
 export function scoreGrid(r: Ratings, homeId: number, awayId: number, max = 5): number[][] {

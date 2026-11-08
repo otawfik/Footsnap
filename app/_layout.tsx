@@ -44,6 +44,7 @@ export default function RootLayout() {
           <Stack.Screen name="match/[id]" />
           <Stack.Screen name="club/[id]" />
           <Stack.Screen name="about" />
+          <Stack.Screen name="model" />
           <Stack.Screen name="profile" options={{ presentation: 'modal' }} />
           <Stack.Screen name="teams" options={{ presentation: 'modal' }} />
           <Stack.Screen name="card/[id]" options={{ presentation: 'transparentModal', animation: 'fade' }} />
