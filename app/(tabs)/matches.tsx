@@ -27,9 +27,9 @@ import {
 } from '../../components/ui';
 import { MatchMarket, CompactMatchRow, dayHeader, shortDate } from '../../components/Match';
 import { useLeague } from '../../context/league';
-import { currentMatchday, useClubColors, useSeason, useSettlePicks, useTable, useTeams } from '../../hooks/data';
+import { currentMatchday, useClubColors, usePrior, useSeason, useSettlePicks, useTable, useTeams } from '../../hooks/data';
 import { isFinished, isLive, isUpcoming, recentForm, zone, Zone } from '../../lib/football';
-import { fit, predict, Ratings } from '../../lib/model';
+import { fitSeason, predict, Ratings } from '../../lib/model';
 import { lastMatchday, remaining, simulate, tableAfter, Projection } from '../../lib/season';
 import { applyPick, applyPress, locked, pressedIn, tally } from '../../lib/picks';
 import { usePicks } from '../../lib/storage';
@@ -426,14 +426,15 @@ export default function Matches() {
   const [mode, setMode] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const matches = useMemo(() => season.data?.matches ?? [], [season.data]);
-  const ratings = useMemo(() => fit(matches), [matches]);
+  const prior = usePrior(league, season.data?.matches);
+  const ratings = useMemo(() => fitSeason(matches, prior), [matches, prior]);
   const venues = useMemo(() => new Map((teams.data?.teams ?? []).filter((t) => t.venue).map((t) => [t.id, t.venue as string])), [teams.data]);
   useSettlePicks(matches);
 
   const md = useMemo(() => currentMatchday(matches), [matches]);
   const mdPoints = useMemo(() => {
     const ids = new Set(matches.filter((m) => m.matchday === md).map((m) => m.id));
-    return tally(Object.values(picks).filter((p) => ids.has(p.matchId)), matches).you;
+    return tally(Object.values(picks).filter((p) => ids.has(p.matchId)), matches, prior).you;
   }, [picks, matches, md]);
 
   const onRefresh = useCallback(async () => {

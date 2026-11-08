@@ -7,7 +7,7 @@
  */
 import type { Match } from './types';
 import { isFinished } from './football';
-import { fit, outcome, pick as modelPick, predict, Outcome } from './model';
+import { fitSeason, outcome, pick as modelPick, predict, Outcome, type Prior } from './model';
 
 export interface UserPick {
   matchId: number;
@@ -29,22 +29,22 @@ export interface Tally {
 }
 
 /** The model's call for a match, from results before its day. */
-export function modelCall(matches: Match[], m: Match): { outcome: Outcome; confidence: number } | null {
+export function modelCall(matches: Match[], m: Match, prior?: Prior | null): { outcome: Outcome; confidence: number } | null {
   const day = m.utcDate.slice(0, 10);
-  const r = fit(matches.filter((g) => isFinished(g) && g.utcDate.slice(0, 10) < day));
+  const r = fitSeason(matches.filter((g) => isFinished(g) && g.utcDate.slice(0, 10) < day), prior);
   if (!r) return null;
   const p = predict(r, m.homeTeam.id, m.awayTeam.id);
   const o = modelPick(p);
   return { outcome: o, confidence: o === 'H' ? p.home : o === 'A' ? p.away : p.draw };
 }
 
-export function tally(picks: UserPick[], matches: Match[]): Tally {
+export function tally(picks: UserPick[], matches: Match[], prior?: Prior | null): Tally {
   const byId = new Map(matches.map((m) => [m.id, m]));
   const t: Tally = { you: 0, model: 0, settled: 0, youCorrect: 0, modelCorrect: 0 };
   const settled = picks.map((p) => ({ p, m: byId.get(p.matchId) })).filter((x): x is { p: UserPick; m: Match } => !!x.m && isFinished(x.m));
 
   // the model's Snap: its most confident call in each matchday you played
-  const calls = new Map(settled.map(({ m }) => [m.id, modelCall(matches, m)]));
+  const calls = new Map(settled.map(({ m }) => [m.id, modelCall(matches, m, prior)]));
   const snapOf = new Map<number, number>();
   for (const { m } of settled) {
     const md = m.matchday ?? -1;

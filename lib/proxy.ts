@@ -47,9 +47,12 @@ export function resolve(path: string, query: URLSearchParams): Resolved | null {
       if (k !== 'path' && PARAMS.has(k) && /^[\w,.-]{1,40}$/.test(v)) params.set(k, v);
     }
     const qs = params.toString();
+    // a past season's results never change (the app only asks for last season, for the model's prior)
+    const archive = params.has('season') && /\/matches$/.test(clean);
+    const [maxAge, stale] = archive ? [43200, 604800] : [rule.maxAge, rule.stale];
     return {
       upstream: `https://api.football-data.org/v4/${clean}${qs ? `?${qs}` : ''}`,
-      cacheControl: `public, max-age=0, s-maxage=${rule.maxAge}, stale-while-revalidate=${rule.stale}`,
+      cacheControl: `public, max-age=0, s-maxage=${maxAge}, stale-while-revalidate=${stale}`,
     };
   }
   return null;

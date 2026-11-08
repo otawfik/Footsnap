@@ -7,7 +7,7 @@ import Constants from 'expo-constants';
 import { Screen, NavBar, SectionHeader, KitChip, Row, Credits } from '../components/ui';
 import { useLeague } from '../context/league';
 import { LEAGUE_MAP } from '../constants/leagues';
-import { useSeason } from '../hooks/data';
+import { usePrior, useSeason } from '../hooks/data';
 import { tally } from '../lib/picks';
 import { useFavorites, usePicks, useProfile } from '../lib/storage';
 import { DEPLOYED_URL } from '../services/api';
@@ -31,7 +31,8 @@ export default function Profile() {
   const [picks] = usePicks();
   const [profile] = useProfile();
   const matches = useMemo(() => season.data?.matches ?? [], [season.data]);
-  const t = useMemo(() => tally(Object.values(picks).filter((p) => matches.some((m) => m.id === p.matchId)), matches), [picks, matches]);
+  const prior = usePrior(league, season.data?.matches);
+  const t = useMemo(() => tally(Object.values(picks).filter((p) => matches.some((m) => m.id === p.matchId)), matches, prior), [picks, matches, prior]);
   const duel = profile.duel ?? { played: 0, won: 0, drawn: 0, best: 0 };
   const close = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
