@@ -35,8 +35,8 @@ export function GroundsPreview({ grounds, deck, title = "Next duel's grounds" }:
               accessibilityLabel={`${st.name}. Home crowd for ${st.codes.join(' and ') || 'nobody'}. ${yours ? `${yours} of your cards play here.` : 'None of your cards play here.'}`}
             >
               <View style={[styles.groundBand, { backgroundColor: fill }]}>
-                {/* the arena plate's tiers, so "The American Express Community" fits two lines */}
-                <Text style={[styles.groundName, label.length > 18 && styles.groundLong, label.length > 26 && styles.groundLonger, { color: ink }]} numberOfLines={2}>
+                {/* long names ("Coventry Building Society Arena") take up to three lines */}
+                <Text style={[styles.groundName, label.length > 18 && styles.groundLong, label.length > 26 && styles.groundLonger, { color: ink }]} numberOfLines={3}>
                   {label}
                 </Text>
               </View>
@@ -72,10 +72,11 @@ const styles = StyleSheet.create({
   groundsTitle: { fontFamily: font.semibold, fontSize: 13, lineHeight: 18, color: color.text2 },
   groundRow: { flexDirection: 'row', gap: 8 },
   ground: { flex: 1, borderRadius: radius.md, backgroundColor: 'rgba(11,18,32,0.82)', overflow: 'hidden', paddingBottom: 8, gap: 2 },
-  groundBand: { height: 32, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, marginBottom: 4 },
+  groundBand: { height: 40, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, marginBottom: 4 },
   groundName: { fontFamily: font.bold, fontSize: 9.5, lineHeight: 11.5, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.4 },
-  groundLong: { fontSize: 8.5, lineHeight: 10.5, letterSpacing: 0.2 },
-  groundLonger: { fontSize: 7.5, lineHeight: 9.5, letterSpacing: 0 },
+  // long names take a third line at a readable size instead of shrinking to 7.5 pt
+  groundLong: { fontSize: 9, lineHeight: 11, letterSpacing: 0.2 },
+  groundLonger: { fontSize: 9, lineHeight: 11, letterSpacing: 0 },
   groundCrowd: { fontFamily: font.semibold, fontSize: 12, lineHeight: 16, color: color.text, textAlign: 'center', paddingHorizontal: 4 },
   groundYours: { fontFamily: font.regular, fontSize: 11, lineHeight: 15, color: color.text2, textAlign: 'center', paddingHorizontal: 4 },
   badge: { alignSelf: 'flex-start', maxWidth: '100%', height: 20, paddingHorizontal: 7, borderRadius: 10, justifyContent: 'center' },
