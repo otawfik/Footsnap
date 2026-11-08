@@ -12,7 +12,12 @@
  *   2. the SEASON (top-20 scorers only): Golden Boot leader, penalties, clinical
  *      finishing, assists, open-play goals.
  *   3. a TRAIT: age (20 or under, 33 or over), a rare passport, home nation.
- *   4. a LINE VARIANT: one of four mechanics for the line, picked by player id so a
+ *   4. a PROFILE from Wikidata (lib/facts.ts): 100+ caps, unusual height for his line,
+ *      a specific position (winger, full-back, holding midfielder, number 10,
+ *      centre-forward), 50+ caps, or centre-back. Its "why" credits Wikidata. Tried after the age
+ *      traits but before the passport ones: how a player plays says more than his passport.
+ *      (Not club histories: Wikidata's are often missing clubs, so "one-club man" lied.)
+ *   5. a LINE VARIANT: one of four mechanics for the line, picked by player id so a
  *      card always plays the same way. Its "why" line only says the player's position
  *      and club, which the data does say.
  *
@@ -28,6 +33,7 @@
 import type { PlayerCard } from './cards';
 import { teamCode } from './cards';
 import { hash } from './rng';
+import { factsOf, Facts } from './facts';
 
 export type Trigger = 'kickoff' | 'while' | 'turn' | 'fulltime';
 export const TRIGGER_NAME: Record<Trigger, string> = { kickoff: 'Kick-off', while: 'While here', turn: 'Every turn', fulltime: 'Full time' };
@@ -253,6 +259,48 @@ const VARIANTS: Record<string, { title: string; part: Part }[]> = {
 
 const key = (c: Card, k: string) => c.abilities.find((a) => a.key === k);
 
+/** tests swap a card's Wikidata facts here (undefined = no facts) */
+export const FACTS_OVERRIDE: Record<number, Facts | undefined> = {};
+
+export const CENTURION = 100;
+export const INTERNATIONAL = 50;
+export const TALL: Record<string, number> = { GK: 195, DF: 192, MF: 189, FW: 191 };
+export const SHORT = 170;
+
+/** Position words beyond the line, and the mechanic each plays as. */
+const POSITION_ROLE: Partial<Record<string, { title: string; part: Part; name: string; lines: string[] }>> = {
+  wg: { title: 'Winger', part: { kind: 'spread', n: 2 }, name: 'a winger', lines: ['FW', 'MF'] },
+  fb: { title: 'Overlapping full-back', part: { kind: 'boostOthers', n: 1 }, name: 'a full-back', lines: ['DF'] },
+  dm: { title: 'Holding midfielder', part: { kind: 'tackle', n: 2 }, name: 'a defensive midfielder', lines: ['MF'] },
+  am: { title: 'Number 10', part: { kind: 'boostHere', n: 1 }, name: 'an attacking midfielder', lines: ['MF', 'FW'] },
+  st: { title: 'Centre-forward', part: { kind: 'alone', n: 3 }, name: 'a centre-forward', lines: ['FW'] },
+};
+
+/** The profile role (header, step 4), or null when Wikidata says nothing that fits. */
+function profile(c: Card, ln: string, f: Facts | undefined): { title: string; part: Part; why: string; role: string } | null {
+  if (!f) return null;
+  const club = c.team.shortName;
+  if (f.caps !== undefined && f.caps >= CENTURION)
+    return { title: 'Centurion', part: { kind: 'captain', n: 1 }, why: `${f.caps} caps for his country (Wikidata).`, role: 'profile-caps' };
+  if (f.cm !== undefined && f.cm >= TALL[ln]) {
+    const why = `${f.cm} cm tall (Wikidata).`;
+    if (ln === 'GK') return { title: 'Fills the goal', part: { kind: 'mark', n: 1 }, why, role: 'profile-tall' };
+    if (ln === 'DF') return { title: 'Wins every header', part: { kind: 'mark', n: 1 }, why, role: 'profile-tall' };
+    if (ln === 'MF') return { title: 'Physical presence', part: { kind: 'tackle', n: 2 }, why, role: 'profile-tall' };
+    return { title: 'Target man', part: { kind: 'withMates', n: 1 }, why, role: 'profile-tall' };
+  }
+  if (f.cm !== undefined && f.cm <= SHORT && ln !== 'GK' && ln !== 'DF')
+    return { title: 'Low centre of gravity', part: { kind: 'emptyHere', n: 3 }, why: `${f.cm} cm tall (Wikidata).`, role: 'profile-short' };
+  for (const w of f.pos ?? []) {
+    const r = POSITION_ROLE[w];
+    if (r && r.lines.includes(ln)) return { title: r.title, part: r.part, why: `Listed as ${r.name} (Wikidata), at ${club}.`, role: `profile-${w}` };
+  }
+  if (f.caps !== undefined && f.caps >= INTERNATIONAL && ln !== 'GK')
+    return { title: 'Seasoned international', part: { kind: 'behind', n: 3 }, why: `${f.caps} caps for his country (Wikidata).`, role: 'profile-intl' };
+  if (ln === 'DF' && f.pos?.[0] === 'cb') return { title: 'Centre-back pairing', part: { kind: 'pairDef', n: 3 }, why: `Listed as a centre-back (Wikidata), at ${club}.`, role: 'profile-cb' };
+  return null;
+}
+
 /** The card's Duel ability (see the header for the order the roles are tried in). */
 export function duelAbility(card: Card): DuelAbility {
   const ln = card.line ?? 'FW';
@@ -298,6 +346,9 @@ export function duelAbility(card: Card): DuelAbility {
   // 3. traits
   if (card.age !== null && card.age <= 20) return make('Wonderkid', [{ kind: 'grow', n: 1 }], `${card.age} years old.`, 'trait-young');
   if (card.age !== null && card.age >= 33) return make('Veteran', [{ kind: 'late', n: 3 }], `${card.age} years old.`, 'trait-veteran');
+  const prof = profile(card, ln, card.id in FACTS_OVERRIDE ? FACTS_OVERRIDE[card.id] : factsOf(card.id));
+  if (prof) return make(prof.title, [prof.part], prof.why, prof.role);
+
   const rare = key(card, 'one-of-a-kind') ?? key(card, 'rare-passport');
   if (rare && ln !== 'GK') return make(rare.title, [{ kind: 'roamer', n: 2 }], rare.text, 'trait-passport');
   const home = key(card, 'home-nation');
@@ -327,6 +378,8 @@ export function checkWhy(card: Card, a: Pick<DuelAbility, 'why' | 'parts' | 'rol
   };
   if (s) [s.goals, s.assists, s.penalties, s.played].forEach(put);
   put(card.age);
+  const f = card.id in FACTS_OVERRIDE ? FACTS_OVERRIDE[card.id] : factsOf(card.id);
+  if (a.role.startsWith('profile-')) [f?.cm, f?.caps].forEach(put);
   for (const ab of card.abilities) for (const m of ab.text.match(/\d+(\.\d+)?/g) ?? []) known.add(m);
   // names are the data's own words, digits and all ("Mainz 05"): only the figures outside them are claims
   let claims = a.why;
