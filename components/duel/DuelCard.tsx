@@ -20,7 +20,6 @@ import { useArt } from '../../lib/art';
 import type { PlayerCard } from '../../lib/cards';
 import { bannerName } from '../../lib/cards';
 import { mix } from '../../lib/colors';
-import { KitArt } from '../card/KitArt';
 
 export type DuelCardSize = 'hand' | 'board';
 
@@ -145,6 +144,14 @@ export function DuelCard({ card, size, width: w, power, state, faceDown, tier, s
           <ClipPath id={`clip${id}`}>
             <Path d={face} />
           </ClipPath>
+          {!art ? (
+            <LinearGradient id={`sash${id}`} x1="0" y1="0" x2="1" y2="0">
+              <Stop offset="0.08" stopColor={club} stopOpacity={0} />
+              <Stop offset="0.34" stopColor={club} stopOpacity={0.5} />
+              <Stop offset="0.66" stopColor={club} stopOpacity={0.5} />
+              <Stop offset="0.92" stopColor={club} stopOpacity={0} />
+            </LinearGradient>
+          ) : null}
         </Defs>
         <G x={GLOW_PAD} y={GLOW_PAD}>
           {pending || selected ? (
@@ -165,11 +172,37 @@ export function DuelCard({ card, size, width: w, power, state, faceDown, tier, s
                 <SvgImage href={{ uri: art.src }} x={img.x} y={img.y} width={img.w} height={imgH} preserveAspectRatio="xMidYMin slice" mask={`url(#my${id})`} />
               </G>
             ) : (
-              // no licensed photo: the player in his club's kit, framed like a cut-out
-              <G mask={`url(#mx${id})`}>
-                <G mask={`url(#my${id})`}>
-                  <KitArt id={id} x={img.x} y={img.y} width={img.w} primary={card.team.colors.primary} secondary={card.team.colors.secondary} line={card.line} letter={initial(card)} />
+              <G>
+                {/* photos off: the kit as a diagonal sash, the surname's initial engraved over it */}
+                <G rotation={-28} origin={`${w / 2}, ${w * (size === 'board' ? 0.52 : 0.55)}`}>
+                  <Rect
+                    x={-0.4 * w}
+                    y={w * (size === 'board' ? 0.34 : 0.4)}
+                    width={1.8 * w}
+                    height={w * (size === 'board' ? 0.36 : 0.3)}
+                    fill={`url(#sash${id})`}
+                  />
                 </G>
+                {size === 'hand' ? (
+                  <>
+                    <Circle cx={0.55 * w} cy={0.5 * w} r={0.31 * w} fill={m.faceBottom} stroke={`url(#rim${id})`} strokeWidth={Math.max(1, 0.009 * w)} />
+                    {[0.27, 0.22, 0.17].map((r) => (
+                      <Circle key={r} cx={0.55 * w} cy={0.5 * w} r={r * w} fill="none" stroke="#fff" strokeOpacity={0.07} strokeWidth={0.6} />
+                    ))}
+                  </>
+                ) : null}
+                <SvgText
+                  x={size === 'board' ? 0.5 * w : 0.55 * w}
+                  y={size === 'board' ? 0.44 * w + 0.2 * w : 0.5 * w + 0.125 * w}
+                  fontSize={size === 'board' ? 0.58 * w : 0.36 * w}
+                  fontFamily={font.cardHeavy}
+                  fontWeight="800"
+                  textAnchor="middle"
+                  fill={`url(#num${id})`}
+                  opacity={size === 'board' ? 0.55 : 1}
+                >
+                  {initial(card)}
+                </SvgText>
               </G>
             )}
             <Rect x={0} y={0} width={w} height={h} fill={`url(#vig${id})`} />
