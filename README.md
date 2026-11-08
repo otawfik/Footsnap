@@ -19,7 +19,7 @@ store release guide: [`docs/app-store.md`](docs/app-store.md)
 | **Data** | Live fixtures, tables, scorers and squads for 6 competitions, through a serverless edge-cached proxy |
 | **Model** | Poisson goals model (Maher 1982, the base of Dixon & Coles 1997) fitted by maximum likelihood, plus a Monte Carlo season simulator with parameter uncertainty and common random numbers |
 | **Game** | ~3,000 auto-generated cards, a daily-pack economy, 7 upgrade tiers, and a turn-based duel engine with an AI opponent |
-| **Computer vision** | An automated art pipeline: Wikipedia / Wikidata photo matching verified by date of birth, background removal (U²-Net), face alignment (YuNet), face verification (SFace) and quality gates, giving 1,326 licence-credited player cut-outs |
+| **Computer vision** | An automated art pipeline: Wikipedia / Wikidata photo matching verified by date of birth, background removal (U²-Net), face alignment (YuNet), face verification (SFace) and quality gates, giving 1,335 licence-credited player cut-outs |
 | **Quality** | 144 unit tests (Vitest); CI runs typecheck, tests, `expo-doctor`, a native-compat check and a full web build on every push |
 | **Cost to run** | $0: free data tier, free hosting; the API key never leaves the server |
 
