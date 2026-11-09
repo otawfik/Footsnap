@@ -25,7 +25,15 @@ export interface Match {
   stage?: string;
   homeTeam: Team;
   awayTeam: Team;
-  score: { winner?: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null; fullTime: Score; halfTime?: Score };
+  score: {
+    winner?: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null;
+    /** REGULAR, or EXTRA_TIME / PENALTY_SHOOTOUT, when fullTime includes extra-time goals */
+    duration?: 'REGULAR' | 'EXTRA_TIME' | 'PENALTY_SHOOTOUT';
+    fullTime: Score;
+    halfTime?: Score;
+    /** the score after 90 minutes, sent when there was extra time */
+    regularTime?: Score;
+  };
   competition?: { id: number; name: string };
 }
 
