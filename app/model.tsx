@@ -25,9 +25,9 @@ const FIVE: [string, string, boolean][] = [
 ];
 // scripts/inplay-backtest.ts, run 9 Nov 2026: 3,536 matches, five leagues, 2024-25 to 2026-27 [label, Brier, log loss, is the in-play model]
 const HALF_TIME: [string, string, string, boolean][] = [
-  ['In-play model at half-time', '0.482', '0.820', true],
+  ['In-play model', '0.482', '0.820', true],
   ['Half-time score alone', '0.505', '0.860', false],
-  ['The forecast before kick-off', '0.593', '0.994', false],
+  ['Pre-match forecast', '0.593', '0.994', false],
 ];
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
@@ -135,7 +135,7 @@ export default function ModelReport() {
             <Text style={[type.footnote, { marginTop: space.sm }]}>
               "Half-time score alone" is how often each half-time margin ended in a win, draw or loss in 2021-22 to 2023-24; the
               model adds who is playing. Its numbers come from those seasons too: 45% of goals come before half-time, and a
-              side that's behind scores about 11% more than expected, a side ahead about 4% fewer. The free data feed has no
+              side that's behind scores about 11% more than expected, a side ahead 3.5% fewer. The free data feed has no
               goal minutes, so a match page draws the curve only where the score stayed the same.
             </Text>
           </View>
