@@ -1,9 +1,10 @@
 /**
  * A match: the kick-off (or the score), the model's chance for each outcome (for finished games,
- * what it said before kick-off), your free pick, the likeliest scores, form, the points race
+ * what it said before kick-off), for live and finished games the chance through the match
+ * (lib/inplay.ts), your free pick, the likeliest scores, form, the points race
  * and each side's key card.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Share, useWindowDimensions } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +12,7 @@ import { Screen, NavBar, Overline, ProbabilityBar, Segmented, Toggle, KitStripe,
 import { LinearGradient } from 'expo-linear-gradient';
 import { alpha, luminance, mix } from '../../lib/colors';
 import { LineChart } from '../../components/Charts';
+import { WinChance } from '../../components/WinChance';
 import { SnapCard } from '../../components/SnapCard';
 import { clock, shortDate, statusLabel } from '../../components/Match';
 import { useLeague } from '../../context/league';
@@ -18,6 +20,7 @@ import { LEAGUE_MAP } from '../../constants/leagues';
 import { useCards, useClubColors, usePrior, useSeason, useSettlePicks, useTable, useTeams } from '../../hooks/data';
 import { backtest, fitSeason, outcome as resultOf, pick as leadOf, predict, scoreGrid, Outcome } from '../../lib/model';
 import { isFinished, isLive, recentForm } from '../../lib/football';
+import { checkpoints, winCurve } from '../../lib/inplay';
 import { applyPick, applyPress, locked, points, pressedIn } from '../../lib/picks';
 import { trajectory } from '../../lib/season';
 import { useCollection, usePicks } from '../../lib/storage';
@@ -36,7 +39,10 @@ export default function MatchScreen() {
   const { id, c } = useLocalSearchParams<{ id: string; c?: string }>();
   const ctx = useLeague();
   const league = (c && LEAGUE_MAP[Number(c)]) || ctx.league;
-  const season = useSeason(league);
+  // while the match is on, re-fetch the fixtures (edge-cached for 30 s) and move the clock
+  const [poll, setPoll] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const season = useSeason(league, poll ? 30_000 : null);
   const standings = useTable(league);
   const teams = useTeams(league);
   const colors = useClubColors(league);
@@ -49,6 +55,14 @@ export default function MatchScreen() {
   const matches = useMemo(() => season.data?.matches ?? [], [season.data]);
   const m = matches.find((x) => x.id === Number(id));
   useSettlePicks(matches);
+  const onNow = !!m && isLive(m);
+  useEffect(() => {
+    setPoll(onNow);
+    if (!onNow) return;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, [onNow]);
 
   const prior = usePrior(league, season.data?.matches);
   // finished or live games: the model as it stood before kick-off; otherwise the current fit
@@ -60,6 +74,9 @@ export default function MatchScreen() {
   const bt = useMemo(() => backtest(matches, 30, prior), [matches, prior]);
   const p = m && ratings ? predict(ratings, m.homeTeam.id, m.awayTeam.id) : null;
   const grid = m && ratings ? scoreGrid(ratings, m.homeTeam.id, m.awayTeam.id) : null;
+  // the chance through the match, from the pre-match forecast and the scores the data gives
+  const marks = m && p && (isFinished(m) || isLive(m)) && m.status !== 'AWARDED' ? checkpoints(m, now) : [];
+  const curve = p && marks.length > 1 ? winCurve(p, marks) : null;
 
   if (!m) {
     return (
@@ -188,6 +205,19 @@ export default function MatchScreen() {
             <Text style={styles.xgValue}>{p.xgHome.toFixed(2)} – {p.xgAway.toFixed(2)}</Text>
           </View>
         </LinearGradient>
+      ) : null}
+
+      {curve ? (
+        <View style={styles.sec}>
+          <Overline right={live && marks[marks.length - 1].minute < 90 ? 'Live' : undefined}>Chance through the match</Overline>
+          <WinChance stretches={curve} width={contentW} names={[code(m.homeTeam), code(m.awayTeam)]} tones={[th, ta]} live={live && marks[marks.length - 1].minute < 90} />
+          <Text style={styles.caption}>
+            {live
+              ? 'From the forecast before kick-off and the live score, which the free data feed can send a few minutes late. It has no match clock, so the minute is estimated from the kick-off time, and no goal minutes.'
+              : "From the forecast before kick-off and the score at half-time and full time. The free data feed doesn't give goal minutes, so the curve is only drawn where the score stayed the same."}
+            {m.score.duration && m.score.duration !== 'REGULAR' ? ' The chance is for the result after 90 minutes; extra time and penalties aren\'t part of it.' : ''}
+          </Text>
+        </View>
       ) : null}
 
       <View style={styles.sec}>
