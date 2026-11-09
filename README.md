@@ -183,8 +183,8 @@ earlier seasons.
 | the forecast before kick-off | 0.593 | 0.994 |
 
 The half-time score does most of the work, as it should; knowing who is playing is worth a further 0.023 Brier.
-Calibration: grouped by the chance it gave, its forecasts land within 2 points of what happened in every 10% band
-but one (70-80%: said 74.9%, happened 70.0%). Without the score-state factors the half-time leader's win chance
+Calibration: grouped by the chance it gave, its forecasts land within 2 points of what happened in eight of ten
+10% bands; the misses are 50-60% (said 54.9%, happened 58.3%) and 70-80% (said 74.9%, happened 70.0%). Without the score-state factors the half-time leader's win chance
 was 3.5 (home) and 5.3 (away) points too high; with them, 1.0 and 2.3.
 
 **Season simulation.** Each simulated season redraws every team's strength around its fitted value (log-normal,
