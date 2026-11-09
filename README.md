@@ -20,7 +20,7 @@ store release guide: [`docs/app-store.md`](docs/app-store.md)
 | **Model** | Poisson goals model (Maher 1982, the base of Dixon & Coles 1997) fitted by maximum likelihood, plus a Monte Carlo season simulator with parameter uncertainty and common random numbers |
 | **Game** | ~3,000 auto-generated cards, a daily-pack economy, 7 upgrade tiers, and a turn-based duel engine with an AI opponent |
 | **Computer vision** | An automated art pipeline: Wikipedia / Wikidata photo matching verified by date of birth, background removal (U²-Net), face alignment (YuNet), face verification (SFace) and quality gates, giving 1,335 licence-credited player cut-outs |
-| **Quality** | 144 unit tests (Vitest); CI runs typecheck, tests, `expo-doctor`, a native-compat check and a full web build on every push |
+| **Quality** | 211 unit tests (Vitest); CI runs typecheck, tests, `expo-doctor`, a native-compat check and a full web build on every push |
 | **Cost to run** | $0: free data tier, free hosting; the API key never leaves the server |
 
 ### Engineering highlights
@@ -30,6 +30,10 @@ store release guide: [`docs/app-store.md`](docs/app-store.md)
   (backtested on 2,105 matches). Walk-forward on 1,894 matches across five leagues it calls 51.1% of results against
   44.1% for always backing the home side, with a Brier score 8.5% better than the league's own averages. Each match
   page shows the full scoreline probability grid the forecast comes from.
+- **The chance through the match, without inventing data.** Live and finished match pages chart home / draw / away
+  from kick-off to full time with an in-play model on top of the forecast. The free data has no goal minutes, so
+  the curve is drawn only where the score is known to have held, and stretches with goals are marked as such.
+  At half-time it scores a Brier of 0.482 against 0.505 for the half-time score alone (3,536 held-out matches).
 - **"What if?" that only moves what it should.** The season simulator pins any results you set and re-runs the
   rest. Common random numbers mean only the clubs your result actually affects change, not noise from re-rolling.
 - **A shared rate limit, spent once.** The free data tier allows 10 requests a minute. A Vercel edge function holds
@@ -148,6 +152,41 @@ before its day, and scored on accuracy and multi-class Brier score against two b
 recovers the strength order and home advantage, and the walk-forward test beats both baselines when teams differ
 and doesn't when they're identical.
 
+**In-play: the chance through the match.** Once a match kicks off, the goals still to come are Poisson with the
+forecast's expected goals scaled by the share of the match left, and the final score is the current one plus those
+goals ([`lib/inplay.ts`](lib/inplay.ts)). At 0' that is exactly the pre-match forecast; at full time the result is
+certain. Two adjustments, both measured on 2021-22 to 2023-24 in the five leagues (football-data.co.uk CSVs):
+goals aren't spread evenly (45.1% come before half-time, so the second half's rate is higher), and score state
+matters (sides behind at half-time scored 10.9% more second-half goals than the model expected, sides ahead 3.5%
+fewer, so the rest of the match is scaled by those factors). The forecast is for the 90-minute result; extra time
+and penalties aren't part of it.
+
+*What the curve is built from.* football-data.org's free tier gives the score at half-time and full time, and the
+current score while a match is on, but no goal minutes and no match clock (those are in its paid tier). So the
+match page uses checkpoints: kick-off (0–0), half-time, full time and, live, now. Between two checkpoints with the
+same score the curve is exact, minute by minute. Where the score changed, the data doesn't say when, so that
+stretch is shaded, labelled with the goals in it, and its ends are joined by a dotted line rather than a guessed
+path. Live, the minute is estimated from the kick-off time, and the free feed's scores can arrive a few minutes late;
+the page says both.
+
+*Backtest at half-time* ([`scripts/inplay-backtest.ts`](scripts/inplay-backtest.ts)): 3,536 matches in the five
+leagues from 2024-25 to 2026-27 (to November), each with the shipped pre-match forecast made walk-forward, then the
+in-play forecast from it and the half-time score, scored against the 90-minute result. The constants come only from
+earlier seasons.
+
+| at half-time | Brier (lower is better) | log loss |
+|---|---|---|
+| **in-play model** | **0.482** | **0.820** |
+| in-play, without the score-state factors | 0.483 | 0.823 |
+| in-play, goals spread evenly over both halves | 0.485 | 0.826 |
+| half-time score alone (how often each half-time margin ended H / D / A, 2021-24) | 0.505 | 0.860 |
+| the forecast before kick-off | 0.593 | 0.994 |
+
+The half-time score does most of the work, as it should; knowing who is playing is worth a further 0.023 Brier.
+Calibration: grouped by the chance it gave, its forecasts land within 2 points of what happened in every 10% band
+but one (70-80%: said 74.9%, happened 70.0%). Without the score-state factors the half-time leader's win chance
+was 3.5 (home) and 5.3 (away) points too high; with them, 1.0 and 2.3.
+
 **Season simulation.** Each simulated season redraws every team's strength around its fitted value (log-normal,
 wider for teams with fewer games). Treating fitted strengths as certain made the simulator absurdly confident ten
 games in: one side had a 95% title chance. Remaining fixtures are drawn from the model, added to the official
@@ -179,7 +218,7 @@ app (iOS / Android / web)  ──►  /api/fd  (Vercel function)  ──►  foo
 ```bash
 npm install
 npx expo start          # scan the QR code with Expo Go, or press i / a for a simulator
-npm run test            # 70 unit tests: model, simulator, cards and abilities, collection, packs, picks, proxy
+npm run test            # 211 unit tests: model, in-play chance, simulator, cards and abilities, collection, packs, picks, proxy
 npm run typecheck
 ```
 
@@ -204,7 +243,7 @@ app/
   pack.tsx                opening the daily pack
   guess.tsx               Who's this?
   arena.tsx               the Duel board
-  match/[id].tsx          scoreline heatmap, points race, key cards
+  match/[id].tsx          the chance through the match, scoreline heatmap, points race, key cards
   club/[id].tsx           position chart, ratings, projection, fixtures, squad cards
   about.tsx               data sources, privacy, support links
 api/fd.ts                 the Vercel proxy (holds the football-data.org key)
@@ -212,8 +251,10 @@ components/
   SnapCard.tsx            the card: rarity frames, foil, tilt, flip, upgrade tiers, Premium
   ui.tsx                  design-system primitives
   Match.tsx, Charts.tsx   scoreboards, fixture cards, SVG line charts
+  WinChance.tsx           the chance-through-the-match chart (scrub or hover to read a minute)
 lib/                      pure logic, unit-tested
   model.ts                Poisson model, odds, scoreline grid, walk-forward backtest
+  inplay.ts               in-play chance: time left, score state, checkpoints from the data
   season.ts               Monte Carlo season simulator (what-if pins), table replay, trajectories
   cards.ts                rarity, Power and abilities from real data
   game.ts, decks.ts       the Duel engine and AI; deck building
@@ -231,7 +272,9 @@ scripts/art/              the photo pipeline (below)
 
 ## Data and credits
 
-Football data from [football-data.org](https://www.football-data.org). Player photos come from Wikimedia
+Football data from [football-data.org](https://www.football-data.org). The in-play model's constants and its
+backtest use the free results files from [football-data.co.uk](https://www.football-data.co.uk/data.php) (not
+shipped with the app). Player photos come from Wikimedia
 Commons via each player's Wikipedia / Wikidata entry, credited on every card with the photographer, the licence and
 a link. They're modified (cropped, background removed), and modified photos keep their original licence. A
 photo is only used when the Wikidata birth date matches the squad's, so a namesake never ends up on someone
