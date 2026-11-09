@@ -23,6 +23,12 @@ const FIVE: [string, string, boolean][] = [
   ['League averages: Brier score', '0.655', false],
   ['A third each: Brier score', '0.667', false],
 ];
+// scripts/inplay-backtest.ts, run 9 Nov 2026: 3,536 matches, five leagues, 2024-25 to 2026-27 [label, Brier, log loss, is the in-play model]
+const HALF_TIME: [string, string, string, boolean][] = [
+  ['In-play model at half-time', '0.482', '0.820', true],
+  ['Half-time score alone', '0.505', '0.860', false],
+  ['The forecast before kick-off', '0.593', '0.994', false],
+];
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
 export default function ModelReport() {
@@ -102,6 +108,35 @@ export default function ModelReport() {
             </View>
             <Text style={[type.footnote, { marginTop: space.sm }]}>
               Bookmakers usually call 53–55%. This model sees results only, no lineups, injuries or market prices.
+            </Text>
+          </View>
+
+          <View style={styles.sec}>
+            <SectionHeader title="During a match" />
+            <Text style={[type.footnote, styles.note]}>
+              Match pages follow the chance through the game: the goals still to come are the forecast's expected goals scaled
+              by the time left, added to the score. Checked at half-time on 3,536 matches in five leagues from 2024-25 to
+              2026-27, against the 90-minute result (scripts/inplay-backtest.ts). Lower is better.
+            </Text>
+            <View style={styles.cmp}>
+              <View style={styles.cmpRow} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+                <Text style={[type.caption, { flex: 1 }]}>At half-time</Text>
+                <Text style={[type.caption, styles.num]}>Brier</Text>
+                <Text style={[type.caption, styles.num]}>Log loss</Text>
+              </View>
+              {HALF_TIME.map(([label, b, l, best]) => (
+                <View key={label} style={styles.cmpRow} accessible accessibilityLabel={`${label}: Brier ${b}, log loss ${l}`}>
+                  <Text style={[styles.barLabel, { flex: 1 }, best && { color: color.text, fontFamily: font.semibold }]}>{label}</Text>
+                  <Text style={[styles.barValue, styles.num, best && { color: color.accentText }]}>{b}</Text>
+                  <Text style={[styles.barValue, styles.num, best && { color: color.accentText }]}>{l}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={[type.footnote, { marginTop: space.sm }]}>
+              "Half-time score alone" is how often each half-time margin ended in a win, draw or loss in 2021-22 to 2023-24; the
+              model adds who is playing. Its numbers come from those seasons too: 45% of goals come before half-time, and a
+              side that's behind scores about 11% more than expected, a side ahead about 4% fewer. The free data feed has no
+              goal minutes, so a match page draws the curve only where the score stayed the same.
             </Text>
           </View>
 
@@ -205,6 +240,7 @@ const styles = StyleSheet.create({
   fill: { height: 8, borderRadius: 4 },
   cmp: { borderRadius: radius.md, backgroundColor: color.surface, paddingHorizontal: space.md, paddingVertical: space.sm },
   cmpRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
+  num: { width: 64, textAlign: 'right' },
   axes: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
   upsetPct: { fontFamily: font.semibold, fontSize: 15, color: color.loss, fontVariant: ['tabular-nums'], marginRight: 4 },
 });
