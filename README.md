@@ -27,7 +27,8 @@ store release guide: [`docs/app-store.md`](docs/app-store.md)
 
 - **A forecast that shows its work.** Team attack and defence strengths are fitted by iterative scaling to the
   maximum-likelihood solution, starting from last season's strengths so a few early results can't swing the ratings
-  (backtested on 2,105 matches). Each match
+  (backtested on 2,105 matches). Walk-forward on 1,894 matches across five leagues it calls 51.1% of results against
+  44.1% for always backing the home side, with a Brier score 8.5% better than the league's own averages. Each match
   page shows the full scoreline probability grid the forecast comes from.
 - **"What if?" that only moves what it should.** The season simulator pins any results you set and re-runs the
   rest. Common random numbers mean only the clubs your result actually affects change, not noise from re-rolling.
@@ -126,6 +127,20 @@ Brier score fell from 0.613 to 0.599 overall and from 0.628 to 0.597 in the firs
 the title race: nine games into 2026-27, the old prior made Brighton (+17 goal difference, 5 points off the top) a
 43.7% title pick; starting from last season, Arsenal lead at 49%, Man City 23%, Brighton 21%. The Champions League
 keeps the league-average prior, since its field changes every year.
+
+**Against baselines.** Walk-forward across the five leagues (2025-26 and 2026-27 to date), scoring every match
+once its league season had 30 results (1,894 matches), each forecast only from games before its day
+([`scripts/baselines.ts`](scripts/baselines.ts)):
+
+| | FootSnap model | always the home side | league H/D/A rates so far | a third each |
+|---|---|---|---|---|
+| accuracy | **51.1%** | 44.1% | 43.3% | 33.3% |
+| Brier score (lower is better) | **0.599** | | 0.655 | 0.667 |
+| log loss (lower is better) | **1.003** | | 1.083 | 1.099 |
+
+That's 8.5% better Brier than the league-rate forecast and 10.2% better than knowing nothing. For scale, bookmakers'
+closing odds usually call 53-55% of results; this model is fitted to results alone (no lineups, injuries or
+market information), so it doesn't claim to beat the market.
 
 The record shown in the app is honest by construction: each finished match is predicted from a fit on matches
 before its day, and scored on accuracy and multi-class Brier score against two baselines. Code:

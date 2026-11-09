@@ -15,6 +15,14 @@ import { backtestCalls, brier, calibration, chanceOf, COIN_BRIER, pick, upsets, 
 import { color, font, radius, space, type } from '../constants/design';
 
 const MIN_PRIOR = 30;
+// scripts/baselines.ts, run 8 Nov 2026: [label, value, is the model]
+const FIVE: [string, string, boolean][] = [
+  ['FootSnap model: results called', '51.1%', true],
+  ['Always backing the home side', '44.1%', false],
+  ['FootSnap model: Brier score', '0.599', true],
+  ['League averages: Brier score', '0.655', false],
+  ['A third each: Brier score', '0.667', false],
+];
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
 export default function ModelReport() {
@@ -76,6 +84,25 @@ export default function ModelReport() {
             {miss.map((c, i) => (
               <Upset key={c.match.id} c={c} last={i === miss.length - 1} />
             ))}
+          </View>
+
+          <View style={styles.sec}>
+            <SectionHeader title="Across five leagues" />
+            <Text style={[type.footnote, styles.note]}>
+              The same walk-forward test on the Premier League, La Liga, Bundesliga, Serie A and Ligue 1: 1,894 matches from
+              2025-26 and 2026-27 to November 2026 (scripts/baselines.ts).
+            </Text>
+            <View style={styles.cmp}>
+              {FIVE.map(([label, v, best]) => (
+                <View key={label} style={styles.cmpRow} accessible accessibilityLabel={`${label}: ${v}`}>
+                  <Text style={[styles.barLabel, best && { color: color.text, fontFamily: font.semibold }]}>{label}</Text>
+                  <Text style={[styles.barValue, best && { color: color.accentText }]}>{v}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={[type.footnote, { marginTop: space.sm }]}>
+              Bookmakers usually call 53–55%. This model sees results only, no lineups, injuries or market prices.
+            </Text>
           </View>
 
           <View style={styles.sec}>
@@ -176,6 +203,8 @@ const styles = StyleSheet.create({
   barValue: { fontFamily: font.semibold, fontSize: 15, color: color.text2, fontVariant: ['tabular-nums'] },
   track: { height: 8, borderRadius: 4, backgroundColor: color.raised, overflow: 'hidden' },
   fill: { height: 8, borderRadius: 4 },
+  cmp: { borderRadius: radius.md, backgroundColor: color.surface, paddingHorizontal: space.md, paddingVertical: space.sm },
+  cmpRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   axes: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
   upsetPct: { fontFamily: font.semibold, fontSize: 15, color: color.loss, fontVariant: ['tabular-nums'], marginRight: 4 },
 });
