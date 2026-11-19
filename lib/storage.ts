@@ -39,6 +39,17 @@ async function write(key: string, value: unknown) {
   }
 }
 
+/**
+ * The web build is pre-rendered to HTML at build time, where nothing is saved, and the first client
+ * render has to match that HTML exactly or React throws it away (error #418). The saved value loads
+ * asynchronously, so whether it had arrived by the first render was a race: when it had, the client
+ * drew "Pick your teams" or a loading skeleton where the HTML had the other. So until the page has
+ * hydrated, every store renders as "not loaded yet", on the server and in the browser alike; the
+ * saved value arrives one effect later. Native apps have no pre-rendered HTML and skip this.
+ */
+const isWebOrServer = typeof document !== 'undefined' || typeof window === 'undefined';
+let hydrated = !isWebOrServer;
+
 /** A tiny shared store per key, so every screen sees the same state. */
 function makeStore<T>(key: string, initial: T, migrate?: (raw: unknown) => T) {
   let value = initial;
@@ -50,9 +61,11 @@ function makeStore<T>(key: string, initial: T, migrate?: (raw: unknown) => T) {
     subs.forEach((s) => s(value));
   });
   return function useStore(): [T, (update: (v: T) => T) => void, boolean] {
-    const [v, setV] = useState(value);
-    const [ready, setReady] = useState(loaded);
+    const [v, setV] = useState(() => (hydrated ? value : initial));
+    const [ready, setReady] = useState(() => hydrated && loaded);
     useEffect(() => {
+      // effects run after hydration has committed: stores mounted from now on can start loaded
+      if (typeof document !== 'undefined') hydrated = true;
       const sub = (nv: T) => {
         setV(nv);
         setReady(true);
