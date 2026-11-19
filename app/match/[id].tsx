@@ -16,8 +16,7 @@ import { WinChance } from '../../components/WinChance';
 import { ResultImpact } from '../../components/ResultImpact';
 import { SnapCard } from '../../components/SnapCard';
 import { clock, shortDate, statusLabel } from '../../components/Match';
-import { useLeague } from '../../context/league';
-import { LEAGUE_MAP } from '../../constants/leagues';
+import { useLinkedLeague } from '../../context/league';
 import { useCards, useClubColors, usePrior, useSeason, useSettlePicks, useTable, useTeams } from '../../hooks/data';
 import { backtest, fitSeason, outcome as resultOf, pick as leadOf, predict, scoreGrid, Outcome } from '../../lib/model';
 import { isFinished, isLive, recentForm } from '../../lib/football';
@@ -38,8 +37,7 @@ const ROLE = new Set(['Goalkeeper', 'Defender', 'Midfielder', 'Forward', 'Squad 
 
 export default function MatchScreen() {
   const { id, c } = useLocalSearchParams<{ id: string; c?: string }>();
-  const ctx = useLeague();
-  const league = (c && LEAGUE_MAP[Number(c)]) || ctx.league;
+  const league = useLinkedLeague(c);
   // while the match is on, re-fetch the fixtures (edge-cached for 30 s) and move the clock
   const [poll, setPoll] = useState(false);
   const [now, setNow] = useState(() => Date.now());

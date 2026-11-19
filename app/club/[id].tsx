@@ -10,8 +10,7 @@ import { Screen, NavBar, Segmented, Overline, KitChip, KitField, Bleed, FormPill
 import { LineChart } from '../../components/Charts';
 import { SnapCard } from '../../components/SnapCard';
 import { MatchMarket, CompactMatchRow } from '../../components/Match';
-import { useLeague } from '../../context/league';
-import { LEAGUE_MAP } from '../../constants/leagues';
+import { useLinkedLeague } from '../../context/league';
 import { useCards, useClubColors, usePrior, useSeason, useSettlePicks, useTable, useTeams } from '../../hooks/data';
 import { fitSeason, predict } from '../../lib/model';
 import { isFinished, isLive, isUpcoming, recentForm } from '../../lib/football';
@@ -32,8 +31,7 @@ const rel = (x: number) => `${x >= 1 ? '+' : '−'}${Math.abs(Math.round((x - 1)
 export default function Club() {
   const { id, c } = useLocalSearchParams<{ id: string; c?: string }>();
   const teamId = Number(id);
-  const ctx = useLeague();
-  const league = (c && LEAGUE_MAP[Number(c)]) || ctx.league;
+  const league = useLinkedLeague(c);
   const season = useSeason(league);
   const teams = useTeams(league);
   const standings = useTable(league);
