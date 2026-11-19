@@ -1,0 +1,18 @@
+{
+  "id": "/",
+  "name": "FootSnap",
+  "short_name": "FootSnap",
+  "description": "A collectible card game for real football: live fixtures, a goals model's forecast for every match, and cards from this season's real numbers.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#102040",
+  "theme_color": "#102040",
+  "categories": ["sports", "games"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
