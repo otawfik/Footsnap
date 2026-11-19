@@ -37,6 +37,6 @@ describe('upsets and baselines', () => {
   });
 
   it("the coin-toss line is the Brier score of saying a third for everything", () => {
-    expect(brier({ home: 1 / 3, draw: 1 / 3, away: 1 / 3, xgHome: 0, xgAway: 0, score: [0, 0] }, 'H')).toBeCloseTo(COIN_BRIER);
+    expect(brier({ home: 1 / 3, draw: 1 / 3, away: 1 / 3 }, 'H')).toBeCloseTo(COIN_BRIER);
   });
 });

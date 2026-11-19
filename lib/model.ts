@@ -179,10 +179,28 @@ export const outcome = (m: Match): Outcome => {
 export const pick = (p: Prediction): Outcome =>
   p.home >= p.draw && p.home >= p.away ? 'H' : p.away >= p.draw ? 'A' : 'D';
 
+/** A home / draw / away forecast: the model's, a baseline's, or yours (lib/beat.ts). */
+export type Probs = Pick<Prediction, 'home' | 'draw' | 'away'>;
+
 /** Multi-class Brier score for one match: 0 is perfect, 2 is maximally wrong. */
-export function brier(p: Prediction, o: Outcome): number {
+export function brier(p: Probs, o: Outcome): number {
   const y = { H: o === 'H' ? 1 : 0, D: o === 'D' ? 1 : 0, A: o === 'A' ? 1 : 0 };
   return (p.home - y.H) ** 2 + (p.draw - y.D) ** 2 + (p.away - y.A) ** 2;
+}
+
+/**
+ * The model's forecast for a match as it stood before that match's day: fitted on results from
+ * earlier days only, the forecast `backtestCalls` scores and picks play against. Null when there
+ * aren't enough results yet. `cache` shares one fit per day across calls.
+ */
+export function forecastBefore(matches: Match[], m: Match, prior?: Prior | null, cache?: Map<string, Ratings | null>): Prediction | null {
+  const day = m.utcDate.slice(0, 10);
+  let r = cache?.get(day);
+  if (r === undefined) {
+    r = fitSeason(matches.filter((g) => played(g) && g.utcDate.slice(0, 10) < day), prior);
+    cache?.set(day, r);
+  }
+  return r ? predict(r, m.homeTeam.id, m.awayTeam.id) : null;
 }
 
 export interface Backtest {

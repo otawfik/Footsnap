@@ -7,7 +7,7 @@
  */
 import type { Match } from './types';
 import { isFinished } from './football';
-import { fitSeason, outcome, pick as modelPick, predict, Outcome, type Prior } from './model';
+import { forecastBefore, outcome, pick as modelPick, Outcome, type Prior } from './model';
 
 export interface UserPick {
   matchId: number;
@@ -30,10 +30,8 @@ export interface Tally {
 
 /** The model's call for a match, from results before its day. */
 export function modelCall(matches: Match[], m: Match, prior?: Prior | null): { outcome: Outcome; confidence: number } | null {
-  const day = m.utcDate.slice(0, 10);
-  const r = fitSeason(matches.filter((g) => isFinished(g) && g.utcDate.slice(0, 10) < day), prior);
-  if (!r) return null;
-  const p = predict(r, m.homeTeam.id, m.awayTeam.id);
+  const p = forecastBefore(matches, m, prior);
+  if (!p) return null;
   const o = modelPick(p);
   return { outcome: o, confidence: o === 'H' ? p.home : o === 'A' ? p.away : p.draw };
 }
