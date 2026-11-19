@@ -1,7 +1,7 @@
 /**
  * Beat the model: your forecasts against the model's, scored the way the model is scored on the
  * "How good is the model?" page. You call home / draw / away and say how sure you are (Lean 50%,
- * Confident 70%, Sure 90%); the rest is split evenly between the other two outcomes. Each finished
+ * Likely 70%, Sure 90%); the rest is split evenly between the other two outcomes. Each finished
  * match gets the same multi-class Brier score (lib/model.ts brier) for you and for the model's
  * forecast from the results before that match's day (forecastBefore), so both are judged on the
  * same fixtures with the same information cut-off. Forecasts lock at kick-off.
@@ -14,7 +14,7 @@ import { locked } from './picks';
 /** How sure you are: the chance you give the outcome you call. */
 export const LEVELS = [
   { label: 'Lean', p: 0.5 },
-  { label: 'Confident', p: 0.7 },
+  { label: 'Likely', p: 0.7 },
   { label: 'Sure', p: 0.9 },
 ] as const;
 

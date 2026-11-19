@@ -109,7 +109,7 @@ export default function BeatTheModel() {
           <View style={styles.sec}>
             <SectionHeader title="Make your calls" />
             <Text style={[type.footnote, styles.note]}>
-              Pick a result and how sure you are. Lean puts 50% on it, Confident 70%, Sure 90%, and the rest is split between the
+              Pick a result and how sure you are. Lean puts 50% on it, Likely 70%, Sure 90%, and the rest is split between the
               other two. Calls lock at kick-off, when the model's forecast is shown.
             </Text>
             {md && days.length ? <Stepper value={md} min={days[0]} max={days[days.length - 1]} onChange={setMd} label={`Matchday ${md} of ${days[days.length - 1]}`} /> : null}

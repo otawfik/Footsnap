@@ -1,6 +1,6 @@
 /**
  * Play (SPEC.md §5): the Duel hero (your 12-card deck, your record, the button into
- * the arena), Who's this?, and how the Duel works.
+ * the arena), Who's this?, Beat the model, and how the Duel works.
  */
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
@@ -185,6 +185,18 @@ export default function Play() {
           right={<Text style={styles.rowRight}>{guessesLeft ? `${guessesLeft} left` : 'Done today'}</Text>}
           chevron
           onPress={() => router.push('/guess')}
+        />
+
+        <Row
+          left={
+            <View style={styles.qmark}>
+              <Ionicons name="analytics" size={16} color={color.accentText} />
+            </View>
+          }
+          title="Beat the model"
+          subtitle="Your calls against the model's, by Brier score"
+          chevron
+          onPress={() => router.push('/beat')}
         />
 
         {/* how it works */}

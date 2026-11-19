@@ -6,7 +6,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, LargeHeader, SectionHeader, Credits, Avatar, Button, Skeleton, Failed, Empty, useMounted, PressScale, MiniPack, ButtonLook } from '../../components/ui';
+import { Screen, LargeHeader, SectionHeader, Credits, Avatar, Button, Skeleton, Failed, Empty, useMounted, PressScale, MiniPack, ButtonLook, Row } from '../../components/ui';
 import { MatchMarket, CompactMatchRow, LiveRow, longDate } from '../../components/Match';
 import { useLeague } from '../../context/league';
 import { LEAGUE_MAP } from '../../constants/leagues';
@@ -213,6 +213,19 @@ export default function Home() {
             ))}
           </>
         )}
+        <Row
+          left={
+            <View style={styles.beatIcon}>
+              <Ionicons name="analytics" size={16} color={color.accentText} />
+            </View>
+          }
+          title="Beat the model"
+          subtitle="Call results with how sure you are, scored like the model"
+          chevron
+          divider={false}
+          onPress={() => router.push('/beat')}
+          style={{ marginTop: space.sm }}
+        />
       </View>
       <Pressable onPress={() => router.push('/about')} style={styles.fine} accessibilityRole="link">
         <Text style={[type.caption, { textAlign: 'center' }]}>Chances come from a goals model. Picks are free, for points only.</Text>
@@ -233,4 +246,5 @@ const styles = StyleSheet.create({
   score3Of: { fontFamily: font.semibold, fontSize: 17, color: color.text3, letterSpacing: 0 },
   score3Label: { fontFamily: font.medium, fontSize: 13, color: color.text3 },
   fine: { paddingTop: space.sm, paddingBottom: space.lg },
+  beatIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: color.accentSoft, alignItems: 'center', justifyContent: 'center' },
 });
