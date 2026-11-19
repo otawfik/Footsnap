@@ -79,7 +79,7 @@ export function WinChance({ stretches, width: guess, names, tones, live }: WinCh
 
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={describe(stretches, names, live)} onLayout={(e) => setMeasured(Math.round(e.nativeEvent.layout.width))}>
-      <View style={styles.readout} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+      <View style={styles.readout} aria-hidden>
         <Text style={styles.readTitle} numberOfLines={1}>{readout?.title}</Text>
         <View style={styles.readValues}>
           {readout?.point
@@ -95,8 +95,7 @@ export function WinChance({ stretches, width: guess, names, tones, live }: WinCh
       </View>
 
       <View
-        importantForAccessibility="no-hide-descendants"
-        accessibilityElementsHidden
+        aria-hidden
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
         onResponderGrant={pick}
@@ -167,7 +166,7 @@ export function WinChance({ stretches, width: guess, names, tones, live }: WinCh
         </View>
       </View>
       {unknown.length ? (
-        <View style={styles.key} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+        <View style={styles.key} aria-hidden>
           <View style={styles.keyBox} />
           <Text style={styles.keyText}>Goals in this stretch; the data doesn't say which minute</Text>
         </View>

@@ -119,7 +119,7 @@ export default function ModelReport() {
               2026-27, against the 90-minute result (scripts/inplay-backtest.ts). Lower is better.
             </Text>
             <View style={styles.cmp}>
-              <View style={styles.cmpRow} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+              <View style={styles.cmpRow} aria-hidden>
                 <Text style={[type.caption, { flex: 1 }]}>At half-time</Text>
                 <Text style={[type.caption, styles.num]}>Brier</Text>
                 <Text style={[type.caption, styles.num]}>Log loss</Text>

@@ -7,6 +7,7 @@ import { View, Text, StyleSheet, StyleProp, TextStyle } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { color, font, gem } from '../../constants/design';
+import { HIDDEN } from '../ui';
 
 const svgId = (raw: string) => raw.replace(/[^a-zA-Z0-9]/g, '');
 
@@ -111,7 +112,7 @@ export function TickNumber({ value, style, ms = 200 }: { value: number; style?: 
 export function CoinMark({ s = 16 }: { s?: number }) {
   const id = `coin${svgId(useId())}`;
   return (
-    <Svg width={s} height={s} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <Svg width={s} height={s} {...HIDDEN}>
       <Defs>
         <RadialGradient id={id} cx="35%" cy="30%" r="75%">
           <Stop offset="0" stopColor="#FFF0B8" />

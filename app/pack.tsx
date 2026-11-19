@@ -325,8 +325,6 @@ function Reveal({ card, w, entering, dim, onShown, competition }: { card: Player
           pointerEvents={phase === 'shown' ? 'auto' : 'none'}
           // face-down: screen readers must not read the player before the card is turned
           aria-hidden={phase !== 'shown'}
-          accessibilityElementsHidden={phase !== 'shown'}
-          importantForAccessibility={phase === 'shown' ? 'auto' : 'no-hide-descendants'}
         >
           {/* mounted face-down so the photo is loaded by the time it turns over */}
           <SnapCard card={card} size="full" width={w} interactive={phase === 'shown'} idleShimmer competition={competition} />

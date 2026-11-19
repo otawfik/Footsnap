@@ -531,6 +531,13 @@ export function Toggle({ value, onValueChange, disabled, label }: { value: boole
  * The kit chip: a circle split at 135° (primary top-left, secondary bottom-right). It replaces
  * crests in every list row. `colors={null}` draws the empty "draw" ring.
  */
+/**
+ * Hides a decorative <Svg> from screen readers. react-native-web 0.21 no longer maps the native-only
+ * accessibility props (they reached the DOM as unknown attributes and hid nothing), and
+ * react-native-svg doesn't map aria-hidden on iOS and Android, so each platform gets its own.
+ */
+export const HIDDEN = Platform.OS === 'web' ? ({ 'aria-hidden': true } as const) : ({ accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' } as const);
+
 /** React's useId, stripped to characters an SVG url(#id) accepts; stable across static render and hydration. */
 const useSvgId = (prefix: string) => prefix + useId().replace(/[^a-zA-Z0-9]/g, '');
 
@@ -543,7 +550,7 @@ export function KitChip({ colors, size: s = size.kit, style }: { colors?: ClubCo
   const c2 = colors?.secondary ?? '#8A8A94';
   const r = s / 2;
   return (
-    <View style={[{ width: s, height: s }, style]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <View style={[{ width: s, height: s }, style]} aria-hidden>
       <Svg width={s} height={s}>
         <Defs>
           <ClipPath id={id}>
@@ -579,7 +586,7 @@ export function KitStripe({ colors, height = 28, width = 4, tone }: { colors?: C
   const top = tone ?? clubTone(colors);
   const second = colors?.secondary && !near(colors.secondary, top) ? colors.secondary : mix(top, color.bg, 0.45);
   return (
-    <View style={{ width, height, borderRadius: 2, overflow: 'hidden' }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <View style={{ width, height, borderRadius: 2, overflow: 'hidden' }} aria-hidden>
       <View style={{ flex: 7, backgroundColor: top }} />
       <View style={{ flex: 3, backgroundColor: second }} />
     </View>
@@ -701,7 +708,7 @@ export const teamName = (t: Pick<Team, 'name' | 'shortName'>) => t.shortName ?? 
 export function Coin({ size: s = 15 }: { size?: number }) {
   const id = useSvgId('c');
   return (
-    <Svg width={s} height={s} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <Svg width={s} height={s} {...HIDDEN}>
       <Defs>
         <RadialGradient id={id} cx="35%" cy="30%" r="75%">
           <Stop offset="0" stopColor="#FFF0B8" />
@@ -866,7 +873,7 @@ export function Button({
 export function ButtonLook({ label, kind = 'primary', size: sz = 'md' }: { label: string; kind?: 'primary' | 'secondary'; size?: 'md' | 'sm' }) {
   const fg = kind === 'primary' ? color.onChalk : color.text;
   return (
-    <View style={[styles.btn, sz === 'sm' && styles.btnSm, kind === 'secondary' && { backgroundColor: color.raised }]} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+    <View style={[styles.btn, sz === 'sm' && styles.btnSm, kind === 'secondary' && { backgroundColor: color.raised }]} aria-hidden>
       <Text style={[styles.btnText, sz === 'sm' && { fontSize: 14 }, { color: fg }]} numberOfLines={1}>{label}</Text>
     </View>
   );
