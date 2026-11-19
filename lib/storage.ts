@@ -1,10 +1,11 @@
 /**
- * On-device state: the card collection, daily packs, picks, favourite teams and UI hints. AsyncStorage
+ * On-device state: the card collection, daily packs, picks, forecasts, favourite teams and UI hints. AsyncStorage
  * (localStorage on the web). Nothing leaves the device.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import type { UserPick } from './picks';
+import type { Forecast } from './beat';
 import type { CardState } from './collection';
 import type { ClubColors } from './colors';
 import { DeckSaves, migrateDeckSaves, NO_SAVES } from './decks';
@@ -13,6 +14,7 @@ const KEY = {
   collection: 'fs.collection.v3',
   packs: 'fs.packs.v1',
   picks: 'fs.picks.v1',
+  forecasts: 'fs.forecasts.v1',
   profile: 'fs.profile.v1',
   favorites: 'fs.favorites.v1',
   seen: 'fs.seen.v1',
@@ -121,6 +123,8 @@ export const useProfile = makeStore<Profile>(KEY.profile, {
 export const usePacks = makeStore<Record<string, string>>(KEY.packs, {});
 /** match id → pick */
 export const usePicks = makeStore<Record<string, UserPick>>(KEY.picks, {});
+/** match id → your Beat the model forecast (lib/beat.ts) */
+export const useForecasts = makeStore<Record<string, Forecast>>(KEY.forecasts, {});
 
 export const today = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
