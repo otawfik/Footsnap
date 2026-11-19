@@ -61,7 +61,8 @@ function Side({ side, stakes, tone, colors }: { side: TeamImpact; stakes: Return
         rows.map((s) => {
           const b = side.before[s.key];
           const a = side.after[s.key];
-          const d = Math.round((a - b) * 100);
+          // the change between the two numbers as shown, so 3% → 3% never reads ▲1
+          const d = pctText(a) === pctText(b) ? 0 : Math.round(a * 100) - Math.round(b * 100);
           const good = s.bad ? d < 0 : d > 0;
           const change = d === 0 ? 'unchanged' : `${d > 0 ? 'up' : 'down'} ${Math.abs(d)} point${Math.abs(d) === 1 ? '' : 's'}`;
           return (
