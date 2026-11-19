@@ -20,7 +20,7 @@ const ART = `fs-art-${VERSION}`;
 const KEEP = [PAGES, STATIC, ART];
 
 // the routes a first launch offline needs; dynamic ones are fetched as a sample id
-const SHELL = ['/', '/matches', '/cards', '/play', '/model', '/about', '/card/0', '/match/0', '/club/0'];
+const SHELL = ['/', '/matches', '/cards', '/play', '/model', '/beat', '/about', '/card/0', '/match/0', '/club/0'];
 const DYNAMIC = [
   [/^\/card\/[^/]+\/?$/, '/card/0'],
   [/^\/match\/[^/]+\/?$/, '/match/0'],
