@@ -20,7 +20,7 @@ store release guide: [`docs/app-store.md`](docs/app-store.md)
 | **Model** | Poisson goals model (Maher 1982, the base of Dixon & Coles 1997) fitted by maximum likelihood, plus a Monte Carlo season simulator with parameter uncertainty and common random numbers |
 | **Game** | ~3,000 auto-generated cards, a daily-pack economy, 7 upgrade tiers, and a turn-based duel engine with an AI opponent |
 | **Computer vision** | An automated art pipeline: Wikipedia / Wikidata photo matching verified by date of birth, background removal (U²-Net), face alignment (YuNet), face verification (SFace) and quality gates, giving 1,335 licence-credited player cut-outs |
-| **Quality** | 222 unit tests (Vitest); CI runs typecheck, tests, `expo-doctor`, a native-compat check and a full web build on every push |
+| **Quality** | 233 unit tests (Vitest); CI runs typecheck, tests, `expo-doctor`, a native-compat check and a full web build on every push |
 | **Cost to run** | $0: free data tier, free hosting; the API key never leaves the server |
 
 ### Engineering highlights
@@ -112,6 +112,31 @@ season's position chart, attack and defence ratings, projections and the squad a
 
 **Picks.** Call the next matchday, Press one pick to double the stakes (+4 or −2), and play against the model, whose
 calls are made only from results before each match.
+
+**Beat the model.** Call home, draw or away and say how sure you are: Lean (50%), Likely (70%) or Sure (90%), with
+the rest split between the other two outcomes. When a match finishes, your call and the model's forecast are both
+scored with the multi-class Brier score from the model page, and the page keeps the record: your average against
+the model's, how many matches are scored, who is ahead, and each match side by side. It's a fair fight by
+construction ([`lib/beat.ts`](lib/beat.ts)): calls can't be made or changed after kick-off (one changed later is
+never scored), the model's forecast is the walk-forward one fitted on results before the match's day (the same one
+"How good is the model?" scores), shown on this page from kick-off, and only finished matches with both forecasts
+count. Calls stay on the device.
+
+So the page means something before your first result, it also shows how simple ways of filling it in did last
+season, labelled as historical: computed on the device from last season's results, walk-forward, each league
+starting from the season before as the live model does. Across the five leagues in 2025-26 (1,597 matches after
+each league's first 30 results, [`scripts/beat-strategies.ts`](scripts/beat-strategies.ts)):
+
+| 2025-26, five leagues | Brier (lower is better) |
+|---|---|
+| **FootSnap model** | **0.601** |
+| league H/D/A rates so far | 0.655 |
+| home win at Lean (50%), every game | 0.657 |
+| a third each | 0.667 |
+| home win at Sure (90%), every game | 0.975 |
+
+Being sure is expensive: right at 90% scores 0.015, wrong at 90% scores 1.715. The Premier League was the hardest
+to forecast (model 0.626 against 0.661 for the league's rates), Bundesliga the easiest (0.583 against 0.657).
 
 ## The model
 
@@ -261,7 +286,7 @@ with the network off `/`, `/matches`, a match page and a card page all open from
 ```bash
 npm install
 npx expo start          # scan the QR code with Expo Go, or press i / a for a simulator
-npm run test            # 222 unit tests: model, in-play chance, simulator, result impact, cards and abilities, collection, packs, picks, proxy
+npm run test            # 233 unit tests: model, in-play chance, simulator, result impact, cards and abilities, collection, packs, picks, Beat the model, proxy
 npm run typecheck
 ```
 
@@ -286,6 +311,7 @@ app/
   pack.tsx                opening the daily pack
   guess.tsx               Who's this?
   arena.tsx               the Duel board
+  beat.tsx                Beat the model: your calls against the model's, by Brier score; last season's strategies
   match/[id].tsx          the chance through the match, what the result meant, scoreline heatmap, points race, key cards
   club/[id].tsx           position chart, ratings, projection, fixtures, squad cards
   about.tsx               data sources, privacy, support links
@@ -308,6 +334,7 @@ lib/                      pure logic, unit-tested
   collection.ts           credits, boosters, upgrade tiers, finishes, Collection Level
   packs.ts, guess.ts      daily packs; Who's this? puzzles
   picks.ts                scoring, the model's calls, you vs the model
+  beat.ts                 Beat the model: calls to forecasts, locking, Brier record, simple strategies
   colors.ts               club colours from football-data.org's text
   football.ts, proxy.ts   helpers; proxy allowlist and cache policy
 services/api.ts           client: base URL, request sharing, saved copies for offline, optional crest stripping
