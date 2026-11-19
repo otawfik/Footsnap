@@ -3,7 +3,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { useApi } from './useApi';
 import { fetchPastSeason, fetchScorers, fetchSeasonMatches, fetchStandings, fetchTeams } from '../services/api';
 import { totalTable, splitMatches, isLive, isUpcoming, isFinished, seasonStartYear } from '../lib/football';
-import { fitSeason, outcome, predict, seasonPrior, Prediction, Prior, Ratings } from '../lib/model';
+import { backtestCalls, fitSeason, outcome, predict, seasonPrior, Prediction, Prior, Ratings } from '../lib/model';
 import { buildCards, PlayerCard } from '../lib/cards';
 import { clubColors, ClubColors } from '../lib/colors';
 import { REWARDS } from '../lib/collection';
@@ -39,9 +39,33 @@ export function useClubColors(league: League): Map<number, ClubColors> {
  * only: a Champions League field changes every year, so it keeps the league-average prior.
  */
 export function usePrior(league: League, thisSeason: Match[] | null | undefined): Prior | null {
+  return usePriorState(league, thisSeason).prior;
+}
+
+/** usePrior, plus whether last season's results have arrived (or failed), so a score isn't shown from the wrong prior. */
+export function usePriorState(league: League, thisSeason: Match[] | null | undefined): { prior: Prior | null; ready: boolean } {
   const start = league.nation ? seasonStartYear(thisSeason) : null;
   const last = useApi((force) => (start ? fetchPastSeason(league.id, start - 1, force) : Promise.resolve(null)), [league.id, start]);
-  return useMemo(() => (thisSeason ? seasonPrior(last.data?.matches, thisSeason) : null), [last.data, thisSeason]);
+  const prior = useMemo(() => (thisSeason ? seasonPrior(last.data?.matches, thisSeason) : null), [last.data, thisSeason]);
+  return { prior, ready: !!thisSeason && (!start || !!last.data || !!last.error) };
+}
+
+/**
+ * Last season, walk-forward (lib/model backtestCalls): every match forecast from the results
+ * before its day, leagues starting from the season before that, as the live model does. Historical
+ * data only; `season` is its start year. Two archived requests, cached for a day.
+ */
+export function useLastSeasonCalls(league: League, thisSeason: Match[] | null | undefined) {
+  const start = seasonStartYear(thisSeason);
+  const last = useApi((force) => (start ? fetchPastSeason(league.id, start - 1, force) : Promise.resolve(null)), [league.id, start]);
+  const priorYear = start && league.nation ? start - 2 : null;
+  const before = useApi((force) => (priorYear ? fetchPastSeason(league.id, priorYear, force) : Promise.resolve(null)), [league.id, priorYear]);
+  const waiting = !start || (!last.data && !last.error) || (!!priorYear && !before.data && !before.error);
+  const calls = useMemo(() => {
+    if (waiting || !last.data?.matches.length || (priorYear && !before.data)) return null;
+    return backtestCalls(last.data.matches, 30, priorYear ? seasonPrior(before.data?.matches, last.data.matches) : null);
+  }, [waiting, last.data, before.data, priorYear]);
+  return { calls, season: start ? start - 1 : null, loading: waiting, failed: !waiting && !calls };
 }
 
 export function useRatings(league: League) {
