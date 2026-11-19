@@ -39,6 +39,8 @@ export const remaining = (matches: Match[], competitionId: number) =>
       (competitionId !== 2001 || !m.stage || m.stage === 'LEAGUE_STAGE')
   );
 
+export type Pins = Map<number, [number, number]>;
+
 export function simulate(
   table: StandingRow[],
   matches: Match[],
@@ -46,27 +48,56 @@ export function simulate(
   competitionId: number,
   { runs = 3000, seed = 7, forced = new Map<number, [number, number]>(), uncertainty = true } = {}
 ): Map<number, Projection> {
+  return simulateVariants(table, matches, ratings, competitionId, [forced], { runs, seed, uncertainty })[0];
+}
+
+/**
+ * simulate() for several sets of pinned results at once, on the same simulated seasons: every
+ * fixture is drawn once per run and each variant ranks the table with its own pins applied. That's
+ * common random numbers by construction (variants differ only where their pins do), and costs
+ * little more than one run, since drawing the fixtures is most of the work. With one variant it
+ * draws exactly what simulate() always has.
+ */
+export function simulateVariants(
+  table: StandingRow[],
+  matches: Match[],
+  ratings: Ratings,
+  competitionId: number,
+  variants: Pins[],
+  { runs = 3000, seed = 7, uncertainty = true } = {}
+): Map<number, Projection>[] {
   const ids = table.map((r) => r.team.id);
   const index = new Map(ids.map((id, i) => [id, i]));
   const fixtures = remaining(matches, competitionId).filter((m) => index.has(m.homeTeam.id) && index.has(m.awayTeam.id));
   const n = ids.length;
+  const V = variants.length;
   // expected goals per fixture don't change between runs
   const lambdas = fixtures.map((m) => {
     const p = predict(ratings, m.homeTeam.id, m.awayTeam.id);
     return [p.xgHome, p.xgAway] as const;
   });
+  // fixtures some variant pins are scored per variant; the rest once per run, shared by all
+  const pinnedAnywhere = fixtures.map((m) => variants.some((v) => v.has(m.id)));
   // spread of each team's strength estimate: about ±23% after 8 games, ±13% after 38
   const spread = table.map((row) => (uncertainty ? 0.35 / Math.sqrt(1 + row.playedGames / 6) : 0));
   const attMod = new Float64Array(n);
   const defMod = new Float64Array(n);
   const r = rng(seed);
-  const counts = ids.map(() => new Array<number>(n).fill(0));
-  const pointsSum = new Array<number>(n).fill(0);
+  const counts = variants.map(() => ids.map(() => new Array<number>(n).fill(0)));
+  const pointsSum = variants.map(() => new Array<number>(n).fill(0));
   const pts = new Float64Array(n);
   const gd = new Float64Array(n);
   const gf = new Float64Array(n);
+  const vPts = new Float64Array(n);
+  const vGd = new Float64Array(n);
+  const vGf = new Float64Array(n);
+  const drawn = new Int32Array(fixtures.length * 2);
   const order = ids.map((_, i) => i);
   const lot = new Float64Array(n);
+  const add = (P: Float64Array, D: Float64Array, F: Float64Array, h: number, a: number, hg: number, ag: number) => {
+    F[h] += hg; F[a] += ag; D[h] += hg - ag; D[a] += ag - hg;
+    if (hg > ag) P[h] += 3; else if (hg < ag) P[a] += 3; else { P[h] += 1; P[a] += 1; }
+  };
 
   for (let run = 0; run < runs; run++) {
     table.forEach((row, i) => {
@@ -82,38 +113,45 @@ export function simulate(
       const a = index.get(m.awayTeam.id)!;
       // always draw, then apply any pin: the what-if run and the baseline then use the same random
       // numbers (common random numbers), so only real knock-on effects show up as changes
-      const drawH = poisson(lambdas[k][0] * attMod[h] * defMod[a], r);
-      const drawA = poisson(lambdas[k][1] * attMod[a] * defMod[h], r);
-      const pinned = forced.get(m.id);
-      const hg = pinned ? pinned[0] : drawH;
-      const ag = pinned ? pinned[1] : drawA;
-      gf[h] += hg; gf[a] += ag; gd[h] += hg - ag; gd[a] += ag - hg;
-      if (hg > ag) pts[h] += 3; else if (hg < ag) pts[a] += 3; else { pts[h] += 1; pts[a] += 1; }
+      drawn[2 * k] = poisson(lambdas[k][0] * attMod[h] * defMod[a], r);
+      drawn[2 * k + 1] = poisson(lambdas[k][1] * attMod[a] * defMod[h], r);
+      if (!pinnedAnywhere[k]) add(pts, gd, gf, h, a, drawn[2 * k], drawn[2 * k + 1]);
     }
     // ties beyond goals scored are broken by lot, drawn up front so every run uses the same count of draws
     for (let i = 0; i < n; i++) lot[i] = r();
-    order.sort((x, y) => pts[y] - pts[x] || gd[y] - gd[x] || gf[y] - gf[x] || lot[x] - lot[y]);
-    order.forEach((teamIdx, pos) => {
-      counts[teamIdx][pos]++;
-      pointsSum[teamIdx] += pts[teamIdx];
-    });
+    for (let v = 0; v < V; v++) {
+      vPts.set(pts); vGd.set(gd); vGf.set(gf);
+      for (let k = 0; k < fixtures.length; k++) {
+        if (!pinnedAnywhere[k]) continue;
+        const m = fixtures[k];
+        const pinned = variants[v].get(m.id);
+        add(vPts, vGd, vGf, index.get(m.homeTeam.id)!, index.get(m.awayTeam.id)!, pinned ? pinned[0] : drawn[2 * k], pinned ? pinned[1] : drawn[2 * k + 1]);
+      }
+      order.sort((x, y) => vPts[y] - vPts[x] || vGd[y] - vGd[x] || vGf[y] - vGf[x] || lot[x] - lot[y]);
+      order.forEach((teamIdx, pos) => {
+        counts[v][teamIdx][pos]++;
+        pointsSum[v][teamIdx] += vPts[teamIdx];
+      });
+    }
   }
 
-  const out = new Map<number, Projection>();
-  ids.forEach((id, i) => {
-    const positions = counts[i].map((c) => c / runs);
-    const share = (z: Zone) => positions.reduce((s, p, pos) => (zone(competitionId, pos + 1, n) === z ? s + p : s), 0);
-    out.set(id, {
-      teamId: id,
-      title: positions[0],
-      top: share('top'),
-      relegation: share('relegation'),
-      avgPoints: pointsSum[i] / runs,
-      avgPosition: positions.reduce((s, p, pos) => s + p * (pos + 1), 0),
-      positions,
+  return variants.map((_, v) => {
+    const out = new Map<number, Projection>();
+    ids.forEach((id, i) => {
+      const positions = counts[v][i].map((c) => c / runs);
+      const share = (z: Zone) => positions.reduce((s, p, pos) => (zone(competitionId, pos + 1, n) === z ? s + p : s), 0);
+      out.set(id, {
+        teamId: id,
+        title: positions[0],
+        top: share('top'),
+        relegation: share('relegation'),
+        avgPoints: pointsSum[v][i] / runs,
+        avgPosition: positions.reduce((s, p, pos) => s + p * (pos + 1), 0),
+        positions,
+      });
     });
+    return out;
   });
-  return out;
 }
 
 export interface ReplayRow {
