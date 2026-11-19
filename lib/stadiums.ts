@@ -98,14 +98,28 @@ export const PLAIN_STADIUMS = (twists: TwistId[] = ['neutral', 'neutral', 'neutr
 /**
  * The name a ground goes by, to fit the ~110 pt plate band (two lines): long official names drop a
  * " - …" suffix, a trailing "Stadium" and a leading "Estadio" / "Stadio" / "Stade" / "Stadion"
- * (only before a proper name: "Santiago Bernabéu", not "de la Cerámica"). Screen readers get the full name.
+ * (only before a proper name: "Santiago Bernabéu", not "de la Cerámica") and a leading "The"
+ * ("The American Express Community Stadium" → "American Express Community"). Screen readers get the full name.
  */
 export function groundLabel(name: string): string {
   // each step only while the name is still too long, so "Mapei Stadium - …" stays "Mapei Stadium"
   let v = name;
   if (v.length > 18) v = v.split(/\s+-\s+/)[0];
   if (v.length > 18) v = v.replace(/\s+Stadium$/i, '');
+  if (v.length > 18) v = v.replace(/^The\s+/i, '');
   const m = v.length > 18 ? v.match(/^(?:Estadio|Estádio|Stadio|Stade|Stadion)\s+(.*)$/) : null;
   if (m && /^\p{Lu}/u.test(m[1])) v = m[1];
   return v;
+}
+
+/**
+ * Font size for a ground name set in uppercase Inter Bold in a band `width` pt wide, so its longest
+ * word fits on one line: browsers otherwise break a long word mid-way ("COMMUNICATION / S").
+ * An uppercase Inter Bold letter averages under 0.72 em; 0.74 em plus the letter spacing leaves margin.
+ * Never above `max`, never below `min` (a word too long even at `min` is allowed to break).
+ */
+export function groundFontSize(label: string, width: number, { max = 9.5, min = 7, spacing = 0.2 } = {}): number {
+  const longest = Math.max(1, ...label.split(/\s+/).map((w) => w.length));
+  const fit = (width - spacing * longest) / (longest * 0.74);
+  return Math.max(min, Math.floor(Math.min(max, fit) * 4) / 4);
 }
