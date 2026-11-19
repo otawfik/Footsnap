@@ -1,8 +1,8 @@
 /**
  * A match: the kick-off (or the score), the model's chance for each outcome (for finished games,
  * what it said before kick-off), for live and finished games the chance through the match
- * (lib/inplay.ts), your free pick, the likeliest scores, form, the points race
- * and each side's key card.
+ * (lib/inplay.ts), for finished league games what the result did to each side's season chances
+ * (lib/impact.ts), your free pick, the likeliest scores, form, the points race and each side's key card.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Share, useWindowDimensions } from 'react-native';
@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { alpha, luminance, mix } from '../../lib/colors';
 import { LineChart } from '../../components/Charts';
 import { WinChance } from '../../components/WinChance';
+import { ResultImpact } from '../../components/ResultImpact';
 import { SnapCard } from '../../components/SnapCard';
 import { clock, shortDate, statusLabel } from '../../components/Match';
 import { useLeague } from '../../context/league';
@@ -219,6 +220,8 @@ export default function MatchScreen() {
           </Text>
         </View>
       ) : null}
+
+      {done && ratings ? <ResultImpact match={m} matches={matches} ratings={ratings} competitionId={league.id} tones={[th, ta]} colors={[hc, ac]} /> : null}
 
       <View style={styles.sec}>
         <Overline right="Free · points only">Your pick</Overline>
