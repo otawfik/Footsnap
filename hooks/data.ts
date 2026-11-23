@@ -1,9 +1,11 @@
 /** Shared data hooks: one place that knows which request feeds which view. */
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
+import { InteractionManager } from 'react-native';
 import { useApi } from './useApi';
-import { fetchPastSeason, fetchScorers, fetchSeasonMatches, fetchStandings, fetchTeams } from '../services/api';
+import { ApiError, fetchPastSeason, fetchScorers, fetchSeasonMatches, fetchStandings, fetchTeams } from '../services/api';
 import { totalTable, splitMatches, isLive, isUpcoming, isFinished, seasonStartYear } from '../lib/football';
-import { backtestCalls, fitSeason, outcome, predict, seasonPrior, Prediction, Prior, Ratings } from '../lib/model';
+import { backtestSteps, fitSeason, outcome, predict, seasonPrior, Call, Prediction, Prior, Ratings } from '../lib/model';
+import { runInSlices } from '../lib/slices';
 import { buildCards, PlayerCard } from '../lib/cards';
 import { clubColors, ClubColors } from '../lib/colors';
 import { REWARDS } from '../lib/collection';
@@ -51,9 +53,13 @@ export function usePriorState(league: League, thisSeason: Match[] | null | undef
 }
 
 /**
- * Last season, walk-forward (lib/model backtestCalls): every match forecast from the results
+ * Last season, walk-forward (lib/model backtestSteps): every match forecast from the results
  * before its day, leagues starting from the season before that, as the live model does. Historical
  * data only; `season` is its start year. Two archived requests, cached for a day.
+ *
+ * A season is about a hundred fits, a long task in one go. So it starts after the page has drawn
+ * and settled, and runs in slices of a few milliseconds (lib/slices.ts), with the thread free for
+ * taps and scrolling in between; `loading` stays true until the last slice.
  */
 export function useLastSeasonCalls(league: League, thisSeason: Match[] | null | undefined) {
   const start = seasonStartYear(thisSeason);
@@ -61,11 +67,92 @@ export function useLastSeasonCalls(league: League, thisSeason: Match[] | null | 
   const priorYear = start && league.nation ? start - 2 : null;
   const before = useApi((force) => (priorYear ? fetchPastSeason(league.id, priorYear, force) : Promise.resolve(null)), [league.id, priorYear]);
   const waiting = !start || (!last.data && !last.error) || (!!priorYear && !before.data && !before.error);
-  const calls = useMemo(() => {
-    if (waiting || !last.data?.matches.length || (priorYear && !before.data)) return null;
-    return backtestCalls(last.data.matches, 30, priorYear ? seasonPrior(before.data?.matches, last.data.matches) : null);
-  }, [waiting, last.data, before.data, priorYear]);
-  return { calls, season: start ? start - 1 : null, loading: waiting, failed: !waiting && !calls };
+  const games = !waiting && last.data?.matches.length && (!priorYear || before.data) ? last.data.matches : null;
+  const earlier = before.data?.matches;
+  const [done, setDone] = useState<{ games: Match[]; calls: Call[] } | null>(null);
+  useEffect(() => {
+    if (!games) return;
+    const season = games;
+    let stop = () => {};
+    const task = InteractionManager.runAfterInteractions(() => {
+      const calls: Call[] = [];
+      function* work() {
+        const prior = priorYear ? seasonPrior(earlier, season) : null;
+        yield [] as Call[]; // the prior's own fit is a step
+        yield* backtestSteps(season, 30, prior);
+      }
+      stop = runInSlices(work(), (day) => calls.push(...day), () => setDone({ games: season, calls }));
+    });
+    return () => {
+      task.cancel();
+      stop();
+    };
+  }, [games, earlier, priorYear]);
+  const calls = games && done?.games === games ? done.calls : null;
+  const computing = !!games && !calls;
+  return { calls, season: start ? start - 1 : null, loading: waiting || computing, failed: !waiting && !games };
+}
+
+/** A competition's season and the model's starting point for it: what scoring a forecast needs. */
+export interface SeasonData {
+  matches: Match[];
+  prior: Prior | null;
+}
+
+/**
+ * The seasons of several competitions, for the record across all of them on Beat the model. Pass
+ * only the competitions that are needed (the ones with forecasts): each costs a fixtures request
+ * and, for a league, last season's results, both shared with every other screen's cache and held
+ * at the edge. They load one at a time, not all at once, so a cold start stays inside the data
+ * feed's ten requests a minute; each is kept once loaded, so adding a competition or coming back
+ * to one asks for nothing twice. One that fails is listed in `failed`, the rest still count, and a
+ * rate limit is retried when the feed says its counter resets (three times at most).
+ */
+export function useSeasons(ids: number[]) {
+  const key = ids.join(',');
+  const [loaded, setLoaded] = useState<Record<number, SeasonData>>({});
+  const [failed, setFailed] = useState<number[]>([]);
+  const [attempt, setAttempt] = useState(0);
+  const have = useRef(loaded);
+  have.current = loaded;
+  const retries = useRef(0);
+  useEffect(() => {
+    const want = key ? key.split(',').map(Number).filter((id) => !have.current[id]) : [];
+    setFailed([]);
+    if (!want.length) return;
+    let live = true;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    (async () => {
+      const bad: number[] = [];
+      let retryS: number | null = null;
+      for (const id of want) {
+        try {
+          const season = await fetchSeasonMatches(id);
+          // last season's results for the model's prior (leagues only, see usePrior); without them the model starts from average
+          const start = LEAGUE_MAP[id]?.nation ? seasonStartYear(season.matches) : null;
+          const last = start ? await fetchPastSeason(id, start - 1).catch(() => null) : null;
+          if (!live) return;
+          const data = { matches: season.matches, prior: seasonPrior(last?.matches, season.matches) };
+          setLoaded((all) => ({ ...all, [id]: data }));
+        } catch (e) {
+          bad.push(id);
+          if (e instanceof ApiError && e.code === 'RATE_LIMIT') retryS = Math.min(Math.max(e.retryAfterS ?? 15, 3), 61);
+        }
+      }
+      if (!live) return;
+      setFailed(bad);
+      if (retryS && retries.current < 3) {
+        retries.current++;
+        timer = setTimeout(() => setAttempt((a) => a + 1), retryS * 1000);
+      }
+    })();
+    return () => {
+      live = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [key, attempt]);
+  const pending = ids.filter((id) => !loaded[id] && !failed.includes(id));
+  return { loaded, failed: failed.filter((id) => ids.includes(id) && !loaded[id]), pending, retry: () => setAttempt((a) => a + 1) };
 }
 
 export function useRatings(league: League) {
