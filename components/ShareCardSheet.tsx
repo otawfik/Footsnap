@@ -94,6 +94,6 @@ const styles = StyleSheet.create({
   body: { gap: space.md, paddingBottom: space.sm },
   image: { width: '100%', maxWidth: 360, alignSelf: 'center', borderRadius: radius.md },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  action: { flexGrow: 1, flexBasis: 140 },
+  action: { flexGrow: 1, minWidth: 132 },
   note: { minHeight: 18 },
 });
