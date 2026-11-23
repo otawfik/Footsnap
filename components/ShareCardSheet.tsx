@@ -79,9 +79,9 @@ export function ShareCardSheet({ card, onClose }: { card: ShareCard | null; onCl
           )}
           <Text style={type.footnote} selectable>{text}</Text>
           <View style={styles.actions}>
-            {canShareImage || canShareText ? <Button label={canShareImage ? 'Share' : 'Share text'} icon="share-outline" onPress={share} style={styles.action} /> : null}
-            {image ? <Button label="Save image" icon="download-outline" kind={canShareImage || canShareText ? 'secondary' : 'primary'} onPress={save} style={styles.action} /> : null}
-            <Button label="Copy text" icon="copy-outline" kind="secondary" onPress={copy} style={styles.action} />
+            {canShareImage || canShareText ? <Button label={canShareImage ? 'Share' : 'Share text'} icon="share-outline" onPress={share} /> : null}
+            {image ? <Button label="Save image" icon="download-outline" kind={canShareImage || canShareText ? 'secondary' : 'primary'} onPress={save} /> : null}
+            <Button label="Copy text" icon="copy-outline" kind="secondary" onPress={copy} />
           </View>
           <Text style={[type.footnote, styles.note]} accessibilityLiveRegion="polite">{note}</Text>
         </View>
@@ -93,7 +93,6 @@ export function ShareCardSheet({ card, onClose }: { card: ShareCard | null; onCl
 const styles = StyleSheet.create({
   body: { gap: space.md, paddingBottom: space.sm },
   image: { width: '100%', maxWidth: 360, alignSelf: 'center', borderRadius: radius.md },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  action: { flexGrow: 1, minWidth: 132 },
+  actions: { gap: space.sm },
   note: { minHeight: 18 },
 });
