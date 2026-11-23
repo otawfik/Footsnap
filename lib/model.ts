@@ -238,22 +238,32 @@ export interface Call {
   o: Outcome;
 }
 
+/**
+ * The walk-forward calls behind `backtest`, one kick-off day at a time: each step is one fit and
+ * that day's calls, so a screen can spread a season over many short tasks (lib/slices.ts) instead
+ * of one long one. Days without enough history, or without a fit, give no step.
+ */
+export function* backtestSteps(matches: Match[], minPrior = 30, seasonStart?: Prior | null): Generator<Call[], void, undefined> {
+  const games = matches.filter(played).sort((a, b) => a.utcDate.localeCompare(b.utcDate));
+  const counts = { H: 0, D: 0, A: 0 };
+  for (let i = 0; i < games.length; ) {
+    const day = games[i].utcDate.slice(0, 10);
+    let j = i;
+    while (j < games.length && games[j].utcDate.slice(0, 10) === day) j++;
+    // games[0..i) were played on earlier days: `counts` holds their outcomes
+    const r = i >= minPrior ? fitSeason(games.slice(0, i), seasonStart) : null;
+    if (r) {
+      const rates: Prediction = { home: counts.H / i, draw: counts.D / i, away: counts.A / i, xgHome: 0, xgAway: 0, score: [0, 0] };
+      yield games.slice(i, j).map((m) => ({ match: m, p: predict(r, m.homeTeam.id, m.awayTeam.id), rates, o: outcome(m) }));
+    }
+    for (; i < j; i++) counts[outcome(games[i])]++;
+  }
+}
+
 /** The walk-forward calls behind `backtest`, one per played match with enough history before it. */
 export function backtestCalls(matches: Match[], minPrior = 30, seasonStart?: Prior | null): Call[] {
-  const games = matches.filter(played).sort((a, b) => a.utcDate.localeCompare(b.utcDate));
   const out: Call[] = [];
-  let cache: { day: string; r: Ratings | null } | null = null;
-  for (const m of games) {
-    const day = m.utcDate.slice(0, 10);
-    const prior = games.filter((g) => g.utcDate.slice(0, 10) < day);
-    if (prior.length < minPrior) continue;
-    if (!cache || cache.day !== day) cache = { day, r: fitSeason(prior, seasonStart) };
-    if (!cache.r) continue;
-    const counts = { H: 0, D: 0, A: 0 };
-    for (const g of prior) counts[outcome(g)]++;
-    const rates: Prediction = { home: counts.H / prior.length, draw: counts.D / prior.length, away: counts.A / prior.length, xgHome: 0, xgAway: 0, score: [0, 0] };
-    out.push({ match: m, p: predict(cache.r, m.homeTeam.id, m.awayTeam.id), rates, o: outcome(m) });
-  }
+  for (const day of backtestSteps(matches, minPrior, seasonStart)) out.push(...day);
   return out;
 }
 
