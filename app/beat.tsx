@@ -1,7 +1,9 @@
 /**
  * Beat the model: call the fixtures yourself, with how sure you are, and get scored with the same
  * Brier score as the model on "How good is the model?", on the same matches (lib/beat.ts). Calls
- * lock at kick-off, when the model's own forecast is shown. Below, last season's walk-forward
+ * lock at kick-off, when the model's own forecast is shown. The record at the top counts your
+ * calls in every competition; a scored matchday can be shared as an image; once enough calls are
+ * scored, the page says how often each confidence came true. Below, last season's walk-forward
  * test shows how simple strategies would have done, so the page means something before your
  * first match finishes.
  */
@@ -9,11 +11,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Empty, Failed, fixtureTones, KitStripe, LeagueSheet, NavBar, pctText, Row, Screen, SectionHeader, Segmented, Skeleton, Stepper, tap, teamName, toneText } from '../components/ui';
+import { Button, Empty, Failed, fixtureTones, KitStripe, LeagueSheet, NavBar, pctText, Row, Screen, SectionHeader, Segmented, Skeleton, Stepper, tap, teamName, toneText } from '../components/ui';
 import { dayHeader, statusLabel, clock } from '../components/Match';
 import { useLeague } from '../context/league';
-import { currentMatchday, useClubColors, useLastSeasonCalls, usePriorState, useSeason } from '../hooks/data';
-import { applyConfidence, applyOutcome, leader, LEVELS, probs, scoreForecasts, strategies, type Forecast, type ScoredMatch } from '../lib/beat';
+import { ShareCardSheet, shareAsText } from '../components/ShareCardSheet';
+import { currentMatchday, useClubColors, useLastSeasonCalls, usePriorState, useSeason, useSeasons } from '../hooks/data';
+import { applyConfidence, applyOutcome, closer as closerOf, combine, competitionsOf, leader, LEVELS, ownCalibration, probs, scoreForecasts, strategies, type BeatRecord, type Forecast, type ScoredMatch } from '../lib/beat';
+import { shareCard, type ShareCard } from '../lib/share';
 import { forecastBefore, type Outcome, type Probs, type Ratings } from '../lib/model';
 import { isFinished, isLive } from '../lib/football';
 import { locked } from '../lib/picks';
@@ -21,6 +25,7 @@ import { useForecasts } from '../lib/storage';
 import type { ClubColors } from '../lib/colors';
 import type { Match } from '../lib/types';
 import { color, font, radius, space, type } from '../constants/design';
+import { LEAGUES, type League } from '../constants/leagues';
 
 const OUTCOMES: Outcome[] = ['H', 'D', 'A'];
 const b3 = (x: number) => x.toFixed(3);
@@ -31,7 +36,7 @@ const spoken = (m: Match, p: Probs) => `${teamName(m.homeTeam)} ${pctText(p.home
 const scoreLine = (m: Match) => `${teamName(m.homeTeam)} ${m.score.fullTime.home}–${m.score.fullTime.away} ${teamName(m.awayTeam)}`;
 
 export default function BeatTheModel() {
-  const { league } = useLeague();
+  const { league, setLeague } = useLeague();
   const season = useSeason(league);
   const matches = useMemo(() => season.data?.matches ?? [], [season.data]);
   const { prior, ready: priorReady } = usePriorState(league, season.data?.matches);
@@ -43,6 +48,22 @@ export default function BeatTheModel() {
   const scoring = ready && priorReady;
   const record = useMemo(() => (scoring ? scoreForecasts(Object.values(forecasts), matches, prior) : null), [scoring, forecasts, matches, prior]);
   const byId = useMemo(() => new Map(record?.rows.map((r) => [r.match.id, r]) ?? []), [record]);
+
+  // the record across competitions: the other ones you have calls in load after this one, one at a time
+  const mine = useMemo(() => (scoring ? competitionsOf(Object.values(forecasts), LEAGUES.map((l) => l.id)) : []), [scoring, forecasts]);
+  const others = useMemo(() => mine.filter((id) => id !== league.id), [mine, league.id]);
+  const seasons = useSeasons(others);
+  const parts = useMemo<Part[]>(() => {
+    if (!record) return [];
+    const all = Object.values(forecasts);
+    return LEAGUES.filter((l) => l.id === league.id || others.includes(l.id)).map((l) => {
+      const s = seasons.loaded[l.id];
+      return { league: l, record: l.id === league.id ? record : s ? scoreForecasts(all, s.matches, s.prior) : null, failed: seasons.failed.includes(l.id) };
+    });
+  }, [record, forecasts, others, league.id, seasons.loaded, seasons.failed]);
+  const overall = useMemo(() => (record ? combine(parts.flatMap((p) => (p.record ? [p.record] : []))) : null), [record, parts]);
+  const calibration = useMemo(() => (overall ? ownCalibration(overall.rows) : null), [overall]);
+  const [sharing, setSharing] = useState<ShareCard | null>(null);
 
   const days = useMemo(() => [...new Set(matches.map((m) => m.matchday).filter((d): d is number => !!d))].sort((a, b) => a - b), [matches]);
   const cur = useMemo(() => currentMatchday(matches), [matches]);
@@ -61,7 +82,17 @@ export default function BeatTheModel() {
   }, [scoring, matches, prior]);
 
   const loading = (season.loading && !season.data) || !scoring;
-  const lead = record ? leader(record) : null;
+  const lead = overall ? leader(overall) : null;
+  const names = (ps: Part[]) => ps.map((p) => p.league.name).join(', ').replace(/, ([^,]*)$/, ' and $1');
+  const pending = parts.filter((p) => !p.record && !p.failed);
+  const unloaded = parts.filter((p) => p.failed);
+  const counted = parts.filter((p) => p.record?.n).length;
+  // the scored fixtures of the matchday on screen: what its share card shows
+  const scoredHere = fixtures.flatMap((m) => byId.get(m.id) ?? []);
+  const share = () => {
+    const card = shareCard(scoredHere, md ? `${league.name} · Matchday ${md}` : league.name, (m) => fixtureTones(colors.get(m.homeTeam.id), colors.get(m.awayTeam.id), color.bg));
+    if (card && !shareAsText(card)) setSharing(card);
+  };
 
   return (
     <Screen tabBar={false}>
@@ -83,28 +114,48 @@ export default function BeatTheModel() {
 
       {season.error && !season.data ? (
         <Failed message={season.error} code={season.errorCode} onRetry={season.refetch} />
-      ) : loading || !record ? (
+      ) : loading || !record || !overall ? (
         <Skeleton rows={4} height={96} gap={space.lg} />
       ) : (
         <>
-          <View style={styles.hero} accessible accessibilityLabel={recordLabel(record, lead)}>
-            <View style={styles.vs}>
-              <Side label="You" value={record.you} best={lead === 'you'} />
-              <Text style={styles.vsText}>vs</Text>
-              <Side label="Model" value={record.model} best={lead === 'model'} right />
+          <View style={styles.hero}>
+            <View accessible accessibilityLabel={recordLabel(overall, lead)}>
+              <View style={styles.vs}>
+                <Side label="You" value={overall.you} best={lead === 'you'} />
+                <Text style={styles.vsText}>vs</Text>
+                <Side label="Model" value={overall.model} best={lead === 'model'} right />
+              </View>
+              <Text style={type.headline}>
+                {lead === 'you' ? "You're ahead" : lead === 'model' ? 'The model is ahead' : lead === 'level' ? 'Level' : 'No matches scored yet'}
+              </Text>
+              <Text style={[type.body, styles.sub]}>
+                {overall.n
+                  ? `Average Brier score on ${overall.n} finished ${overall.n === 1 ? 'match' : 'matches'} you both called${counted > 1 ? `, across ${counted} competitions` : ''}. Lower is better. You were closer on ${overall.youCloser}, the model on ${overall.modelCloser}${overall.level ? `, ${overall.level} level` : ''}.`
+                  : 'Call a fixture below. It\'s scored when the match finishes, with the same Brier score the model gets.'}
+                {overall.waiting ? ` ${overall.waiting} ${overall.waiting === 1 ? 'call is' : 'calls are'} waiting for full time.` : ''}
+                {overall.noModel ? ` ${overall.noModel} not scored: the model had no forecast that early in the season.` : ''}
+                {overall.late ? ` ${overall.late} not scored: changed after kick-off.` : ''}
+                {pending.length ? ` Still loading your calls in ${names(pending)}.` : ''}
+              </Text>
             </View>
-            <Text style={type.headline}>
-              {lead === 'you' ? "You're ahead" : lead === 'model' ? 'The model is ahead' : lead === 'level' ? 'Level' : 'No matches scored yet'}
-            </Text>
-            <Text style={[type.body, styles.sub]}>
-              {record.n
-                ? `Average Brier score on ${record.n} finished ${record.n === 1 ? 'match' : 'matches'} you both called. Lower is better. You were closer on ${record.youCloser}, the model on ${record.modelCloser}${record.level ? `, ${record.level} level` : ''}.`
-                : 'Call a fixture below. It\'s scored when the match finishes, with the same Brier score the model gets.'}
-              {record.waiting ? ` ${record.waiting} ${record.waiting === 1 ? 'call is' : 'calls are'} waiting for full time.` : ''}
-              {record.noModel ? ` ${record.noModel} not scored: the model had no forecast that early in the season.` : ''}
-              {record.late ? ` ${record.late} not scored: changed after kick-off.` : ''}
-            </Text>
+            {unloaded.length ? (
+              <Text style={[type.footnote, styles.sub]}>
+                Couldn't load {names(unloaded)}, so {unloaded.length === 1 ? 'its' : 'their'} calls aren't counted here.{' '}
+                <Text style={styles.link} onPress={seasons.retry} accessibilityRole="button">
+                  Try again
+                </Text>
+              </Text>
+            ) : null}
           </View>
+
+          {parts.length > 1 ? (
+            <View style={styles.sec}>
+              <SectionHeader title="By competition" />
+              {parts.map((p, i) => (
+                <CompetitionRow key={p.league.id} part={p} current={p.league.id === league.id} last={i === parts.length - 1} onPress={() => setLeague(p.league)} />
+              ))}
+            </View>
+          ) : null}
 
           <View style={styles.sec}>
             <SectionHeader title="Make your calls" />
@@ -131,15 +182,43 @@ export default function BeatTheModel() {
                 />
               ))
             )}
+            {scoredHere.length ? (
+              <Button label={md ? 'Share this matchday' : 'Share these results'} icon="share-outline" kind="secondary" onPress={share} style={{ marginTop: space.lg }} />
+            ) : null}
           </View>
+          <ShareCardSheet card={sharing} onClose={() => setSharing(null)} />
 
           {record.n ? (
             <View style={styles.sec}>
               <SectionHeader title="Match by match" />
-              <Text style={[type.footnote, styles.note]}>Brier score per match, you then the model. Lower is better; 0 is perfect, 2 is as wrong as it gets.</Text>
+              <Text style={[type.footnote, styles.note]}>
+                {parts.length > 1 ? `${league.name}. ` : ''}Brier score per match, you then the model. Lower is better; 0 is perfect, 2 is as wrong as it gets.
+              </Text>
               {record.rows.map((r, i) => (
                 <ScoredRow key={r.match.id} r={r} last={i === record.rows.length - 1} onPress={() => openMatch(r.match, league.id)} />
               ))}
+            </View>
+          ) : null}
+
+          {calibration ? (
+            <View style={styles.sec}>
+              <SectionHeader title="How sure, how often right" />
+              <View style={styles.cmp}>
+                {calibration.map((l) => (
+                  <View key={l.label} style={styles.cmpRow} accessible accessibilityLabel={`${l.label}, ${l.p * 100}%: right ${l.right} of ${l.n}`}>
+                    <Text style={styles.cmpLabel}>
+                      {l.label} ({l.p * 100}%)
+                    </Text>
+                    <Text style={[styles.cmpValue, { color: color.text }]}>
+                      right {l.right} of {l.n}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+              <Text style={[type.footnote, { marginTop: space.sm }]}>
+                Your {overall.n} scored calls{counted > 1 ? ', every competition' : ''}. If your confidence is well judged, Lean comes true about half the time, Likely 7 in
+                10, Sure 9 in 10. These are small counts: one result moves them a lot, so read them as a hint.
+              </Text>
             </View>
           ) : null}
 
@@ -166,7 +245,40 @@ export default function BeatTheModel() {
   );
 }
 
-function recordLabel(r: NonNullable<ReturnType<typeof scoreForecasts>>, lead: ReturnType<typeof leader>) {
+/** One competition's share of the record: null while its season loads, `failed` when it couldn't. */
+interface Part {
+  league: League;
+  record: BeatRecord | null;
+  failed: boolean;
+}
+
+function CompetitionRow({ part, current, last, onPress }: { part: Part; current: boolean; last: boolean; onPress: () => void }) {
+  const r = part.record;
+  const lead = r ? leader(r) : null;
+  const tag = lead === 'you' ? 'You' : lead === 'model' ? 'Model' : lead === 'level' ? 'Level' : '';
+  const line = !r
+    ? part.failed
+      ? "Couldn't load, not counted"
+      : 'Loading'
+    : r.n
+    ? `You ${b3(r.you!)} · Model ${b3(r.model!)} · ${r.n} ${r.n === 1 ? 'match' : 'matches'}`
+    : r.waiting
+    ? `${r.waiting} waiting for full time`
+    : 'No matches scored';
+  return (
+    <Row
+      title={part.league.name}
+      subtitle={line}
+      right={tag ? <Text style={[styles.tag, lead === 'you' && { color: color.accentText }]}>{tag}</Text> : undefined}
+      onPress={current ? undefined : onPress}
+      chevron={!current}
+      divider={!last}
+      accessibilityLabel={`${part.league.name}. ${line}${tag ? `. Ahead: ${tag}` : ''}${current ? '. Shown below' : '. Show its fixtures'}`}
+    />
+  );
+}
+
+function recordLabel(r: BeatRecord, lead: ReturnType<typeof leader>) {
   if (!r.n) return 'No matches scored yet';
   const who = lead === 'you' ? "You're ahead" : lead === 'model' ? 'The model is ahead' : 'Level';
   return `${who}. Your Brier score ${b3(r.you!)}, the model's ${b3(r.model!)}, on ${r.n} matches. You were closer on ${r.youCloser}, the model on ${r.modelCloser}.`;
@@ -276,7 +388,7 @@ function FixtureCall({
 }
 
 function ScoredRow({ r, last, onPress }: { r: ScoredMatch; last: boolean; onPress: () => void }) {
-  const closer = r.youBrier < r.modelBrier ? 'You' : r.modelBrier < r.youBrier ? 'Model' : 'Level';
+  const closer = { you: 'You', model: 'Model', level: 'Level' }[closerOf(r)];
   return (
     <Row
       title={scoreLine(r.match)}
