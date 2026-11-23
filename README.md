@@ -122,6 +122,16 @@ never scored), the model's forecast is the walk-forward one fitted on results be
 "How good is the model?" scores), shown on this page from kick-off, and only finished matches with both forecasts
 count. Calls stay on the device.
 
+The record at the top counts your calls in every competition, each scored match once, with a line per competition
+underneath. Only competitions you have calls in are loaded, one at a time and after the page has drawn, through the
+same cached requests the other screens use; one that fails is named and left out, and the rest still count. A
+scored matchday can be shared as an image drawn on the device ([`lib/share.ts`](lib/share.ts),
+[`lib/shareImage.ts`](lib/shareImage.ts)): your average and the model's on that matchday's scored matches, each
+match with both scores, club names and kit colours only (no crests or photos). It uses the browser's share sheet
+where that can share a file, with Save image and Copy text everywhere. Once ten calls are scored the page shows
+how often each confidence came true, as counts ("Sure: right 4 of 5"), not percentages, because the samples are
+small.
+
 So the page means something before your first result, it also shows how simple ways of filling it in did last
 season, labelled as historical: computed on the device from last season's results, walk-forward, each league
 starting from the season before as the live model does. Across the five leagues in 2025-26 (1,597 matches after
@@ -134,6 +144,12 @@ each league's first 30 results, [`scripts/beat-strategies.ts`](scripts/beat-stra
 | home win at Lean (50%), every game | 0.657 |
 | a third each | 0.667 |
 | home win at Sure (90%), every game | 0.975 |
+
+That table is about a hundred model fits per league, which used to run as one task when the data arrived. It now
+starts after the page has settled and runs a kick-off day at a time in slices of about 8 ms
+([`lib/slices.ts`](lib/slices.ts)). Measured in Node on a laptop (CPU time, median of 7, 2025-26 seasons): the
+Premier League's 350 calls were one 203 ms task and are now 28 tasks, the longest 9.6 ms, 198 ms in all; across the
+five leagues the single task was 123 to 239 ms and the longest slice is now 9.0 to 10.1 ms. The calls are identical.
 
 Being sure is expensive: right at 90% scores 0.015, wrong at 90% scores 1.715. The Premier League was the hardest
 to forecast (model 0.626 against 0.661 for the league's rates), Bundesliga the easiest (0.583 against 0.657).
@@ -286,7 +302,7 @@ with the network off `/`, `/matches`, a match page and a card page all open from
 ```bash
 npm install
 npx expo start          # scan the QR code with Expo Go, or press i / a for a simulator
-npm run test            # 233 unit tests: model, in-play chance, simulator, result impact, cards and abilities, collection, packs, picks, Beat the model, proxy
+npm run test            # 254 unit tests: model, in-play chance, simulator, result impact, cards and abilities, collection, packs, picks, Beat the model, share card, proxy
 npm run typecheck
 ```
 
@@ -311,7 +327,7 @@ app/
   pack.tsx                opening the daily pack
   guess.tsx               Who's this?
   arena.tsx               the Duel board
-  beat.tsx                Beat the model: your calls against the model's, by Brier score; last season's strategies
+  beat.tsx                Beat the model: your calls against the model's, by Brier score, across competitions; share card; last season's strategies
   match/[id].tsx          the chance through the match, what the result meant, scoreline heatmap, points race, key cards
   club/[id].tsx           position chart, ratings, projection, fixtures, squad cards
   about.tsx               data sources, privacy, support links
@@ -323,6 +339,7 @@ components/
   Match.tsx, Charts.tsx   scoreboards, fixture cards, SVG line charts
   WinChance.tsx           the chance-through-the-match chart (scrub or hover to read a minute)
   ResultImpact.tsx        what this result means: each side's season chances before and after
+  ShareCardSheet.tsx      a Beat the model matchday as an image: share, save, copy
 lib/                      pure logic, unit-tested
   model.ts                Poisson model, odds, scoreline grid, walk-forward backtest
   inplay.ts               in-play chance: time left, score state, checkpoints from the data
@@ -334,7 +351,9 @@ lib/                      pure logic, unit-tested
   collection.ts           credits, boosters, upgrade tiers, finishes, Collection Level
   packs.ts, guess.ts      daily packs; Who's this? puzzles
   picks.ts                scoring, the model's calls, you vs the model
-  beat.ts                 Beat the model: calls to forecasts, locking, Brier record, simple strategies
+  beat.ts                 Beat the model: calls to forecasts, locking, Brier record, all competitions, your calibration, simple strategies
+  share.ts, shareImage.ts the share card: its numbers and text; the drawn PNG (web)
+  slices.ts               long work in short tasks
   colors.ts               club colours from football-data.org's text
   football.ts, proxy.ts   helpers; proxy allowlist and cache policy
 services/api.ts           client: base URL, request sharing, saved copies for offline, optional crest stripping
