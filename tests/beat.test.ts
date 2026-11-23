@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyConfidence, applyOutcome, leader, LEVELS, probs, scoreForecasts, strategies, type Forecast } from '../lib/beat';
+import { applyConfidence, applyOutcome, CALIBRATION_MIN, closer, combine, competitionsOf, leader, LEVELS, ownCalibration, probs, scoreForecasts, strategies, type Forecast } from '../lib/beat';
 import { backtestCalls, brier, COIN_BRIER, forecastBefore, outcome } from '../lib/model';
 import type { Match } from '../lib/types';
 import { season } from './simulate';
@@ -139,5 +139,84 @@ describe('simple strategies on a past season', () => {
 
   it('is empty with no calls', () => {
     expect(strategies([])).toEqual([]);
+  });
+});
+
+describe('one record across competitions', () => {
+  // a second competition: the same kind of season with other ids, so nothing collides
+  const other = season([1.4, 1.2, 1.0, 0.9, 0.8, 0.7], [0.8, 0.9, 1.0, 1.0, 1.1, 1.2], { seed: 4 }).map((m) => ({
+    ...m,
+    id: m.id + 5000,
+    homeTeam: { ...m.homeTeam, id: m.homeTeam.id + 500 },
+    awayTeam: { ...m.awayTeam, id: m.awayTeam.id + 500 },
+  }));
+  const here = matches.slice(-6).map((m, i) => forecast(m, (['H', 'D', 'A'] as const)[i % 3], LEVELS[i % 3].p));
+  const there = other.slice(-3).map((m) => ({ ...forecast(m, 'H', 0.9), competitionId: 2014 }));
+  const all = [...here, ...there, forecast(fx(999, '2030-01-01T15:00:00Z'), 'H', 0.5, NOW)];
+  const a = scoreForecasts(all, [...matches, fx(999, '2030-01-01T15:00:00Z')]);
+  const b = scoreForecasts(all, other);
+
+  it('scores each competition on its own matches only', () => {
+    expect(a.n).toBe(6);
+    expect(b.n).toBe(3);
+    expect(a.waiting).toBe(1);
+  });
+
+  it('counts every scored match once: the averages are over matches, not over competitions', () => {
+    const r = combine([a, b]);
+    expect(r.n).toBe(9);
+    expect(r.you).toBeCloseTo((a.you! * 6 + b.you! * 3) / 9);
+    expect(r.model).toBeCloseTo((a.model! * 6 + b.model! * 3) / 9);
+    expect(r.you).not.toBeCloseTo((a.you! + b.you!) / 2, 6);
+    expect(r.youCloser).toBe(a.youCloser + b.youCloser);
+    expect(r.modelCloser).toBe(a.modelCloser + b.modelCloser);
+    expect(r.youCloser + r.modelCloser + r.level).toBe(9);
+    expect(r.waiting).toBe(1);
+    expect(r.rows.map((x) => x.match.utcDate)).toEqual([...r.rows.map((x) => x.match.utcDate)].sort().reverse());
+  });
+
+  it('is the one record when there is one, and empty with none', () => {
+    expect(combine([a])).toEqual(a);
+    expect(combine([])).toMatchObject({ n: 0, you: null, model: null, rows: [], waiting: 0 });
+    expect(leader(combine([]))).toBeNull();
+  });
+
+  it('lists the competitions you have calls in, in the app\'s order, ignoring ones it doesn\'t know', () => {
+    expect(competitionsOf([...there, ...here, { ...here[0], competitionId: 77 }], [2021, 2014, 2002])).toEqual([2021, 2014]);
+    expect(competitionsOf([], [2021, 2014])).toEqual([]);
+  });
+
+  it('says who was closer on a match, level within rounding', () => {
+    expect(closer({ youBrier: 0.375, modelBrier: 0.5 })).toBe('you');
+    expect(closer({ youBrier: 0.875, modelBrier: 0.5 })).toBe('model');
+    expect(closer({ youBrier: 0.1 + 0.2, modelBrier: 0.3 })).toBe('level');
+  });
+});
+
+describe('how often your calls came true', () => {
+  const row = (confidence: number, right: boolean) => ({ call: 'H' as const, confidence, o: right ? ('H' as const) : ('A' as const) });
+  const rows = [
+    ...Array.from({ length: 9 }, (_, i) => row(0.9, i < 6)),
+    ...Array.from({ length: 4 }, (_, i) => row(0.5, i < 1)),
+  ];
+
+  it('counts right calls at each confidence used: Sure right 6 of 9', () => {
+    expect(ownCalibration(rows)).toEqual([
+      { label: 'Lean', p: 0.5, n: 4, right: 1 },
+      { label: 'Sure', p: 0.9, n: 9, right: 6 },
+    ]);
+  });
+
+  it('says nothing until enough calls are scored', () => {
+    expect(ownCalibration(rows.slice(0, CALIBRATION_MIN - 1))).toBeNull();
+    expect(ownCalibration(rows.slice(0, CALIBRATION_MIN))).not.toBeNull();
+    expect(ownCalibration([])).toBeNull();
+  });
+
+  it('reads the call and confidence scoreForecasts recorded', () => {
+    const fs = matches.slice(-CALIBRATION_MIN).map((m) => forecast(m, outcome(m), 0.7));
+    const r = scoreForecasts(fs, matches);
+    expect(r.rows.every((x) => x.call === x.o && x.confidence === 0.7)).toBe(true);
+    expect(ownCalibration(r.rows)).toEqual([{ label: 'Likely', p: 0.7, n: CALIBRATION_MIN, right: CALIBRATION_MIN }]);
   });
 });

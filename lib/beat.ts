@@ -56,6 +56,9 @@ export function applyConfidence(all: Record<string, Forecast>, m: Match, confide
 export interface ScoredMatch {
   match: Match;
   o: Outcome;
+  /** what you called, and the chance you gave it */
+  call: Outcome;
+  confidence: number;
   you: Probs;
   model: Prediction;
   youBrier: number;
@@ -111,9 +114,14 @@ export function scoreForecasts(forecasts: Forecast[], matches: Match[], prior?: 
     }
     const o = outcome(m);
     const you = probs(f.outcome, f.confidence);
-    rows.push({ match: m, o, you, model, youBrier: brier(you, o), modelBrier: brier(model, o) });
+    rows.push({ match: m, o, call: f.outcome, confidence: f.confidence, you, model, youBrier: brier(you, o), modelBrier: brier(model, o) });
   }
-  rows.sort((a, b) => b.match.utcDate.localeCompare(a.match.utcDate) || b.match.id - a.match.id);
+  return { ...summary(rows), waiting, noModel, late };
+}
+
+/** The record over a set of scored matches, newest first. */
+function summary(scored: ScoredMatch[]): Pick<BeatRecord, 'rows' | 'n' | 'you' | 'model' | 'youCloser' | 'modelCloser' | 'level'> {
+  const rows = scored.slice().sort((a, b) => b.match.utcDate.localeCompare(a.match.utcDate) || b.match.id - a.match.id);
   const n = rows.length;
   const mean = (k: 'youBrier' | 'modelBrier') => (n ? rows.reduce((s, r) => s + r[k], 0) / n : null);
   return {
@@ -121,13 +129,53 @@ export function scoreForecasts(forecasts: Forecast[], matches: Match[], prior?: 
     n,
     you: mean('youBrier'),
     model: mean('modelBrier'),
-    youCloser: rows.filter((r) => r.youBrier < r.modelBrier - EPS).length,
-    modelCloser: rows.filter((r) => r.modelBrier < r.youBrier - EPS).length,
-    level: rows.filter((r) => Math.abs(r.youBrier - r.modelBrier) <= EPS).length,
-    waiting,
-    noModel,
-    late,
+    youCloser: rows.filter((r) => closer(r) === 'you').length,
+    modelCloser: rows.filter((r) => closer(r) === 'model').length,
+    level: rows.filter((r) => closer(r) === 'level').length,
   };
+}
+
+/** Whose forecast scored lower on one match. */
+export const closer = (r: Pick<ScoredMatch, 'youBrier' | 'modelBrier'>): 'you' | 'model' | 'level' =>
+  Math.abs(r.youBrier - r.modelBrier) <= EPS ? 'level' : r.youBrier < r.modelBrier ? 'you' : 'model';
+
+/**
+ * One record from several competitions' records: every scored match counts once, so the averages
+ * are over matches, not an average of the competitions' averages.
+ */
+export function combine(records: BeatRecord[]): BeatRecord {
+  const sum = (k: 'waiting' | 'noModel' | 'late') => records.reduce((s, r) => s + r[k], 0);
+  return { ...summary(records.flatMap((r) => r.rows)), waiting: sum('waiting'), noModel: sum('noModel'), late: sum('late') };
+}
+
+/** The competitions you have forecasts in, in the order of `known` (ids the app can load). */
+export function competitionsOf(forecasts: Forecast[], known: number[]): number[] {
+  const mine = new Set(forecasts.map((f) => f.competitionId));
+  return known.filter((id) => mine.has(id));
+}
+
+/** Scored calls before the page says how often each confidence came true. */
+export const CALIBRATION_MIN = 10;
+
+export interface LevelRecord {
+  label: string;
+  /** the chance you gave your call */
+  p: number;
+  /** scored calls made at this confidence, and how many were right */
+  n: number;
+  right: number;
+}
+
+/**
+ * How often your calls came true at each confidence, as counts: "Sure: right 6 of 9". Levels you
+ * haven't used are left out. Null until CALIBRATION_MIN calls are scored, since a handful says nothing.
+ */
+export function ownCalibration(rows: Pick<ScoredMatch, 'call' | 'confidence' | 'o'>[], min = CALIBRATION_MIN): LevelRecord[] | null {
+  if (rows.length < min) return null;
+  return LEVELS.map(({ label, p }) => {
+    const at = rows.filter((r) => r.confidence === p);
+    return { label, p, n: at.length, right: at.filter((r) => r.call === r.o).length };
+  }).filter((l) => l.n);
 }
 
 /** Who's ahead on the record: the lower mean Brier. */
