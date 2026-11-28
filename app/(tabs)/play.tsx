@@ -8,6 +8,8 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { Button, Credits, LargeHeader, Pitch, Row, Screen, tap } from '../../components/ui';
+import { Columns, Main, PhoneOnly, Rail, useBreakpoint } from '../../components/layout';
+import { RailCard } from '../../components/Rails';
 import { GroundsPreview } from '../../components/duel/Grounds';
 import { DuelCard } from '../../components/duel/DuelCard';
 import { useLeague } from '../../context/league';
@@ -45,6 +47,7 @@ export default function Play() {
   const [profile] = useProfile();
   const [rulesOpen, setRulesOpen] = useState(false);
   const reduced = useReducedMotion();
+  const bp = useBreakpoint();
   const owned = useMemo(() => collection[String(league.id)] ?? {}, [collection, league.id]);
   const rec = profile.duel ?? { played: 0, won: 0, drawn: 0, best: 0 };
   const day = today();
@@ -66,6 +69,8 @@ export default function Play() {
     <Screen tint={color.tabTint.play}>
       <LargeHeader title="Play" leagueMenu right={<Credits credits={profile.credits} />} />
 
+      <Columns>
+      <Main>
       {/* the Duel, on a floodlit pitch */}
       <Pitch style={styles.hero}>
         <View style={styles.heroHead}>
@@ -91,9 +96,10 @@ export default function Play() {
         ) : deck ? (
           <Animated.View entering={reduced ? undefined : FadeIn.duration(200)}>
             <ScrollView
-              horizontal
+              horizontal={!bp.desktop}
+              scrollEnabled={!bp.desktop}
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.deckRow}
+              contentContainerStyle={[styles.deckRow, bp.desktop && styles.deckWrap]}
               style={styles.deckScroll}
               accessibilityLabel={`Your deck: ${deck.cards.length} cards`}
             >
@@ -113,7 +119,7 @@ export default function Play() {
                     accessibilityLabel={`${c.name}${loan ? ', on loan' : ''}. Open card`}
                     style={{ alignItems: 'center', gap: 6 }}
                   >
-                    <DuelCard card={c} size="hand" width={HAND_W} tier={lookOf(owned[String(c.id)]).tier} />
+                    <DuelCard card={c} size="hand" width={bp.desktop ? 92 : HAND_W} tier={lookOf(owned[String(c.id)]).tier} />
                     {deck.loans.size ? <Text style={[styles.loan, !loan && { opacity: 0 }]}>Loan</Text> : null}
                   </Pressable>
                 );
@@ -153,7 +159,7 @@ export default function Play() {
         </View>
 
         <View style={{ paddingHorizontal: 16 }}>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
+          <View style={[{ flexDirection: 'row', gap: 10 }, bp.desktop && { maxWidth: 460 }]}>
             <Button
               label="Edit deck"
               kind="secondary"
@@ -200,6 +206,7 @@ export default function Play() {
         />
 
         {/* how it works */}
+        <PhoneOnly>
         <Row
           title="How to play"
           subtitle={rulesOpen ? undefined : 'Stadiums, energy, Press and the prize'}
@@ -224,7 +231,22 @@ export default function Play() {
               </Animated.View>
             ))
           : null}
+        </PhoneOnly>
       </View>
+      </Main>
+      <Rail>
+        {bp.desktop ? (
+          <RailCard title="How to play">
+            {RULES.map(([t, d]) => (
+              <View key={t} style={{ paddingVertical: 7 }}>
+                <Text style={type.bodyStrong}>{t}</Text>
+                <Text style={[type.footnote, { color: color.text2, marginTop: 2 }]}>{d}</Text>
+              </View>
+            ))}
+          </RailCard>
+        ) : null}
+      </Rail>
+      </Columns>
     </Screen>
   );
 }
@@ -242,6 +264,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   deckScroll: { flexGrow: 0 },
+  deckWrap: { flexWrap: 'wrap', rowGap: 12 },
   deckRow: {
     flexDirection: 'row',
     gap: 10,

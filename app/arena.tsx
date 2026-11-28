@@ -59,6 +59,8 @@ import {
 import { TWISTS, groundLabel } from '../lib/stadiums';
 import { ClubColors, contrast } from '../lib/colors';
 import type { PlayerCard } from '../lib/cards';
+import { useBreakpoint } from '../components/layout';
+import { sidebarWidth } from '../lib/layout';
 import { color, CARD_RATIO, font, motion, radius, space } from '../constants/design';
 
 const easeOut = Easing.bezier(...motion.easeOut);
@@ -192,6 +194,7 @@ function Piece({ item, w, tier, onPress, onLongPress }: { item: Item; w: number;
 function Slots({
   items,
   w,
+  cols = 2,
   side,
   tierOf,
   onPiece,
@@ -199,16 +202,18 @@ function Slots({
 }: {
   items: Item[];
   w: number;
+  /** two by two on a phone; four in a row on a wide board */
+  cols?: 2 | 4;
   side: Side;
   tierOf: (id: number) => number;
   onPiece: (it: Item) => (() => void) | undefined;
   onHold: (it: Item) => (() => void) | undefined;
 }) {
-  const order = side === 'you' ? [0, 1, 2, 3] : [2, 3, 0, 1];
+  const order = side === 'you' || cols === 4 ? [0, 1, 2, 3] : [2, 3, 0, 1];
   return (
     <View
       style={{
-        width: w * 2 + SLOT_GAP,
+        width: w * cols + SLOT_GAP * (cols - 1),
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: SLOT_GAP,
@@ -375,7 +380,12 @@ export default function Arena() {
   const match = useMemo(() => getMatch(), []);
   const [collection] = useCollection();
   const [, setProfile] = useProfile();
-  const { width, height } = useWindowDimensions();
+  const win = useWindowDimensions();
+  const height = win.height;
+  const bp = useBreakpoint();
+  // wide screens: the board is laid out for landscape, beside the sidebar (docs/desktop/DESIGN.md)
+  const wide = bp.desktop;
+  const width = wide ? win.width - sidebarWidth(win.width) : win.width;
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const [s, setS] = useState<GameState | null>(() => (match ? newGame({ you: match.you, opponent: match.opponent, seed: match.seed, stadiums: match.stadiums }) : null));
@@ -430,15 +440,19 @@ export default function Arena() {
   }, [s, revealing, reduced, setProfile]);
 
   // ---- sizes: pieces are 54 on a 390 screen, smaller when the lanes or the height can't hold them
-  const W = Math.min(width, 520);
+  const W = wide ? Math.min(width - 64, 1060) : Math.min(width, 520);
+  const cols = wide ? 4 : 2;
+  const handW = wide ? 96 : HAND_W;
   const laneW = Math.floor((W - GUTTER * 2 - LANE_GAP * 2) / 3);
-  const byWidth = Math.floor((laneW - SLOT_GAP) / 2);
-  const handH = Math.round(HAND_W * CARD_RATIO);
+  const byWidth = Math.floor((laneW - LANE_PAD * 2 - 8 * (cols / 2 - 1) - SLOT_GAP * (cols - 1)) / cols);
+  const handH = Math.round(handW * CARD_RATIO);
   const boardRoom = height - insets.top - Math.max(insets.bottom, 8) - TOP_H - OPP_H - HINT_H - (handH + 20) - ABAR_H;
-  const byHeight = Math.floor(((boardRoom - PLATE_H - LANE_GAP * 2 - LANE_PAD * 2) / 2 - SLOT_GAP) / 2 / CARD_RATIO);
-  const pw = Math.max(36, Math.min(56, byWidth, byHeight));
+  // each side of a lane is two rows of two on a phone, one row of four on a wide board
+  const rows = wide ? 1 : 2;
+  const byHeight = Math.floor(((boardRoom - PLATE_H - LANE_GAP * 2 - LANE_PAD * 2) / 2 - SLOT_GAP * (rows - 1)) / rows / CARD_RATIO);
+  const pw = Math.max(36, Math.min(wide ? 92 : 56, byWidth, byHeight));
   const ph = Math.round(pw * CARD_RATIO);
-  const slotsH = ph * 2 + SLOT_GAP;
+  const slotsH = ph * rows + SLOT_GAP * (rows - 1);
 
   const legal = useMemo(() => (s && !revealing ? legalPlays(s, 'you') : []), [s, revealing]);
   const zonesFor = useCallback((id: number | null) => new Set(legal.filter((p) => p.cardId === id).map((p) => p.zone)), [legal]);
@@ -728,11 +742,11 @@ export default function Arena() {
                   />
                   {target ? <View style={styles.laneTarget} pointerEvents="none" /> : null}
                   <View style={{ height: slotsH, justifyContent: 'flex-end' }}>
-                    <Slots items={itemsFor(s, z, 'opponent')} w={pw} side="opponent" tierOf={tierOf} onPiece={onPiece} onHold={onHold} />
+                    <Slots items={itemsFor(s, z, 'opponent')} w={pw} cols={cols} side="opponent" tierOf={tierOf} onPiece={onPiece} onHold={onHold} />
                   </View>
                   <ZonePlate s={s} zone={z} roar={roars.find((r) => r.zone === z) ?? null} />
                   <View style={{ height: slotsH }}>
-                    <Slots items={itemsFor(s, z, 'you')} w={pw} side="you" tierOf={tierOf} onPiece={onPiece} onHold={onHold} />
+                    <Slots items={itemsFor(s, z, 'you')} w={pw} cols={cols} side="you" tierOf={tierOf} onPiece={onPiece} onHold={onHold} />
                   </View>
                 </Pressable>
               );
@@ -766,7 +780,7 @@ export default function Arena() {
               <HandCard
                 key={c.id}
                 card={c}
-                w={HAND_W}
+                w={handW}
                 tier={tierOf(c.id)}
                 selected={selected === c.id}
                 playable={!busy && zonesFor(c.id).size > 0}
@@ -782,7 +796,7 @@ export default function Arena() {
         </ScrollView>
 
         {/* action bar */}
-        <View style={styles.abar}>
+        <View style={[styles.abar, wide && { alignSelf: 'center', width: 600 }]}>
           <View style={styles.energy}>
             <EnergyGem value={energy} spent={energy === 0} />
             <View>

@@ -24,6 +24,7 @@ import { lookOf } from '../lib/collection';
 import { cardStats, CROWD_BOOST, DECK_SIZE } from '../lib/game';
 import type { PlayerCard } from '../lib/cards';
 import type { Line } from '../lib/football';
+import { useBreakpoint } from '../components/layout';
 import { color, font, gem, radius, space } from '../constants/design';
 
 const GUTTER = space.gutter;
@@ -94,6 +95,7 @@ export default function DeckEditor() {
     say(r.ids.length > ids.length ? `${c.banner} in.` : `${c.banner} out.${r.ids.length < DECK_SIZE ? ' A loan fills the slot.' : ''}`);
   };
 
+  const bp = useBreakpoint();
   const close = () => (router.canGoBack() ? router.back() : router.replace('/play'));
 
   return (
@@ -123,8 +125,10 @@ export default function DeckEditor() {
         </Pressable>
       </View>
 
+      {/* a phone pins your 12 above the list; a wide screen puts the deck on the left and your collection beside it */}
+      <View style={bp.desktop ? styles.cols : { flex: 1 }}>
       {/* your 12, pinned */}
-      <View style={styles.top}>
+      <View style={[styles.top, bp.desktop && styles.topWide]}>
         <View style={styles.deckHead}>
           <Text style={styles.deckTitle}>
             {`${mineIn} yours`}
@@ -151,6 +155,7 @@ export default function DeckEditor() {
       </View>
 
       <FlatList
+        style={bp.desktop ? styles.listWide : undefined}
         data={shown}
         keyExtractor={(c) => String(c.id)}
         contentContainerStyle={{ paddingBottom: space.x4 }}
@@ -191,6 +196,7 @@ export default function DeckEditor() {
         )}
         ListEmptyComponent={mine.length ? <Text style={[styles.count, { paddingTop: space.lg }]}>No cards match these filters.</Text> : null}
       />
+      </View>
 
       {/* what just changed: a toast, so the list never jumps */}
       <View pointerEvents="none" style={[styles.toastWrap, { bottom: Math.max(insets.bottom, 12) + 8 }]} accessibilityLiveRegion="polite">
@@ -331,6 +337,9 @@ function CardRow({ card, tier, selected, full, home, onPress }: { card: PlayerCa
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: color.bg },
+  cols: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 24, paddingHorizontal: 24, paddingTop: 8 },
+  topWide: { width: 500, flexShrink: 1, borderBottomWidth: 0, alignSelf: 'flex-start', backgroundColor: color.surface, borderRadius: 20, paddingTop: 14, paddingBottom: 16 },
+  listWide: { flex: 1, maxWidth: 640 },
   navAction: { fontFamily: font.semibold, fontSize: 16, color: color.accentText },
   top: { paddingHorizontal: GUTTER, paddingBottom: 12, borderBottomWidth: 1, borderColor: color.hairline, backgroundColor: color.bg },
   deckHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 28 },
