@@ -9,6 +9,7 @@ import type { Forecast } from './beat';
 import type { CardState } from './collection';
 import type { ClubColors } from './colors';
 import { DeckSaves, migrateDeckSaves, NO_SAVES } from './decks';
+import { useHydrated } from './hydration';
 
 const KEY = {
   collection: 'fs.collection.v3',
@@ -45,12 +46,12 @@ async function write(key: string, value: unknown) {
  * The web build is pre-rendered to HTML at build time, where nothing is saved, and the first client
  * render has to match that HTML exactly or React throws it away (error #418). The saved value loads
  * asynchronously, so whether it had arrived by the first render was a race: when it had, the client
- * drew "Pick your teams" or a loading skeleton where the HTML had the other. So until the page has
- * hydrated, every store renders as "not loaded yet", on the server and in the browser alike; the
- * saved value arrives one effect later. Native apps have no pre-rendered HTML and skip this.
+ * drew "Pick your teams" or a loading skeleton where the HTML had the other. So while a component is
+ * hydrating, every store renders as "not loaded yet", on the server and in the browser alike; the
+ * saved value arrives one effect later. React says which renders those are (lib/hydration.ts): the
+ * page hydrates in pieces, so one flag for the whole page would be flipped by the first piece (the
+ * desktop sidebar reads the profile) before the screen itself had hydrated.
  */
-const isWebOrServer = typeof document !== 'undefined' || typeof window === 'undefined';
-let hydrated = !isWebOrServer;
 
 /** A tiny shared store per key, so every screen sees the same state. */
 function makeStore<T>(key: string, initial: T, migrate?: (raw: unknown) => T) {
@@ -63,11 +64,10 @@ function makeStore<T>(key: string, initial: T, migrate?: (raw: unknown) => T) {
     subs.forEach((s) => s(value));
   });
   return function useStore(): [T, (update: (v: T) => T) => void, boolean] {
+    const hydrated = useHydrated();
     const [v, setV] = useState(() => (hydrated ? value : initial));
     const [ready, setReady] = useState(() => hydrated && loaded);
     useEffect(() => {
-      // effects run after hydration has committed: stores mounted from now on can start loaded
-      if (typeof document !== 'undefined') hydrated = true;
       const sub = (nv: T) => {
         setV(nv);
         setReady(true);
