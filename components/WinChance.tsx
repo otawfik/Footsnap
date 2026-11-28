@@ -32,7 +32,7 @@ export function WinChance({ stretches, width: guess, names, tones, live }: WinCh
   const [measured, setMeasured] = useState<number | null>(null);
   const width = measured ?? guess;
   // a little taller on wide screens, so the curve isn't flattened
-  const height = Math.round(Math.max(184, Math.min(260, width * 0.32)));
+  const height = Math.round(Math.max(184, Math.min(width > 640 ? 320 : 260, width * (width > 640 ? 0.38 : 0.32))));
   const pad = { l: 36, r: 10, t: 26, b: 24 };
   const W = width - pad.l - pad.r;
   const H = height - pad.t - pad.b;

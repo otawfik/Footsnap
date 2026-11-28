@@ -27,6 +27,8 @@ import { useCollection, usePicks } from '../../lib/storage';
 import { lookOf } from '../../lib/collection';
 import type { Match } from '../../lib/types';
 import { color, font, space, type } from '../../constants/design';
+import { Columns, Main, Rail, useBreakpoint } from '../../components/layout';
+import { chartHeight } from '../../lib/layout';
 
 const ordinal = (n: number) => {
   const teen = n % 100 >= 11 && n % 100 <= 13;
@@ -49,6 +51,7 @@ export default function MatchScreen() {
   const [collection] = useCollection();
   const [picks, setPicks] = usePicks();
   const { width } = useWindowDimensions();
+  const bp = useBreakpoint();
   const [allScores, setAllScores] = useState(false);
   const [cell, setCell] = useState<[number, number] | null>(null);
   const matches = useMemo(() => season.data?.matches ?? [], [season.data]);
@@ -101,7 +104,8 @@ export default function MatchScreen() {
   const group = m.matchday ? matches.filter((x) => x.matchday === m.matchday) : [m];
   const otherPressed = pressedIn(picks, group.filter((x) => x.id !== m.id));
   const canPress = !!pick && !isLocked && (!otherPressed || !locked(otherPressed));
-  const contentW = Math.min(width, 600) - space.gutter * 2;
+  // charts are as wide as the column they sit in: the page on a phone, the main column beside the rail on a wide screen
+  const contentW = bp.desktop ? bp.main : Math.min(width, 600) - space.gutter * 2;
 
   const top5 = grid
     ? grid
@@ -121,7 +125,7 @@ export default function MatchScreen() {
   };
   const keyCards = [best(m.homeTeam.id), best(m.awayTeam.id)].filter((x): x is NonNullable<typeof x> => !!x);
   const owned = collection[String(league.id)] ?? {};
-  const cardW = Math.min(150, (contentW - space.md) / 2);
+  const cardW = bp.desktop ? 148 : Math.min(150, (contentW - space.md) / 2);
   const openClub = (teamId: number) => router.push({ pathname: '/club/[id]', params: { id: String(teamId), c: String(league.id) } });
 
   const share = () => {
@@ -145,8 +149,8 @@ export default function MatchScreen() {
   const chanceGround = mix(color.bg, luminance(th) > luminance(ta) ? th : ta, 0.2);
   const bugCenter = done || live ? `${h}–${a}` : m.status === 'POSTPONED' ? 'TBC' : clock(m.utcDate);
 
-  return (
-    <Screen tabBar={false}>
+  const navEl = (
+    <>
       <View style={{ zIndex: 2 }}>
       <NavBar
         title={`${league.name}${m.matchday ? ` · Matchday ${m.matchday}` : ''}`}
@@ -157,10 +161,13 @@ export default function MatchScreen() {
         }
       />
       </View>
-
+    </>
+  );
+  const heroEl = (
+    <>
       {/* the fixture in its two kits, the kick-off (or score) set like a TV score bug */}
-      <Bleed style={{ marginTop: 4 }}>
-        <KitField colors={hc} away={ac} tones={[th, ta]} height={176} fade={0.6}>
+      <Bleed style={{ marginTop: 4 }} hero>
+        <KitField colors={hc} away={ac} tones={[th, ta]} height={bp.desktop ? 200 : 176} fade={0.6}>
           <View style={styles.bugWrap} pointerEvents="none">
             <ScoreBug home={{ code: code(m.homeTeam), tone: th }} away={{ code: code(m.awayTeam), tone: ta }} center={bugCenter} live={live} />
           </View>
@@ -176,7 +183,10 @@ export default function MatchScreen() {
           {[live ? statusLabel(m) : done ? 'Full time' : m.status === 'POSTPONED' ? 'Postponed' : shortDate(m.utcDate), venue].filter(Boolean).join(' · ')}
         </Text>
       </View>
-
+    </>
+  );
+  const chanceEl = (
+    <>
       {p ? (
         <LinearGradient colors={[alpha(th, 0.2), alpha(ta, 0.2)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.chance}>
           <Overline>{done || live ? 'What the model said before kick-off' : "Model's chance"}</Overline>
@@ -205,7 +215,10 @@ export default function MatchScreen() {
           </View>
         </LinearGradient>
       ) : null}
-
+    </>
+  );
+  const curveEl = (
+    <>
       {curve ? (
         <View style={styles.sec}>
           <Overline right={live && marks[marks.length - 1].minute < 90 ? 'Live' : undefined}>Chance through the match</Overline>
@@ -218,9 +231,15 @@ export default function MatchScreen() {
           </Text>
         </View>
       ) : null}
-
+    </>
+  );
+  const impactEl = (
+    <>
       {done && ratings ? <ResultImpact match={m} matches={matches} ratings={ratings} competitionId={league.id} tones={[th, ta]} colors={[hc, ac]} /> : null}
-
+    </>
+  );
+  const pickEl = (
+    <>
       <View style={styles.sec}>
         <Overline right="Free · points only">Your pick</Overline>
         <Segmented
@@ -254,18 +273,22 @@ export default function MatchScreen() {
           </View>
         ) : null}
       </View>
-
+    </>
+  );
+  const scoresEl = (
+    <>
       {grid ? (
         <View style={styles.sec}>
           <View style={styles.overRow}>
-            <Text style={type.overline}>Likeliest scores</Text>
-            <Pressable onPress={() => { tap('select'); setAllScores((x) => !x); }} hitSlop={8} accessibilityRole="button" style={styles.more}>
+            <Text style={type.overline}>{bp.desktop ? 'Likeliest scores, and every score to 5–5' : 'Likeliest scores'}</Text>
+            <Pressable onPress={() => { tap('select'); setAllScores((x) => !x); }} hitSlop={8} accessibilityRole="button" style={[styles.more, bp.desktop && { display: 'none' }]}>
               <Text style={styles.moreText}>{allScores ? 'Top five' : 'All scores'}</Text>
               <Ionicons name={allScores ? 'chevron-up' : 'chevron-forward'} size={14} color={color.accentText} />
             </Pressable>
           </View>
-          {!allScores ? (
-            <View style={styles.scores}>
+          <View style={bp.desktop ? styles.scoresRow : undefined}>
+          {bp.desktop || !allScores ? (
+            <View style={[styles.scores, bp.desktop && styles.scoresWide]}>
               {top5.map((x, k) => (
                 <View key={`${x.i}-${x.j}`} style={styles.scoreCol} accessible accessibilityLabel={`${x.i}–${x.j}: ${pctText(x.v)}`}>
                   <Text style={styles.scoreText}>{x.i}–{x.j}</Text>
@@ -276,8 +299,9 @@ export default function MatchScreen() {
                 </View>
               ))}
             </View>
-          ) : (
-            <View>
+          ) : null}
+          {bp.desktop || allScores ? (
+            <View style={bp.desktop ? styles.gridWide : undefined}>
               <View style={styles.gridRow}>
                 <View style={styles.axis} />
                 {grid[0].map((_, j) => (
@@ -315,10 +339,14 @@ export default function MatchScreen() {
                   : `Rows are ${teamName(m.homeTeam)} goals, columns ${teamName(m.awayTeam)} goals, in %.${done ? ' The outlined square is what happened.' : ' Tap a square.'}`}
               </Text>
             </View>
-          )}
+          ) : null}
+          </View>
         </View>
       ) : null}
-
+    </>
+  );
+  const formEl = (
+    <>
       <View style={styles.sec}>
         <Overline>Last five</Overline>
         {[m.homeTeam, m.awayTeam].map((t) => (
@@ -331,12 +359,16 @@ export default function MatchScreen() {
           </Pressable>
         ))}
       </View>
-
+    </>
+  );
+  const raceEl = (
+    <>
       {homeT.length > 1 ? (
         <View style={styles.sec}>
           <Overline>Points race</Overline>
           <LineChart
             width={contentW}
+            height={bp.desktop ? chartHeight(contentW, 3.2, 200, 260) : undefined}
             yMin={0}
             series={[
               { label: teamName(m.homeTeam), points: homeT.map((t) => ({ x: t.matchday, y: t.points })) },
@@ -346,7 +378,10 @@ export default function MatchScreen() {
           />
         </View>
       ) : null}
-
+    </>
+  );
+  const cardsEl = (
+    <>
       {keyCards.length ? (
         <View style={styles.sec}>
           <Overline>Key cards</Overline>
@@ -359,7 +394,10 @@ export default function MatchScreen() {
           </View>
         </View>
       ) : null}
-
+    </>
+  );
+  const fineEl = (
+    <>
       {ratings ? (
         <Text style={styles.fine}>
           From a goals model fitted to this season's {ratings.games} results.
@@ -372,6 +410,44 @@ export default function MatchScreen() {
         </Text>
       ) : (
         <Text style={styles.fine}>The model's chances start once this season has a few results.</Text>
+      )}
+    </>
+  );
+
+  // a phone reads it top to bottom; a wide screen puts the model and its charts in the main column
+  // and what you do with them (your pick, what the result meant, form, the cards) in the rail
+  return (
+    <Screen tabBar={false}>
+      {navEl}
+      {heroEl}
+      {bp.desktop ? (
+        <Columns>
+          <Main>
+            {chanceEl}
+            {curveEl}
+            {scoresEl}
+            {raceEl}
+            {fineEl}
+          </Main>
+          <Rail>
+            {pickEl}
+            {impactEl}
+            {formEl}
+            {cardsEl}
+          </Rail>
+        </Columns>
+      ) : (
+        <>
+          {chanceEl}
+          {curveEl}
+          {impactEl}
+          {pickEl}
+          {scoresEl}
+          {formEl}
+          {raceEl}
+          {cardsEl}
+          {fineEl}
+        </>
       )}
     </Screen>
   );
@@ -403,6 +479,9 @@ const styles = StyleSheet.create({
   more: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   moreText: { fontFamily: font.medium, fontSize: 14, color: color.accentText },
   scores: { flexDirection: 'row', gap: 8 },
+  scoresRow: { flexDirection: 'row', gap: 40, alignItems: 'flex-start' },
+  scoresWide: { flex: 1, paddingTop: 22 },
+  gridWide: { flex: 1, maxWidth: 380 },
   scoreCol: { flex: 1, alignItems: 'center', gap: 6 },
   scoreText: { fontFamily: font.semibold, fontSize: 15, color: color.text, fontVariant: ['tabular-nums'] },
   sbar: { alignSelf: 'stretch', height: 34, justifyContent: 'flex-end', borderBottomWidth: 1, borderBottomColor: color.hairlineStrong },
