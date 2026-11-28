@@ -51,6 +51,7 @@ import type { Team } from '../lib/types';
 import type { Result } from '../lib/football';
 import { alpha, ClubColors, contrast, luminance, mix } from '../lib/colors';
 import { subscribeOffline } from '../services/api';
+import { fs, hover } from './layout';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -215,6 +216,7 @@ export function Screen({
   tabBar = true,
   style,
   tint,
+  narrow,
 }: {
   children: React.ReactNode;
   refreshing?: boolean;
@@ -229,6 +231,8 @@ export function Screen({
   style?: StyleProp<ViewStyle>;
   /** the tab's colour, washed across the top of the screen (color.tabTint) */
   tint?: string;
+  /** from 1024 px: a reading column (about 840 px) instead of the full page width, for screens that are mostly text or one list */
+  narrow?: boolean;
 }) {
   const bar = useTabBarHeight();
   const pad = { paddingHorizontal: gutter ? space.gutter : 0 };
@@ -245,11 +249,13 @@ export function Screen({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={color.text2} colors={[color.accent]} /> : undefined}
+          {...fs('scroll')}
         >
-          {children}
+          {/* the page: full width on a phone, centred with a maximum width from 768 px (lib/layout.ts) */}
+          <View {...fs(narrow ? 'page page-narrow' : 'page')}>{children}</View>
         </ScrollView>
       ) : (
-        <View style={[{ flex: 1 }, pad]}>{children}</View>
+        <View style={[{ flex: 1 }, pad]} {...fs(narrow ? 'page page-narrow' : 'page')}>{children}</View>
       )}
     </SafeAreaView>
   );
@@ -428,7 +434,7 @@ export function NavBar({ title, onBack, right, back = 'chevron-back' }: { title?
       <Pressable onPress={onBack ?? goBack} hitSlop={12} style={styles.navSide} accessibilityRole="button" accessibilityLabel={back === 'close' ? 'Close' : 'Back'}>
         <Ionicons name={back} size={26} color={color.text} />
       </Pressable>
-      <Text style={styles.navTitle} numberOfLines={1}>{title ?? ''}</Text>
+      <Text style={styles.navTitle} numberOfLines={1} {...fs('nav-title')}>{title ?? ''}</Text>
       <View style={[styles.navSide, { alignItems: 'flex-end' }]}>{right}</View>
     </View>
   );
@@ -500,7 +506,7 @@ export function Row({
   );
   if (!onPress) return <View accessible={!!accessibilityLabel} accessibilityLabel={accessibilityLabel}>{body(false)}</View>;
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? (subtitle ? `${title}, ${subtitle}` : title)} accessibilityState={accessibilityState}>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? (subtitle ? `${title}, ${subtitle}` : title)} accessibilityState={accessibilityState} {...hover('row')}>
       {({ pressed }) => body(pressed)}
     </Pressable>
   );
@@ -1170,12 +1176,12 @@ export function Sheet({ visible, onClose, title, children }: { visible: boolean;
   if (!mounted) return null;
   return (
     <Modal transparent visible animationType="none" onRequestClose={onClose} statusBarTranslucent>
-      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <View style={{ flex: 1, justifyContent: 'flex-end' }} {...fs('sheet-wrap')}>
         <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: color.scrim }, scrim]}>
           <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
         </Animated.View>
-        <Animated.View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, space.lg) + space.sm, maxHeight: height * 0.86 }, panel]} accessibilityViewIsModal>
-          <View style={styles.grabber} />
+        <Animated.View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, space.lg) + space.sm, maxHeight: height * 0.86 }, panel]} accessibilityViewIsModal {...fs('sheet')}>
+          <View style={styles.grabber} {...fs('grabber')} />
           {title ? <Text style={styles.sheetTitle} accessibilityRole="header">{title}</Text> : null}
           <ScrollView bounces={false} showsVerticalScrollIndicator={false}>{children}</ScrollView>
         </Animated.View>

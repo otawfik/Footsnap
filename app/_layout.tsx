@@ -13,6 +13,7 @@ import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold';
 import { InterTight_700Bold } from '@expo-google-fonts/inter-tight/700Bold';
 import { InterTight_800ExtraBold } from '@expo-google-fonts/inter-tight/800ExtraBold';
 import { LeagueProvider } from '../context/league';
+import { Sidebar } from '../components/Shell';
 import { color } from '../constants/design';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -39,6 +40,10 @@ export default function RootLayout() {
     <LeagueProvider>
       <View style={styles.root}>
         <StatusBar style="light" />
+        {/* from 1024 px on the web the sidebar takes the tab bar's place (components/Shell.tsx) */}
+        <View style={styles.shell}>
+          <Sidebar />
+          <View style={styles.stage}>
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.bg }, animation: 'default' }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="match/[id]" />
@@ -54,9 +59,15 @@ export default function RootLayout() {
           <Stack.Screen name="deck" options={{ presentation: 'modal' }} />
           <Stack.Screen name="arena" options={{ presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false }} />
         </Stack>
+          </View>
+        </View>
       </View>
     </LeagueProvider>
   );
 }
 
-const styles = StyleSheet.create({ root: { flex: 1, backgroundColor: color.bg } });
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: color.bg },
+  shell: { flex: 1, flexDirection: 'row' },
+  stage: { flex: 1, minWidth: 0 },
+});

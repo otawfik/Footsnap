@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { color, font, size } from '../../constants/design';
 import { tap } from '../../components/ui';
+import { fs } from '../../components/layout';
 
 type Icon = React.ComponentProps<typeof Ionicons>['name'];
 /** The four tabs, in order (SPEC §3, §4). Any other file in (tabs) is never shown in the bar. */
@@ -21,7 +22,7 @@ function Bar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const current = state.routes[state.index]?.name;
   return (
-    <View style={[styles.bar, { height: size.tabBar + Math.max(insets.bottom, 8), paddingBottom: Math.max(insets.bottom, 8) }]}>
+    <View style={[styles.bar, { height: size.tabBar + Math.max(insets.bottom, 8), paddingBottom: Math.max(insets.bottom, 8) }]} {...fs('tabbar')}>
       {Platform.OS === 'ios' ? <BlurView tint="dark" intensity={40} style={StyleSheet.absoluteFill} /> : null}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: Platform.OS === 'ios' ? 'rgba(23,43,82,0.92)' : 'rgba(23,43,82,0.98)' }]} />
       {TABS.map((t) => {

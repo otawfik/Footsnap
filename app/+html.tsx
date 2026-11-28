@@ -7,6 +7,7 @@
  */
 import type { PropsWithChildren } from 'react';
 import { ScrollViewStyleReset } from 'expo-router/html';
+import { SHELL_CSS } from '../lib/layout';
 
 const GROUND = '#102040'; // color.bg in constants/design.ts
 
@@ -33,6 +34,8 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: `body{background-color:${GROUND}}` }} />
+        {/* the desktop shell and columns, by media query (lib/layout.ts) */}
+        <style dangerouslySetInnerHTML={{ __html: SHELL_CSS }} />
         {process.env.NODE_ENV === 'production' ? <script dangerouslySetInnerHTML={{ __html: REGISTER }} /> : null}
       </head>
       <body>{children}</body>
