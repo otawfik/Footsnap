@@ -14,6 +14,8 @@ import { canUpgrade, collectionLevel, lookOf, milestoneReward, MILESTONE_STEP, u
 import { GUESSES_PER_DAY } from '../../lib/guess';
 import type { Rarity } from '../../lib/cards';
 import { cardStats } from '../../lib/game';
+import { hover, useBreakpoint } from '../../components/layout';
+import { gridColumns } from '../../lib/layout';
 import { color, font, radius, space, type } from '../../constants/design';
 import { LinearGradient } from 'expo-linear-gradient';
 import { alpha } from '../../lib/colors';
@@ -46,6 +48,7 @@ export default function Cards() {
   const [ownedOnly, setOwnedOnly] = useState(false);
   const [limit, setLimit] = useState(PAGE);
   const { width } = useWindowDimensions();
+  const bp = useBreakpoint();
   const owned = collection[String(league.id)] ?? {};
   const ownedCount = list.filter((c) => owned[String(c.id)]).length;
   const opened = packs[String(league.id)] === today() && profile.bonusPacks === 0;
@@ -68,10 +71,13 @@ export default function Cards() {
   };
 
   // (screen − 40 − 20) / 3, capped for tablets and the web
-  const gridW = Math.min(width, 520) - space.gutter * 2;
-  const cardW = Math.floor((gridW - 20) / 3);
+  // wide screens: the grid fills the page, as many 150 px cards as fit (5 to 8 across)
+  const wideGrid = bp.tablet ? gridColumns(bp.content, bp.desktop ? 150 : 130, 16, { minCols: 4, maxCols: 8 }) : null;
+  const gridW = wideGrid ? bp.content : Math.min(width, 520) - space.gutter * 2;
+  const cardW = wideGrid ? wideGrid.cell : Math.floor((gridW - 20) / 3);
+  const perPage = wideGrid ? wideGrid.cols * 6 : PAGE;
 
-  useEffect(() => setLimit(PAGE), [league.id, filter, ownedOnly]);
+  useEffect(() => setLimit(perPage), [league.id, filter, ownedOnly, perPage]);
 
   const shown = useMemo(() => {
     const r = FILTERS[filter].rarity;
@@ -96,7 +102,8 @@ export default function Cards() {
         <Failed message={error} code={errorCode} onRetry={refetch} />
       ) : (
         <>
-          <View style={styles.level}>
+          <View style={bp.desktop ? styles.topWide : undefined}>
+          <View style={[styles.level, bp.desktop && styles.levelWide]}>
             <View style={styles.between}>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
                 <Text style={styles.levelNum}>{level}</Text>
@@ -115,7 +122,7 @@ export default function Cards() {
             </View>
           </View>
 
-          <View style={styles.tiles}>
+          <View style={[styles.tiles, bp.desktop && styles.tilesWide]}>
             <Pressable style={({ pressed }) => [styles.tile, styles.packTile, pressed && { backgroundColor: color.raised }]} onPress={() => router.push('/pack')} accessibilityRole="button" accessibilityLabel={opened ? "See today's pack" : 'Open your daily pack'}>
               <LinearGradient colors={[alpha(color.gold, 0.26), alpha(color.gold, 0.06)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} pointerEvents="none" />
               <MiniPack width={28} />
@@ -134,13 +141,14 @@ export default function Cards() {
               </View>
             </Pressable>
           </View>
+          </View>
 
           <FilterChips options={FILTERS.map((f) => f.label)} value={filter} onChange={setFilter} extra={[{ label: 'Owned', on: ownedOnly, onPress: () => setOwnedOnly((o) => !o) }]} style={{ marginBottom: 16 }} />
 
           {shown.length === 0 ? (
             <Empty icon="albums-outline" title={ownedOnly ? 'No cards yet' : 'No cards match'} text={ownedOnly ? 'Open your daily pack to start collecting.' : undefined} />
           ) : (
-            <View style={[styles.grid, { width: gridW }]}>
+            <View style={[styles.grid, { width: gridW }, wideGrid && { columnGap: 16, rowGap: 22 }]}>
               {shown.slice(0, limit).map((c) => {
                 const st = owned[String(c.id)];
                 return (
@@ -149,6 +157,8 @@ export default function Cards() {
                     onPress={() => router.push({ pathname: '/card/[id]', params: { id: String(c.id) } })}
                     style={({ pressed }) => [{ width: cardW, height: cardHeight(cardW) }, pressed && { transform: [{ scale: 0.97 }] }]}
                     accessibilityRole="button"
+                    accessibilityLabel={`${c.name}. Open card`}
+                    {...hover('lift')}
                   >
                     <SnapCard card={c} size="grid" width={cardW} collected={!!st} competition={league.name} look={lookOf(st)} />
                     {st && canUpgrade(st, profile.credits) ? <View style={styles.upgradeDot} accessibilityLabel="Upgrade ready" /> : null}
@@ -157,7 +167,7 @@ export default function Cards() {
               })}
             </View>
           )}
-          {shown.length > limit ? <Button kind="ghost" label={`Show more (${shown.length - limit})`} onPress={() => setLimit((l) => l + PAGE)} style={{ marginTop: 12 }} /> : null}
+          {shown.length > limit ? <Button kind={bp.desktop ? 'secondary' : 'ghost'} label={`Show more (${shown.length - limit})`} onPress={() => setLimit((l) => l + perPage)} style={{ marginTop: 12 }} /> : null}
         </>
       )}
     </Screen>
@@ -166,6 +176,9 @@ export default function Cards() {
 
 const styles = StyleSheet.create({
   level: { paddingTop: 2, paddingBottom: 18 },
+  topWide: { flexDirection: 'row', alignItems: 'center', gap: 32, marginBottom: 20 },
+  levelWide: { flex: 1, maxWidth: 520, paddingBottom: 0 },
+  tilesWide: { flex: 1, marginBottom: 0 },
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   levelTitle: { fontFamily: font.medium, fontSize: 14, color: color.text2 },
   levelNum: { fontFamily: font.cardHeavy, fontSize: 30, lineHeight: 34, color: color.text, fontVariant: ['tabular-nums'] },

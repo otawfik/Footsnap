@@ -20,6 +20,8 @@ import { canUpgrade, FINISH_NAME, lookOf, nextTier, upgrade, upgradeSeed } from 
 import { cardStats, CROWD_BOOST } from '../../lib/game';
 import { partText, TRIGGER_NAME, PART_TRIGGER } from '../../lib/abilities';
 import type { Rarity } from '../../lib/cards';
+import { useBreakpoint } from '../../components/layout';
+import { sidebarWidth } from '../../lib/layout';
 import { color, font, space, type } from '../../constants/design';
 
 const TINT: Record<Rarity, string> = { icon: 'rgba(200,210,255,0.16)', elite: 'rgba(240,200,110,0.14)', rare: 'rgba(220,225,235,0.10)', common: 'rgba(222,150,96,0.12)' };
@@ -59,7 +61,10 @@ export default function CardView() {
   const [profile, setProfile] = useProfile();
   const [flipped, setFlipped] = useState(false);
   const [hint, setHint] = useState(true);
-  const { width } = useWindowDimensions();
+  const win = useWindowDimensions();
+  const bp = useBreakpoint();
+  // the stage is the area beside the sidebar on wide screens, the window otherwise
+  const width = bp.desktop ? win.width - sidebarWidth(win.width) : win.width;
   const reduced = useReducedMotion();
   const flash = useSharedValue(0);
   const card = cards?.get(Number(id));
@@ -67,7 +72,7 @@ export default function CardView() {
   const state = collection[key]?.[String(id)];
   const next = state ? nextTier(state) : null;
   const affordable = state ? canUpgrade(state, profile.credits) : false;
-  const w = width <= 400 ? 268 : 300;
+  const w = bp.desktop ? 340 : width <= 400 ? 268 : 300;
 
   useEffect(() => {
     AsyncStorage.getItem(HINT_KEY)
@@ -105,13 +110,13 @@ export default function CardView() {
   const season = card?.abilities.find((a) => a.kind === 'ongoing');
   const trait = card?.abilities.find((a) => a.kind === 'trait');
   const meta = card ? [card.team.shortName, card.position, card.nationality, card.age !== null ? String(card.age) : null].filter(Boolean).join(' · ') : '';
-  const stage = width;
+  const stage = bp.desktop ? 720 : width;
   const venue = card ? teams.data?.teams.find((t) => t.id === card.team.id)?.venue?.trim() : undefined;
 
   return (
     <View style={styles.wrap}>
       {card ? (
-        <Svg width={stage} height={stage * 0.9} style={{ position: 'absolute', top: 40, left: (width - stage) / 2 }} pointerEvents="none">
+        <Svg width={stage} height={stage * 0.9} style={{ position: 'absolute', top: 40, left: bp.desktop ? Math.max(0, (width - 960) / 2 - 150) : (width - stage) / 2 }} pointerEvents="none">
           <Defs>
             <RadialGradient id="tint" cx="50%" cy="45%" r="50%">
               <Stop offset="0" stopColor={TINT[card.rarity]} />
@@ -128,9 +133,11 @@ export default function CardView() {
           </Pressable>
           <Credits credits={profile.credits} />
         </View>
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.scroll, bp.desktop && styles.scrollWide]} showsVerticalScrollIndicator={false}>
           {card && g ? (
             <>
+              {/* wide screens: the card on the left, everything about it beside it */}
+              <View style={bp.desktop ? styles.cardCol : undefined}>
               <View style={{ marginTop: 18 }}>
                 <SnapCard card={card} size="full" width={w} flipped={flipped} interactive onPress={flip} competition={league.name} collected={!!state} look={lookOf(state)} />
                 <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#FFFFFF', borderRadius: 8 }, flashStyle]} />
@@ -143,9 +150,10 @@ export default function CardView() {
               ) : (
                 <View style={{ height: 22 }} />
               )}
+              </View>
 
-              <View style={styles.body}>
-                <Text style={type.title}>{card.name}</Text>
+              <View style={[styles.body, bp.desktop && styles.bodyWide]}>
+                <Text style={bp.desktop ? styles.nameWide : type.title}>{card.name}</Text>
                 <Text style={[type.footnote, { marginTop: 2 }]}>{meta}</Text>
 
                 <View style={{ marginTop: 14 }}>
@@ -213,6 +221,10 @@ const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: color.bg },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: space.gutter, paddingTop: space.md, height: 44 },
   scroll: { alignItems: 'center', paddingBottom: 60 },
+  scrollWide: { flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start', gap: 56, paddingTop: 28, paddingHorizontal: 40 },
+  cardCol: { alignItems: 'center' },
+  bodyWide: { alignSelf: 'flex-start', flex: 1, maxWidth: 500, marginTop: 30, paddingHorizontal: 0 },
+  nameWide: { ...type.largeTitle },
   hint: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 22, marginTop: 18 },
   body: { alignSelf: 'stretch', paddingHorizontal: space.gutter, marginTop: 14, maxWidth: 520, width: '100%' },
   ability: { flexDirection: 'row', paddingVertical: 10, borderBottomWidth: 1, borderColor: color.hairline },
