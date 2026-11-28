@@ -8,6 +8,8 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, LargeHeader, SectionHeader, Credits, Avatar, Button, Skeleton, Failed, Empty, useMounted, PressScale, MiniPack, ButtonLook, Row } from '../../components/ui';
 import { MatchMarket, CompactMatchRow, LiveRow, longDate } from '../../components/Match';
+import { Columns, Grid2, Main, PhoneOnly, Rail, useBreakpoint } from '../../components/layout';
+import { MiniTable, RailCard, TitleRace, useProjection } from '../../components/Rails';
 import { useLeague } from '../../context/league';
 import { LEAGUE_MAP } from '../../constants/leagues';
 import { currentMatchday, useClubColors, useHomeFixtures, useLiveSeason, usePrior, useSettlePicks, useTable, useTeams } from '../../hooks/data';
@@ -41,6 +43,7 @@ export default function Home() {
   const [packs] = usePacks();
   const [refreshing, setRefreshing] = useState(false);
   const mounted = useMounted();
+  const bp = useBreakpoint();
 
   const matches = useMemo(() => season.data?.matches ?? [], [season.data]);
   const prior = usePrior(league, season.data?.matches);
@@ -81,6 +84,10 @@ export default function Home() {
     setRefreshing(false);
   }, [season, home]);
 
+  // wide screens: the title race in the rail, from the same simulation as Matches › Projections
+  const projection = useProjection(standings.table, matches, ratings, league.id, bp.desktop && league.id !== 2001);
+  const followed = useMemo(() => new Set(favorites.map((f) => f.teamId)), [favorites]);
+
   const opened = packs[String(league.id)] === today();
   const packReady = !opened || profile.bonusPacks > 0;
   const date = mounted ? longDate(new Date()) : ' ';
@@ -91,6 +98,24 @@ export default function Home() {
     const available = !group.some((x) => x.id !== m.id && picks[String(x.id)]?.snapped);
     return { available, onToggle: () => setPicks((all) => applyPress(all, m, group)) };
   };
+
+  const packRow = (
+      <PressScale
+        onPress={() => (packReady ? router.push('/pack') : router.navigate('/cards'))}
+        style={styles.packRow}
+        pressedStyle={{ backgroundColor: color.raised }}
+        accessibilityLabel={packReady ? 'Open your daily pack' : `Next pack in ${hoursToMidnight()} hours`}
+      >
+        {/* packs are the gold moment */}
+        <LinearGradient colors={[alpha(color.gold, 0.26), alpha(color.gold, 0.06)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} pointerEvents="none" />
+        <MiniPack />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={styles.packTitle}>{packReady ? (opened ? 'Bonus pack is ready' : 'Daily pack is ready') : mounted ? `Next pack in ${hoursToMidnight()} h` : 'Daily pack opened'}</Text>
+          <Text style={[type.footnote, { color: color.text2 }]}>{league.name} · 5 cards</Text>
+        </View>
+        {packReady ? <ButtonLook label="Open" size="sm" /> : <Ionicons name="chevron-forward" size={18} color={color.text3} />}
+      </PressScale>
+  );
 
   return (
     <Screen tint={color.tabTint.home} refreshing={refreshing} onRefresh={onRefresh}>
@@ -105,6 +130,8 @@ export default function Home() {
         }
       />
 
+      <Columns>
+      <Main>
       {live.length > 0 ? (
         <View style={styles.sec}>
           <SectionHeader title="Live now" />
@@ -136,7 +163,8 @@ export default function Home() {
         ) : !home.fixtures.length ? (
           <Empty icon="calendar-outline" title="Nothing scheduled" text="None of your teams has a fixture coming up yet." action={{ label: 'Edit teams', onPress: () => router.push('/teams') }} />
         ) : (
-          home.fixtures.map((f, i) => (
+          <Grid2>
+          {home.fixtures.map((f, i) => (
             <MatchMarket
               key={f.match.id}
               match={f.match}
@@ -150,27 +178,14 @@ export default function Home() {
               onOpen={() => openMatch(f.match, f.competitionId)}
               press={pressFor(f.match, f.competitionId)}
               divider={i < home.fixtures.length - 1}
-              featured={i === 0}
+              featured={i === 0 && !bp.desktop}
             />
-          ))
+          ))}
+          </Grid2>
         )}
       </View>
 
-      <PressScale
-        onPress={() => (packReady ? router.push('/pack') : router.navigate('/cards'))}
-        style={styles.packRow}
-        pressedStyle={{ backgroundColor: color.raised }}
-        accessibilityLabel={packReady ? 'Open your daily pack' : `Next pack in ${hoursToMidnight()} hours`}
-      >
-        {/* packs are the gold moment */}
-        <LinearGradient colors={[alpha(color.gold, 0.26), alpha(color.gold, 0.06)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} pointerEvents="none" />
-        <MiniPack />
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text style={styles.packTitle}>{packReady ? (opened ? 'Bonus pack is ready' : 'Daily pack is ready') : mounted ? `Next pack in ${hoursToMidnight()} h` : 'Daily pack opened'}</Text>
-          <Text style={[type.footnote, { color: color.text2 }]}>{league.name} · 5 cards</Text>
-        </View>
-        {packReady ? <ButtonLook label="Open" size="sm" /> : <Ionicons name="chevron-forward" size={18} color={color.text3} />}
-      </PressScale>
+      <PhoneOnly style={{ marginTop: space.xs, marginBottom: space.xxl }}>{packRow}</PhoneOnly>
 
       <View style={styles.sec}>
         <SectionHeader title={md ? `Matchday ${md}` : league.name} action={{ label: 'All matches', onPress: () => router.navigate('/matches') }} />
@@ -199,7 +214,9 @@ export default function Home() {
                 <Text style={styles.score3Label}>Picked</Text>
               </View>
             </View>
-            {big.map((m, i) => (
+            {/* a phone gets the three biggest games; a wide screen has room for the whole matchday, two across */}
+            <Grid2>
+            {(bp.desktop ? mdFixtures : big).map((m, i) => (
               <CompactMatchRow
                 key={m.id}
                 match={m}
@@ -211,8 +228,10 @@ export default function Home() {
                 divider={i < big.length - 1}
               />
             ))}
+            </Grid2>
           </>
         )}
+        <PhoneOnly>
         <Row
           left={
             <View style={styles.beatIcon}>
@@ -226,10 +245,43 @@ export default function Home() {
           onPress={() => router.push('/beat')}
           style={{ marginTop: space.sm }}
         />
+        </PhoneOnly>
       </View>
       <Pressable onPress={() => router.push('/about')} style={styles.fine} accessibilityRole="link">
         <Text style={[type.caption, { textAlign: 'center' }]}>Chances come from a goals model. Picks are free, for points only.</Text>
       </Pressable>
+      </Main>
+
+      {/* wide screens: the pack, the table and the title race beside the fixtures */}
+      <Rail style={styles.rail}>
+        {bp.desktop ? (
+          <>
+            {packRow}
+            {standings.table.length ? (
+              <RailCard title={`${league.name} table`} action={{ label: 'Full table', onPress: () => router.navigate('/matches') }} flush>
+                <MiniTable table={standings.table} competitionId={league.id} colors={colors} mark={followed} limit={league.id === 2001 ? 12 : undefined} />
+              </RailCard>
+            ) : null}
+            {league.id !== 2001 && ratings && standings.table.length ? (
+              <RailCard title="Title race" flush>
+                <TitleRace projection={projection} table={standings.table} competitionId={league.id} colors={colors} />
+                <Text style={styles.railNote}>The rest of the season simulated 2,000 times with the goals model.</Text>
+              </RailCard>
+            ) : null}
+            <PressScale onPress={() => router.push('/beat')} style={styles.beatCard} pressedStyle={{ backgroundColor: color.raised }} accessibilityLabel="Beat the model">
+              <View style={styles.beatIcon}>
+                <Ionicons name="analytics" size={16} color={color.accentText} />
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.promoTitle}>Beat the model</Text>
+                <Text style={type.footnote}>Call results with how sure you are, scored like the model.</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={color.text3} />
+            </PressScale>
+          </>
+        ) : null}
+      </Rail>
+      </Columns>
     </Screen>
   );
 }
@@ -239,12 +291,15 @@ const styles = StyleSheet.create({
   promo: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 16, backgroundColor: color.surface, marginTop: space.sm },
   promoIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: color.accentSoft, alignItems: 'center', justifyContent: 'center' },
   promoTitle: { fontFamily: font.semibold, fontSize: 16, color: color.text },
-  packRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 16, backgroundColor: color.surface, marginTop: space.xs, marginBottom: space.xxl, borderWidth: 1, borderColor: 'rgba(242,195,91,0.5)', overflow: 'hidden' },
+  packRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 16, backgroundColor: color.surface, borderWidth: 1, borderColor: 'rgba(242,195,91,0.5)', overflow: 'hidden' },
   packTitle: { fontFamily: font.semibold, fontSize: 16, color: color.text },
   score3: { flexDirection: 'row', paddingTop: space.sm, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: color.hairline },
   score3Cell: { flex: 1, gap: 2 },
   score3Of: { fontFamily: font.semibold, fontSize: 17, color: color.text3, letterSpacing: 0 },
   score3Label: { fontFamily: font.medium, fontSize: 13, color: color.text3 },
   fine: { paddingTop: space.sm, paddingBottom: space.lg },
+  rail: { paddingTop: space.sm },
+  railNote: { ...type.footnote, paddingHorizontal: 16, paddingTop: 8 },
+  beatCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: radius.lg, backgroundColor: color.surface },
   beatIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: color.accentSoft, alignItems: 'center', justifyContent: 'center' },
 });

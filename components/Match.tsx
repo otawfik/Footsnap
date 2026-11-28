@@ -7,6 +7,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Bleed, FixtureBand, KitChip, bandTones, KitField, KitStripe, LiveDot, OutcomeRow, ScoreBug, fixtureTones, pctText, tap, teamName, toneText } from './ui';
+import { hover } from './layout';
 import type { Match } from '../lib/types';
 import type { Outcome, Prediction } from '../lib/model';
 import { outcome as resultOf, pick as leadOf } from '../lib/model';
@@ -282,7 +283,7 @@ export function CompactMatchRow({
     ? `${m.homeTeam.name} ${h ?? 0}, ${m.awayTeam.name} ${a ?? 0}, ${live ? statusLabel(m) : 'full time'}`
     : `${m.homeTeam.name} against ${m.awayTeam.name}, ${label}${p ? `. Chance: home ${pctText(p.home)}, draw ${pctText(p.draw)}, away ${pctText(p.away)}` : ''}`;
   return (
-    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={a11y}>
+    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={a11y} {...hover('glow')}>
       {({ pressed }) => (
         <FixtureBand tones={bandTones(homeColors, awayColors)} style={[styles.crow, pressed && { opacity: 0.8 }]}>
           <View style={{ flex: 1, minWidth: 0, gap: 7 }}>
@@ -319,7 +320,7 @@ export function LiveRow({ match: m, homeColors, awayColors, onPress, competition
   const [th, ta] = fixtureTones(homeColors, awayColors);
   const code = (t: Match['homeTeam']) => (t.tla ?? teamName(t).slice(0, 3)).toUpperCase();
   return (
-    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole="button" accessibilityLabel={`${statusLabel(m)}: ${m.homeTeam.name} ${h}, ${m.awayTeam.name} ${a}`}>
+    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole="button" accessibilityLabel={`${statusLabel(m)}: ${m.homeTeam.name} ${h}, ${m.awayTeam.name} ${a}`} {...hover('glow')}>
       {({ pressed }) => (
         <FixtureBand tones={bandTones(homeColors, awayColors)} style={[styles.lrow, pressed && { opacity: 0.8 }]}>
           <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
