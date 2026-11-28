@@ -114,12 +114,16 @@ export const SHELL_CSS = `
 [data-fs~="main"]{flex:1 1 0%!important;min-width:0}
 [data-fs~="rail"]{display:flex!important;flex:none;width:${PAGE.railWidth}px;gap:20px}
 [data-fs~="sticky"]{position:sticky!important;top:16px}
-[data-fs~="grid2"]{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px;row-gap:16px;align-items:start}
+[data-fs~="grid2"]{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px;row-gap:0;align-items:start}
 [data-fs~="nav-title"]{text-align:left!important;font-size:14px!important}
 [data-fs~="scroll"]{scrollbar-width:thin!important;scrollbar-color:#35507F transparent}
 [data-fs~="scroll"]::-webkit-scrollbar{display:block!important;width:10px}
 [data-fs~="scroll"]::-webkit-scrollbar-thumb{background:#253C68;border-radius:5px;border:2px solid #102040}
 [data-fs~="prose"]{max-width:68ch}
+[data-fs~="bleed-hero"]{margin-left:0!important;margin-right:0!important;border-radius:20px;overflow:hidden}
+[data-fs~="seg"]{width:100%;max-width:440px}
+[data-fs~="stepper"]{width:100%;max-width:360px}
+[data-fs~="sticky-head"]{position:sticky!important;top:0;z-index:5;background-color:#102040}
 }
 @media (min-width:${BP.wide}px){
 [data-fs~="sidebar"]{width:${SIDEBAR.full}px}

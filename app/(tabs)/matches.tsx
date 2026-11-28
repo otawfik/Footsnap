@@ -4,7 +4,7 @@
  * machine (Projections).
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, InteractionManager, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, Pressable, InteractionManager } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, useReducedMotion } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,7 +30,9 @@ import { useLeague } from '../../context/league';
 import { currentMatchday, useClubColors, usePrior, useSeason, useSettlePicks, useTable, useTeams } from '../../hooks/data';
 import { isFinished, isLive, isUpcoming, recentForm, zone, Zone } from '../../lib/football';
 import { fitSeason, predict, Ratings } from '../../lib/model';
-import { lastMatchday, remaining, simulate, tableAfter, Projection } from '../../lib/season';
+import { lastMatchday, recordsAfter, remaining, simulate, tableAfter, Projection } from '../../lib/season';
+import { Columns, Grid2, Main, Rail, fs, hover, useBreakpoint, type Breakpoint } from '../../components/layout';
+import { MiniTable, RailCard, TitleRace, useProjection } from '../../components/Rails';
 import { applyPick, applyPress, locked, pressedIn, tally } from '../../lib/picks';
 import { usePicks } from '../../lib/storage';
 import type { Match, StandingRow, Team } from '../../lib/types';
@@ -95,6 +97,7 @@ function Fixtures({ matches, competitionId, competition, colors, venues, ratings
       {groups.map((g) => (
         <View key={g.day} style={{ paddingTop: space.xl }}>
           <SectionHeader title={g.label} />
+          <Grid2>
           {g.list.map((m, i) => {
             const pred = ratings ? predict(ratings, m.homeTeam.id, m.awayTeam.id) : null;
             const last = i === g.list.length - 1;
@@ -121,6 +124,7 @@ function Fixtures({ matches, competitionId, competition, colors, venues, ratings
               />
             );
           })}
+          </Grid2>
         </View>
       ))}
       <Text style={[type.footnote, { marginTop: space.xl }]}>Chances come from a goals model fitted to this season's results. Picks are free and only ever score points.</Text>
@@ -141,13 +145,6 @@ function zoneLegend(id: number): [Exclude<Zone, null>, string][] {
   return l;
 }
 
-interface TRow {
-  team: Team;
-  position: number;
-  played: number;
-  goalDifference: number;
-  points: number;
-}
 
 /** A table row that glides to its new place when the matchday changes (320 ms). */
 function GlideRow({ pos, children }: { pos: number; children: React.ReactNode }) {
@@ -160,36 +157,81 @@ function GlideRow({ pos, children }: { pos: number; children: React.ReactNode })
   return <Animated.View style={[styles.glide, st]}>{children}</Animated.View>;
 }
 
-function Table({ table, matches, competitionId, colors }: { table: StandingRow[]; matches: Match[]; competitionId: number; colors: Map<number, ClubColors> }) {
-  const { width } = useWindowDimensions();
-  const wide = width >= 400;
+interface TRow {
+  team: Team;
+  position: number;
+  played: number;
+  goalDifference: number;
+  points: number;
+  won?: number;
+  drawn?: number;
+  lost?: number;
+  goalsFor?: number;
+  goalsAgainst?: number;
+}
+
+/** A chance as a heat cell: the stronger the colour, the likelier (title and top places green, relegation red). */
+function Heat({ p, bad, width = 54 }: { p: number | undefined; bad?: boolean; width?: number }) {
+  if (p === undefined) return <View style={{ width }} />;
+  const strong = p > 0.5;
+  return (
+    <View style={[styles.heat, { width }]}>
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: bad ? color.loss : color.accent, opacity: p < 0.005 ? 0 : 0.08 + p * 0.84, borderRadius: 6 }]} />
+      <Text style={[styles.heatText, strong && { color: color.onAccent, fontFamily: font.bold }, p < 0.005 && { color: color.text3 }]}>{pctText(p)}</Text>
+    </View>
+  );
+}
+
+function Table({ table, matches, competitionId, colors, bp, projection }: { table: StandingRow[]; matches: Match[]; competitionId: number; colors: Map<number, ClubColors>; bp: Breakpoint; projection?: Map<number, Projection> | null }) {
+  const wide = bp.width >= 400 || bp.width === 0;
+  // a wide screen has room for the whole record, and for the simulation's odds as heat cells in the same rows
+  const full = bp.desktop;
+  const ucl = competitionId === 2001;
   const last = lastMatchday(matches);
   const total = Math.max(last, ...matches.map((m) => m.matchday ?? 0));
   const [md, setMd] = useState(last);
   useEffect(() => setMd(last), [last]);
   const rows: TRow[] = useMemo(() => {
-    if (md >= last || !last) return table.map((r) => ({ team: r.team, position: r.position, played: r.playedGames, goalDifference: r.goalDifference, points: r.points }));
-    return tableAfter(matches, md).map((r) => ({ team: r.team, position: r.position, played: r.played, goalDifference: r.goalDifference, points: r.points }));
-  }, [md, last, table, matches]);
+    if (md >= last || !last) return table.map((r) => ({ team: r.team, position: r.position, played: r.playedGames, goalDifference: r.goalDifference, points: r.points, won: r.won, drawn: r.draw, lost: r.lost, goalsFor: r.goalsFor, goalsAgainst: r.goalsAgainst }));
+    const rec = full ? recordsAfter(matches, md) : null;
+    return tableAfter(matches, md).map((r) => ({ team: r.team, position: r.position, played: r.played, goalDifference: r.goalDifference, points: r.points, ...rec?.get(r.team.id) }));
+  }, [md, last, table, matches, full]);
+  const now = md >= last;
   const n = rows.length;
 
   return (
     <View>
       {last ? <Stepper value={md} min={1} max={last} onChange={setMd} label={`Matchday ${md} of ${total}`} /> : null}
-      <View style={[styles.trow, styles.thead]}>
+      <View style={[styles.trow, styles.thead, full && styles.theadFull]} {...fs('sticky-head')}>
         <Text style={[styles.th, { width: 24 }]}>#</Text>
         <Text style={[styles.th, { flex: 1, paddingLeft: 14 }]}>Club</Text>
         <Text style={[styles.th, styles.tnum]}>P</Text>
+        {full ? (
+          <>
+            <Text style={[styles.th, styles.tnum]}>W</Text>
+            <Text style={[styles.th, styles.tnum]}>D</Text>
+            <Text style={[styles.th, styles.tnum]}>L</Text>
+            <Text style={[styles.th, styles.tnum, styles.tgap]}>GF</Text>
+            <Text style={[styles.th, styles.tnum]}>GA</Text>
+          </>
+        ) : null}
         <Text style={[styles.th, styles.tnum]}>GD</Text>
         <Text style={[styles.th, styles.tnum]}>Pts</Text>
-        {wide ? <Text style={[styles.th, { width: 76, textAlign: 'right' }]}>Form</Text> : null}
+        {wide ? <Text style={[styles.th, { width: 76, textAlign: 'right' }, full && styles.tgap]}>Form</Text> : null}
+        {full && projection !== undefined ? (
+          <View style={styles.heatHead}>
+            <Text style={[styles.th, styles.heatTh]}>Title</Text>
+            <Text style={[styles.th, styles.heatTh]}>{ucl ? 'Top 8' : 'Top 4'}</Text>
+            <Text style={[styles.th, styles.heatTh]}>{ucl ? 'Out' : 'Down'}</Text>
+          </View>
+        ) : null}
       </View>
       <View style={{ height: n * ROW }}>
         {rows.map((r) => {
           const z = zone(competitionId, r.position, n);
           return (
             <GlideRow key={r.team.id} pos={r.position}>
-              <Pressable onPress={() => openClub(r.team.id, competitionId)} accessibilityRole="button" accessibilityLabel={`${r.position}, ${r.team.name}, ${r.points} points. Open club`}>
+              <Pressable onPress={() => openClub(r.team.id, competitionId)} accessibilityRole="button" accessibilityLabel={`${r.position}, ${r.team.name}, ${r.points} points. Open club`} {...hover('row')}>
                 {({ pressed }) => (
                   <View style={[styles.trow, { height: ROW }, pressed && { backgroundColor: color.raised }]}>
                     {/* each club's row carries a wash of its kit, so the table reads in club colours */}
@@ -205,11 +247,27 @@ function Table({ table, matches, competitionId, colors }: { table: StandingRow[]
                     <KitStripe colors={colors.get(r.team.id)} height={26} width={4} />
                     <Text style={styles.tname} numberOfLines={1}>{teamName(r.team)}</Text>
                     <Text style={[styles.tcell, styles.tnum]}>{r.played}</Text>
+                    {full ? (
+                      <>
+                        <Text style={[styles.tcell, styles.tnum]}>{r.won ?? '–'}</Text>
+                        <Text style={[styles.tcell, styles.tnum]}>{r.drawn ?? '–'}</Text>
+                        <Text style={[styles.tcell, styles.tnum]}>{r.lost ?? '–'}</Text>
+                        <Text style={[styles.tcell, styles.tnum, styles.tgap]}>{r.goalsFor ?? '–'}</Text>
+                        <Text style={[styles.tcell, styles.tnum]}>{r.goalsAgainst ?? '–'}</Text>
+                      </>
+                    ) : null}
                     <Text style={[styles.tcell, styles.tnum]}>{signed(r.goalDifference)}</Text>
                     <Text style={[styles.tcell, styles.tnum, styles.tpts]}>{r.points}</Text>
                     {wide ? (
-                      <View style={{ width: 76, alignItems: 'flex-end' }}>
+                      <View style={[{ width: 76, alignItems: 'flex-end' }, full && styles.tgap]}>
                         <FormDots results={md >= last ? recentForm(matches, r.team.id) : recentForm(matches.filter((m) => (m.matchday ?? 0) <= md), r.team.id)} />
+                      </View>
+                    ) : null}
+                    {full && projection !== undefined ? (
+                      <View style={[styles.heatHead, !now && { opacity: 0.35 }]}>
+                        <Heat p={projection?.get(r.team.id)?.title} />
+                        <Heat p={projection?.get(r.team.id)?.top} />
+                        <Heat p={projection?.get(r.team.id)?.relegation} bad />
                       </View>
                     ) : null}
                   </View>
@@ -227,7 +285,8 @@ function Table({ table, matches, competitionId, colors }: { table: StandingRow[]
           </View>
         ))}
       </View>
-      {md < last ? <Text style={[type.footnote, { marginTop: space.sm }]}>Rebuilt from results alone, so point deductions and head-to-head tie-breakers aren't applied.</Text> : null}
+      {md < last ? <Text style={[type.footnote, { marginTop: space.sm }]}>Rebuilt from results alone, so point deductions and head-to-head tie-breakers aren't applied.{full && projection !== undefined ? ' The chances on the right are from today\'s table.' : ''}</Text> : null}
+      {full && projection !== undefined && now ? <Text style={[type.footnote, { marginTop: space.sm }]} {...fs('prose')}>Title, {ucl ? 'top 8 and out' : 'top 4 and down'}: how often each club finished there when the rest of the season was simulated 2,000 times with the goals model.</Text> : null}
     </View>
   );
 }
@@ -269,7 +328,7 @@ function GoalStepper({ value, onChange, name }: { value: number | null; onChange
   );
 }
 
-function Projections({ table, matches, ratings, competitionId, colors }: { table: StandingRow[]; matches: Match[]; ratings: Ratings; competitionId: number; colors: Map<number, ClubColors> }) {
+function Projections({ table, matches, ratings, competitionId, colors, bp }: { table: StandingRow[]; matches: Match[]; ratings: Ratings; competitionId: number; colors: Map<number, ClubColors>; bp: Breakpoint }) {
   const fixtures = useMemo(() => remaining(matches, competitionId).filter(isUpcoming).sort((a, b) => a.utcDate.localeCompare(b.utcDate)).slice(0, 10), [matches, competitionId]);
   const [forced, setForced] = useState<Map<number, [number, number]>>(new Map());
   const [base, setBase] = useState<Map<number, Projection> | null>(null);
@@ -312,7 +371,12 @@ function Projections({ table, matches, ratings, competitionId, colors }: { table
         .slice(0, 4)
     : [];
 
-  return (
+  const n = table.length;
+  // wide screens: where each club finished across the simulated seasons, one cell per position
+  const strip = bp.desktop && n <= 24;
+  const cellW = strip ? Math.max(14, Math.min(24, Math.floor((bp.main - 24 - 14 - 150 - 44 - 3 * 62 - 10 * 6) / n) - 2)) : 0;
+
+  const tableEl = (
     <View>
       <Text style={[type.footnote, { marginBottom: space.sm }]}>
         {left} fixtures left, each simulated 2,000 times with the goals model.{' '}
@@ -323,25 +387,44 @@ function Projections({ table, matches, ratings, competitionId, colors }: { table
       <View style={[styles.trow, styles.thead]}>
         <Text style={[styles.th, { width: 24 }]}>#</Text>
         <Text style={[styles.th, { flex: 1, paddingLeft: 14 }]}>Club</Text>
+        {strip ? (
+          <>
+            <Text style={[styles.th, { width: 44, textAlign: 'right' }]}>Pts</Text>
+            <View style={{ width: n * (cellW + 2), marginHorizontal: 6 }}>
+              <Text style={styles.th} numberOfLines={1}>Finishing position, 1st to {n}th</Text>
+            </View>
+          </>
+        ) : null}
         {cols.map(([k, l]) => (
-          <Text key={k} style={[styles.th, styles.pcol, { textAlign: 'left' }]}>{l}</Text>
+          <Text key={k} style={[styles.th, styles.pcol, { textAlign: 'left' }, strip && { width: 62 }]}>{l}</Text>
         ))}
       </View>
       {sorted.map((r, i) => {
         const p = shown.get(r.team.id);
         if (!p) return null;
         return (
-          <Pressable key={r.team.id} onPress={() => openClub(r.team.id, competitionId)} accessibilityRole="button" accessibilityLabel={`${r.team.name}: title ${pctText(p.title)}, top ${pctText(p.top)}, ${ucl ? 'out' : 'relegation'} ${pctText(p.relegation)}`}>
+          <Pressable key={r.team.id} onPress={() => openClub(r.team.id, competitionId)} accessibilityRole="button" accessibilityLabel={`${r.team.name}: title ${pctText(p.title)}, top ${pctText(p.top)}, ${ucl ? 'out' : 'relegation'} ${pctText(p.relegation)}`} {...hover('row')}>
             {({ pressed }) => (
               <View style={[styles.trow, { height: 48 }, styles.tdiv, pressed && { backgroundColor: color.raised }]}>
                 <Text style={styles.tpos}>{i + 1}</Text>
                 <KitStripe colors={colors.get(r.team.id)} height={26} width={4} />
                 <Text style={styles.tname} numberOfLines={1}>{teamName(r.team)}</Text>
+                {strip ? (
+                  <>
+                    <Text style={[styles.pnum, { width: 44, textAlign: 'right' }]}>{p.avgPoints.toFixed(0)}</Text>
+                    <View style={styles.strip} accessible accessibilityLabel={`Most often ${1 + p.positions.indexOf(Math.max(...p.positions))}${'th'}`}>
+                      {p.positions.slice(0, n).map((v, j) => {
+                        const z = zone(competitionId, j + 1, n);
+                        return <View key={j} style={{ width: cellW, height: 22, borderRadius: 3, backgroundColor: v < 0.004 ? color.surface : alpha(z === 'relegation' ? color.loss : z === 'top' ? color.accent : color.chalk, 0.07 + Math.min(1, v / 0.28) * 0.93) }} />;
+                      })}
+                    </View>
+                  </>
+                ) : null}
                 {cols.map(([k]) => {
                   const d = delta(r.team.id, k);
                   const good = k === 'relegation' ? d < 0 : d > 0;
                   return (
-                    <View key={k} style={styles.pcol}>
+                    <View key={k} style={[styles.pcol, strip && { width: 62 }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
                         <Text style={[styles.pnum, k === 'relegation' && p[k] >= 0.3 && { color: color.loss }]}>{pctText(p[k])}</Text>
                         {Math.abs(d) >= 1 ? <Text style={[styles.pdelta, { color: good ? color.win : color.loss }]}>{d > 0 ? '▲' : '▼'}{Math.abs(Math.round(d))}</Text> : null}
@@ -356,9 +439,12 @@ function Projections({ table, matches, ratings, competitionId, colors }: { table
         );
       })}
 
-      <View style={{ paddingTop: space.x3 }}>
+    </View>
+  );
+  const whatIfEl = (
+      <View style={bp.desktop ? undefined : { paddingTop: space.x3 }}>
         <SectionHeader title="What if" action={forced.size ? { label: 'Clear all', onPress: () => setForced(new Map()) } : undefined} />
-        <Text style={[type.footnote, { marginBottom: space.sm }]}>Set a score and the rest of the season re-simulates. Changes show in the table above.</Text>
+        <Text style={[type.footnote, { marginBottom: space.sm }]}>Set a score and the rest of the season re-simulates. Changes show in the table {bp.desktop ? 'beside it' : 'above'}.</Text>
         {movers.length ? (
           <View style={styles.movers}>
             {movers.map(({ r, d }) => {
@@ -376,6 +462,35 @@ function Projections({ table, matches, ratings, competitionId, colors }: { table
         ) : null}
         {fixtures.map((m, i) => {
           const v = forced.get(m.id) ?? null;
+          // wide screens: one line per fixture (home, its goals, the away side's goals, away), so all ten fit beside the table
+          if (bp.desktop) {
+            const side = (t: Team, k: 0 | 1) => (
+              <GoalStepper
+                value={v ? v[k] : null}
+                name={teamName(t)}
+                onChange={(x) => {
+                  const cur = v ?? [0, 0];
+                  set(m.id, k === 0 ? [x, cur[1]] : [cur[0], x]);
+                }}
+              />
+            );
+            const day = shortDate(m.utcDate);
+            const first = i === 0 || shortDate(fixtures[i - 1].utcDate) !== day;
+            return (
+              <View key={m.id}>
+                {first ? <Text style={[type.caption, { marginTop: i ? 12 : 4, marginBottom: 4 }]}>{day}</Text> : null}
+                <View style={styles.wiLine} accessible={false}>
+                  <Text style={[styles.wiCode, v && { color: color.accentText }]} accessibilityLabel={m.homeTeam.name}>{(m.homeTeam.tla ?? teamName(m.homeTeam).slice(0, 3)).toUpperCase()}</Text>
+                  {side(m.homeTeam, 0)}
+                  {side(m.awayTeam, 1)}
+                  <Text style={[styles.wiCode, { textAlign: 'right' }, v && { color: color.accentText }]} accessibilityLabel={m.awayTeam.name}>{(m.awayTeam.tla ?? teamName(m.awayTeam).slice(0, 3)).toUpperCase()}</Text>
+                  <Pressable onPress={() => set(m.id, null)} disabled={!v} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear this result" style={{ opacity: v ? 1 : 0 }}>
+                    <Ionicons name="close" size={16} color={color.text2} />
+                  </Pressable>
+                </View>
+              </View>
+            );
+          }
           return (
             <View key={m.id} style={[styles.wi, i < fixtures.length - 1 && styles.tdiv]}>
               <View style={styles.wiMeta}>
@@ -413,7 +528,24 @@ function Projections({ table, matches, ratings, competitionId, colors }: { table
           );
         })}
       </View>
-    </View>
+  );
+
+  if (!bp.desktop) {
+    return (
+      <View>
+        {tableEl}
+        {whatIfEl}
+      </View>
+    );
+  }
+  // the table and the scores that move it, side by side
+  return (
+    <Columns>
+      <Main>{tableEl}</Main>
+      <Rail sticky>
+        <RailCard>{whatIfEl}</RailCard>
+      </Rail>
+    </Columns>
   );
 }
 
@@ -430,6 +562,7 @@ export default function Matches() {
   const [picks] = usePicks();
   const [mode, setMode] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const bp = useBreakpoint();
   const matches = useMemo(() => season.data?.matches ?? [], [season.data]);
   const prior = usePrior(league, season.data?.matches);
   const ratings = useMemo(() => fitSeason(matches, prior), [matches, prior]);
@@ -441,6 +574,9 @@ export default function Matches() {
     const ids = new Set(matches.filter((m) => m.matchday === md).map((m) => m.id));
     return tally(Object.values(picks).filter((p) => ids.has(p.matchId)), matches, prior).you;
   }, [picks, matches, md]);
+
+  // wide screens put the simulation's odds next to the fixtures and into the table
+  const projection = useProjection(standings.table, matches, ratings, league.id, bp.desktop && mode < 2);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -468,13 +604,31 @@ export default function Matches() {
       ) : loading ? (
         <Skeleton rows={6} height={mode === 0 ? 120 : 40} />
       ) : mode === 0 ? (
-        <Fixtures matches={matches} competitionId={league.id} competition={league.name} colors={colors} venues={venues} ratings={ratings} />
+        <Columns>
+          <Main>
+            <Fixtures matches={matches} competitionId={league.id} competition={league.name} colors={colors} venues={venues} ratings={ratings} />
+          </Main>
+          <Rail sticky>
+            {bp.desktop && standings.table.length ? (
+              <>
+                <RailCard title="Table" action={{ label: 'Full table', onPress: () => setMode(1) }} flush>
+                  <MiniTable table={standings.table} competitionId={league.id} colors={colors} limit={bp.height < 1000 ? (league.id === 2001 ? 8 : 10) : undefined} />
+                </RailCard>
+                {ratings && league.id !== 2001 ? (
+                  <RailCard title="Title race" action={{ label: 'Projections', onPress: () => setMode(2) }} flush>
+                    <TitleRace projection={projection} table={standings.table} competitionId={league.id} colors={colors} limit={4} />
+                  </RailCard>
+                ) : null}
+              </>
+            ) : null}
+          </Rail>
+        </Columns>
       ) : mode === 1 ? (
-        standings.table.length ? <Table table={standings.table} matches={matches} competitionId={league.id} colors={colors} /> : <Empty icon="podium-outline" title="No table yet" text="The table appears after the first matchday." />
+        standings.table.length ? <Table table={standings.table} matches={matches} competitionId={league.id} colors={colors} bp={bp} projection={bp.desktop && ratings ? projection : undefined} /> : <Empty icon="podium-outline" title="No table yet" text="The table appears after the first matchday." />
       ) : !ratings || !standings.table.length ? (
         <Empty icon="analytics-outline" title="Not enough results yet" text="Projections start after a few rounds." />
       ) : (
-        <Projections table={standings.table} matches={matches} ratings={ratings} competitionId={league.id} colors={colors} />
+        <Projections table={standings.table} matches={matches} ratings={ratings} competitionId={league.id} colors={colors} bp={bp} />
       )}
     </Screen>
   );
@@ -489,6 +643,13 @@ const styles = StyleSheet.create({
   thead: { height: 32, borderBottomWidth: 1, borderBottomColor: color.hairline, marginTop: space.md },
   th: { fontFamily: font.semibold, fontSize: 12, letterSpacing: 0.3, color: color.text3 },
   trow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  theadFull: { height: 36 },
+  tgap: { marginLeft: 14 },
+  heatHead: { flexDirection: 'row', gap: 4, marginLeft: 20 },
+  heatTh: { width: 54, textAlign: 'center' },
+  heat: { height: 28, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  heatText: { fontFamily: font.semibold, fontSize: 13, color: color.text, fontVariant: ['tabular-nums'] },
+  strip: { flexDirection: 'row', gap: 2, marginHorizontal: 6 },
   tdiv: { borderBottomWidth: 1, borderBottomColor: color.hairline },
   glide: { position: 'absolute', left: 0, right: 0, top: 0, borderBottomWidth: 1, borderBottomColor: color.hairline },
   zone: { position: 'absolute', left: -space.gutter + 4, width: 3, height: 22, borderRadius: 2, backgroundColor: 'transparent' },
@@ -511,6 +672,8 @@ const styles = StyleSheet.create({
   wiMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 22 },
   wiTeam: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   wiName: { flex: 1, fontFamily: font.medium, fontSize: 15, color: color.text },
+  wiLine: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 42 },
+  wiCode: { flex: 1, fontFamily: font.cardHeavy, fontSize: 14, letterSpacing: 0.6, color: color.text },
   gstep: { flexDirection: 'row', alignItems: 'center', backgroundColor: color.raised, borderRadius: radius.sm, height: 34 },
   gbtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
   gnum: { minWidth: 18, textAlign: 'center', fontFamily: font.semibold, fontSize: 15, color: color.text, fontVariant: ['tabular-nums'] },

@@ -11,7 +11,7 @@
  * Crest, KitStripe, LiveLamp, Num, Coin, Wallet…) are kept and restyled, so screens that
  * haven't moved to the new components keep compiling and look at home.
  */
-import React, { useEffect, useId, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -262,8 +262,8 @@ export function Screen({
 }
 
 /** Cancels the screen gutter for one full-bleed row (horizontal scrollers). */
-export function Bleed({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
-  return <View style={[{ marginHorizontal: -space.gutter }, style]}>{children}</View>;
+export function Bleed({ children, style, hero }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; /** a banner: on wide screens it stays inside the page, with rounded corners */ hero?: boolean }) {
+  return <View style={[{ marginHorizontal: -space.gutter }, style]} {...(hero ? fs('bleed-hero') : null)}>{children}</View>;
 }
 
 /** When the data on screen is older than the network's: since what time, or null if everything is live. */
@@ -646,7 +646,9 @@ export function ScoreBug({
 export function KitField({ colors, away, tones, height, fade = 0.55, children, style }: { colors?: ClubColors | null; away?: ClubColors | null; tones?: [string, string]; height: number; fade?: number; children?: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const { width: W } = useWindowDimensions();
   const id = useSvgId('f');
-  const w = Math.min(W, 600);
+  // drawn at the width it's given once that's known (a wide page), so the sash and split aren't a phone drawing scaled up
+  const [measured, setMeasured] = useState(0);
+  const w = measured || Math.min(W, 600);
   const c1 = tones?.[0] ?? clubTone(colors);
   const c2 = tones?.[1] ?? (away ? clubTone(away) : c1);
   const s1 = colors?.secondary && !near(colors.secondary, c1) ? colors.secondary : mix(c1, '#FFFFFF', 0.5);
@@ -666,7 +668,7 @@ export function KitField({ colors, away, tones, height, fade = 0.55, children, s
     );
   };
   return (
-    <View style={[{ height, width: '100%', overflow: 'hidden' }, style]}>
+    <View style={[{ height, width: '100%', overflow: 'hidden' }, style]} onLayout={(e: LayoutChangeEvent) => setMeasured(Math.round(e.nativeEvent.layout.width))}>
       <Svg width="100%" height={height} viewBox={`0 0 ${w} ${height}`} preserveAspectRatio="xMidYMid slice" style={StyleSheet.absoluteFill}>
         <Defs>
           <SvgLinearGradient id={`${id}f`} x1="0" y1="0" x2="0" y2="1">
@@ -773,7 +775,30 @@ export function MiniPack({ width: w = 34 }: { width?: number }) {
 }
 
 /** "‹  Matchday 9 of 38  ›": steps an integer between min and max. */
-export function Stepper({ value, min, max, onChange, label }: { value: number; min: number; max: number; onChange: (v: number) => void; label: string }) {
+export function Stepper({ value, min, max, onChange, label, keys = true }: { value: number; min: number; max: number; onChange: (v: number) => void; label: string; /** on the web, ← and → step it while it's on screen (default) */ keys?: boolean }) {
+  const ref = useRef<View>(null);
+  const live = useRef({ value, min, max, onChange });
+  live.current = { value, min, max, onChange };
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !keys || typeof window === 'undefined') return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      if (document.querySelector('[aria-modal="true"]')) return;
+      // only the stepper the person can see: tabs stay mounted behind the current screen
+      const el = ref.current as unknown as HTMLElement | null;
+      const box = el?.getBoundingClientRect?.();
+      if (!el || !box || !box.width) return;
+      const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      if (!top || !el.contains(top)) return;
+      const c = live.current;
+      const next = Math.min(c.max, Math.max(c.min, c.value + (e.key === 'ArrowLeft' ? -1 : 1)));
+      if (next !== c.value) c.onChange(next);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [keys]);
   const btn = (dir: -1 | 1) => {
     const off = dir < 0 ? value <= min : value >= max;
     return (
@@ -793,7 +818,7 @@ export function Stepper({ value, min, max, onChange, label }: { value: number; m
     );
   };
   return (
-    <View style={styles.stepper} accessibilityRole="adjustable" accessibilityLabel={label}>
+    <View ref={ref} style={styles.stepper} accessibilityRole="adjustable" accessibilityLabel={label} {...fs('stepper')}>
       {btn(-1)}
       <Text style={styles.stepText}>{label}</Text>
       {btn(1)}
@@ -920,6 +945,7 @@ export function Segmented({
       style={[styles.segTrack, disabled && { opacity: 0.5 }, style]}
       onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}
       accessibilityRole="tablist"
+      {...fs('seg')}
     >
       {shown && seg ? <Animated.View style={[styles.segThumb, { width: seg, backgroundColor: thumbFill }, thumb]} /> : null}
       {options.map((o, i) => {
@@ -1092,6 +1118,7 @@ export function OutcomeRow({
       accessibilityRole="radio"
       accessibilityState={{ checked: picked }}
       accessibilityLabel={`Pick ${label}${pct !== null ? `, ${pctText(pct)} chance` : ''}`}
+      {...hover('row')}
     >
       {({ pressed }) => inner(pressed)}
     </Pressable>

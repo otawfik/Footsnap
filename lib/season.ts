@@ -197,6 +197,34 @@ export function tableAfter(matches: Match[], matchday: number): ReplayRow[] {
   return sorted;
 }
 
+export interface TeamRecord {
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+}
+
+/** Each club's wins, draws, losses and goals up to and including a matchday, from results alone (the columns tableAfter() leaves out). */
+export function recordsAfter(matches: Match[], matchday: number): Map<number, TeamRecord> {
+  const out = new Map<number, TeamRecord>();
+  const rec = (id: number) => {
+    if (!out.has(id)) out.set(id, { won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 });
+    return out.get(id)!;
+  };
+  for (const m of matches) {
+    const h = rec(m.homeTeam.id);
+    const a = rec(m.awayTeam.id);
+    if (!m.matchday || m.matchday > matchday || !isFinished(m)) continue;
+    const hg = m.score.fullTime.home ?? 0;
+    const ag = m.score.fullTime.away ?? 0;
+    h.goalsFor += hg; h.goalsAgainst += ag;
+    a.goalsFor += ag; a.goalsAgainst += hg;
+    if (hg > ag) { h.won++; a.lost++; } else if (hg < ag) { a.won++; h.lost++; } else { h.drawn++; a.drawn++; }
+  }
+  return out;
+}
+
 export interface TrajectoryPoint {
   matchday: number;
   position: number;
