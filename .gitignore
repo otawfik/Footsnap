@@ -30,3 +30,6 @@ server/.env
 .vercel/
 .env*
 .vercel
+
+# downloaded seasons for scripts/model-eval.ts
+.cache/
